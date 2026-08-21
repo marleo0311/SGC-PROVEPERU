@@ -11,5 +11,7 @@ public interface PermisoRepository extends JpaRepository<Permiso, Long> {
 
     List<Permiso> findAllByModuloOrderByCodigoAsc(String modulo);
 
+    List<Permiso> findAllByOrderByModuloAscCodigoAsc();
+
     boolean existsByCodigo(String codigo);
 }
