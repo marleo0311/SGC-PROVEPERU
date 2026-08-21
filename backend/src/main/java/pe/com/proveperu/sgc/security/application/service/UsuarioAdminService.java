@@ -7,7 +7,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import pe.com.proveperu.sgc.security.api.dto.PaginaResponse;
 import pe.com.proveperu.sgc.security.api.dto.UsuarioActualizarRequest;
 import pe.com.proveperu.sgc.security.api.dto.UsuarioCrearRequest;
 import pe.com.proveperu.sgc.security.api.dto.UsuarioResponse;
@@ -20,6 +19,7 @@ import pe.com.proveperu.sgc.security.domain.model.Rol;
 import pe.com.proveperu.sgc.security.domain.model.Usuario;
 import pe.com.proveperu.sgc.security.infrastructure.persistence.RolRepository;
 import pe.com.proveperu.sgc.security.infrastructure.persistence.UsuarioRepository;
+import pe.com.proveperu.sgc.shared.api.dto.PaginaResponse;
 
 @Service
 @RequiredArgsConstructor

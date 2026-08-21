@@ -1,4 +1,4 @@
-package pe.com.proveperu.sgc.security.api.dto;
+package pe.com.proveperu.sgc.shared.api.dto;
 
 import java.util.List;
 import org.springframework.data.domain.Page;

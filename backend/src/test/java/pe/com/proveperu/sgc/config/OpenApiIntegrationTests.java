@@ -37,7 +37,10 @@ class OpenApiIntegrationTests {
             .andExpect(jsonPath("$.paths['/api/v1/permisos'].get.security").exists())
             .andExpect(jsonPath("$.paths['/api/v1/categorias'].get.security").exists())
             .andExpect(jsonPath("$.paths['/api/v1/marcas'].get.security").exists())
-            .andExpect(jsonPath("$.paths['/api/v1/unidades-medida'].get.security").exists());
+            .andExpect(jsonPath("$.paths['/api/v1/unidades-medida'].get.security").exists())
+            .andExpect(jsonPath("$.paths['/api/v1/productos'].get.security").exists())
+            .andExpect(jsonPath("$.paths['/api/v1/productos/{idProducto}/conversiones'].get.security").exists())
+            .andExpect(jsonPath("$.paths['/api/v1/productos/{idProducto}/precios'].get.security").exists());
     }
 
     @Test

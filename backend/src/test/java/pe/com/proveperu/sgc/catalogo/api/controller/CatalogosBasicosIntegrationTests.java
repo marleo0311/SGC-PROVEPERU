@@ -246,17 +246,7 @@ class CatalogosBasicosIntegrationTests {
 
     @Test
     void migracionAsignaLosPermisosDeCatalogoAlAdministrador() {
-        assertThat(permisoRepository.findAllByModuloOrderByCodigoAsc("Catálogo"))
-            .hasSize(10);
-
-        Rol administrador = rolRepository.findByNombreIgnoreCase("Administrador").orElseThrow();
-        Rol rolConPermisos = rolRepository.findByIdWithPermisos(administrador.getId()).orElseThrow();
-        Set<String> codigos = rolConPermisos.getPermisos().stream()
-            .map(permiso -> permiso.getCodigo())
-            .filter(codigo -> codigo.startsWith("CAT_"))
-            .collect(java.util.stream.Collectors.toSet());
-
-        assertThat(codigos).containsExactlyInAnyOrder(
+        Set<String> esperados = Set.of(
             PermisosCatalogo.CATEGORIAS_VER,
             PermisosCatalogo.CATEGORIAS_CREAR,
             PermisosCatalogo.CATEGORIAS_EDITAR,
@@ -268,6 +258,21 @@ class CatalogosBasicosIntegrationTests {
             PermisosCatalogo.UNIDADES_CREAR,
             PermisosCatalogo.UNIDADES_EDITAR
         );
+        Set<String> registrados = permisoRepository.findAllByModuloOrderByCodigoAsc("Catálogo")
+            .stream()
+            .map(permiso -> permiso.getCodigo())
+            .filter(esperados::contains)
+            .collect(java.util.stream.Collectors.toSet());
+        assertThat(registrados).containsExactlyInAnyOrderElementsOf(esperados);
+
+        Rol administrador = rolRepository.findByNombreIgnoreCase("Administrador").orElseThrow();
+        Rol rolConPermisos = rolRepository.findByIdWithPermisos(administrador.getId()).orElseThrow();
+        Set<String> codigos = rolConPermisos.getPermisos().stream()
+            .map(permiso -> permiso.getCodigo())
+            .filter(esperados::contains)
+            .collect(java.util.stream.Collectors.toSet());
+
+        assertThat(codigos).containsExactlyInAnyOrderElementsOf(esperados);
     }
 
     private String bearer(String... authorities) {

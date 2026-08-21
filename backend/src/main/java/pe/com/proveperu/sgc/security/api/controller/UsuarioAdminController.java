@@ -24,7 +24,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import pe.com.proveperu.sgc.security.api.dto.PaginaResponse;
 import pe.com.proveperu.sgc.security.api.dto.UsuarioActualizarRequest;
 import pe.com.proveperu.sgc.security.api.dto.UsuarioCrearRequest;
 import pe.com.proveperu.sgc.security.api.dto.UsuarioEstadoRequest;
@@ -32,6 +31,7 @@ import pe.com.proveperu.sgc.security.api.dto.UsuarioPasswordRequest;
 import pe.com.proveperu.sgc.security.api.dto.UsuarioResponse;
 import pe.com.proveperu.sgc.security.application.service.PermisosSeguridad;
 import pe.com.proveperu.sgc.security.application.service.UsuarioAdminService;
+import pe.com.proveperu.sgc.shared.api.dto.PaginaResponse;
 import pe.com.proveperu.sgc.config.OpenApiConfig;
 
 @RestController
