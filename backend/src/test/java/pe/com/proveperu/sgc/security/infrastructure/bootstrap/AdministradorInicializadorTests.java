@@ -55,7 +55,7 @@ class AdministradorInicializadorTests {
 
     @Test
     void creaRolYUsuarioConContrasenaCifrada() {
-        when(usuarioRepository.existsByUsuarioLoginIgnoreCase("admin")).thenReturn(false);
+        when(usuarioRepository.findByUsuarioLoginIgnoreCase("admin")).thenReturn(Optional.empty());
         when(rolRepository.findByNombreIgnoreCase("Administrador")).thenReturn(Optional.empty());
         when(rolRepository.save(any(Rol.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(passwordEncoder.encode("clave-segura-de-prueba")).thenReturn("hash-bcrypt");
@@ -74,7 +74,10 @@ class AdministradorInicializadorTests {
 
     @Test
     void noReemplazaUnAdministradorExistente() {
-        when(usuarioRepository.existsByUsuarioLoginIgnoreCase("admin")).thenReturn(true);
+        Usuario existente = new Usuario();
+        existente.setPasswordHash("hash-existente");
+        when(usuarioRepository.findByUsuarioLoginIgnoreCase("admin"))
+            .thenReturn(Optional.of(existente));
 
         inicializador.run(new DefaultApplicationArguments());
 
@@ -84,9 +87,25 @@ class AdministradorInicializadorTests {
     }
 
     @Test
+    void restableceLaContrasenaSoloCuandoLaBanderaEstaActiva() {
+        properties.setResetPassword(true);
+        Usuario existente = new Usuario();
+        existente.setPasswordHash("hash-existente");
+        when(usuarioRepository.findByUsuarioLoginIgnoreCase("admin"))
+            .thenReturn(Optional.of(existente));
+        when(passwordEncoder.encode("clave-segura-de-prueba")).thenReturn("hash-nuevo");
+
+        inicializador.run(new DefaultApplicationArguments());
+
+        assertThat(existente.getPasswordHash()).isEqualTo("hash-nuevo");
+        verify(usuarioRepository).save(existente);
+        verify(rolRepository, never()).save(any());
+    }
+
+    @Test
     void rechazaUnaContrasenaCorta() {
         properties.setPassword("corta");
-        when(usuarioRepository.existsByUsuarioLoginIgnoreCase("admin")).thenReturn(false);
+        when(usuarioRepository.findByUsuarioLoginIgnoreCase("admin")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> inicializador.run(new DefaultApplicationArguments()))
             .isInstanceOf(IllegalStateException.class)

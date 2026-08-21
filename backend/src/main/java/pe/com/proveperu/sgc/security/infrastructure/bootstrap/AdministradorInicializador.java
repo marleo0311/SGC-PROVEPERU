@@ -1,6 +1,7 @@
 package pe.com.proveperu.sgc.security.infrastructure.bootstrap;
 
 import java.util.Locale;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
@@ -37,12 +38,23 @@ public class AdministradorInicializador implements ApplicationRunner {
         validarDatosNoSensibles();
 
         String loginNormalizado = properties.getLogin().trim().toLowerCase(Locale.ROOT);
-        if (usuarioRepository.existsByUsuarioLoginIgnoreCase(loginNormalizado)) {
+        Optional<Usuario> usuarioExistente =
+            usuarioRepository.findByUsuarioLoginIgnoreCase(loginNormalizado);
+
+        if (usuarioExistente.isPresent() && !properties.isResetPassword()) {
             log.info("El usuario administrador inicial ya existe; no se realizaron cambios");
             return;
         }
 
         validarContrasena();
+
+        if (usuarioExistente.isPresent()) {
+            Usuario administrador = usuarioExistente.get();
+            administrador.setPasswordHash(passwordEncoder.encode(properties.getPassword()));
+            usuarioRepository.save(administrador);
+            log.info("Contraseña del administrador restablecida correctamente");
+            return;
+        }
 
         Rol rolAdministrador = rolRepository
             .findByNombreIgnoreCase(NOMBRE_ROL_ADMINISTRADOR)

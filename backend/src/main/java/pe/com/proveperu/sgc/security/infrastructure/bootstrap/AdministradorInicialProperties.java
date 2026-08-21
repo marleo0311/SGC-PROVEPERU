@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component;
 public class AdministradorInicialProperties {
 
     private boolean enabled;
+    private boolean resetPassword;
     private String login;
     private String password;
     private String nombreCompleto = "Administrador del sistema";

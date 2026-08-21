@@ -1,8 +1,6 @@
 package pe.com.proveperu.sgc.security.application.service;
 
-import java.text.Normalizer;
 import java.util.LinkedHashSet;
-import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -37,7 +35,7 @@ public class UsuarioUserDetailsService implements UserDetailsService {
             .collect(Collectors.toCollection(LinkedHashSet::new));
 
         autoridades.add(new SimpleGrantedAuthority(
-            "ROLE_" + normalizarNombreRol(usuario.getRol().getNombre())
+            "ROLE_" + RolAuthorityMapper.normalizar(usuario.getRol().getNombre())
         ));
 
         return User.withUsername(usuario.getUsuarioLogin())
@@ -45,15 +43,5 @@ public class UsuarioUserDetailsService implements UserDetailsService {
             .authorities(autoridades)
             .disabled(usuario.getEstado() != EstadoUsuario.ACTIVO)
             .build();
-    }
-
-    private String normalizarNombreRol(String nombre) {
-        String sinAcentos = Normalizer.normalize(nombre, Normalizer.Form.NFD)
-            .replaceAll("\\p{M}", "");
-
-        return sinAcentos.trim()
-            .toUpperCase(Locale.ROOT)
-            .replaceAll("[^A-Z0-9]+", "_")
-            .replaceAll("^_+|_+$", "");
     }
 }
