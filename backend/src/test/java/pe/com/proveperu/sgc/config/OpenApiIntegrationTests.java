@@ -1,0 +1,50 @@
+package pe.com.proveperu.sgc.config;
+
+import static org.hamcrest.Matchers.containsString;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.test.web.servlet.MockMvc;
+
+@SpringBootTest(properties =
+    "app.security.jwt.secret=MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=")
+@AutoConfigureMockMvc
+class OpenApiIntegrationTests {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Test
+    void especificacionOpenApiEsPublicaYContieneLosEndpoints() throws Exception {
+        mockMvc.perform(get("/v3/api-docs"))
+            .andExpect(status().isOk())
+            .andExpect(content().contentTypeCompatibleWith("application/json"))
+            .andExpect(jsonPath("$.openapi").value("3.0.1"))
+            .andExpect(jsonPath("$.info.title").value("SGC PROVEPERU API"))
+            .andExpect(jsonPath("$.info.version").value("v1"))
+            .andExpect(jsonPath("$.components.securitySchemes.bearerAuth.scheme").value("bearer"))
+            .andExpect(jsonPath("$.paths['/api/v1/auth/login'].post").exists())
+            .andExpect(jsonPath("$.paths['/api/v1/auth/me'].get.security").exists())
+            .andExpect(jsonPath("$.paths['/api/v1/usuarios'].get.security").exists())
+            .andExpect(jsonPath("$.paths['/api/v1/roles'].get.security").exists())
+            .andExpect(jsonPath("$.paths['/api/v1/permisos'].get.security").exists());
+    }
+
+    @Test
+    void interfazSwaggerEsPublica() throws Exception {
+        mockMvc.perform(get("/swagger-ui.html"))
+            .andExpect(status().is3xxRedirection())
+            .andExpect(redirectedUrl("/swagger-ui/index.html"));
+
+        mockMvc.perform(get("/swagger-ui/index.html"))
+            .andExpect(status().isOk())
+            .andExpect(content().string(containsString("Swagger UI")));
+    }
+}

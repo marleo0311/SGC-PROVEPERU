@@ -1,5 +1,8 @@
 package pe.com.proveperu.sgc.security.api.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -29,17 +32,21 @@ import pe.com.proveperu.sgc.security.api.dto.UsuarioPasswordRequest;
 import pe.com.proveperu.sgc.security.api.dto.UsuarioResponse;
 import pe.com.proveperu.sgc.security.application.service.PermisosSeguridad;
 import pe.com.proveperu.sgc.security.application.service.UsuarioAdminService;
+import pe.com.proveperu.sgc.config.OpenApiConfig;
 
 @RestController
 @RequestMapping("/api/v1/usuarios")
 @RequiredArgsConstructor
 @Validated
+@Tag(name = "Usuarios", description = "Administración de cuentas de usuario")
+@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH)
 public class UsuarioAdminController {
 
     private final UsuarioAdminService usuarioAdminService;
 
     @GetMapping
     @PreAuthorize("hasAuthority('" + PermisosSeguridad.USUARIOS_VER + "')")
+    @Operation(summary = "Listar y buscar usuarios")
     public PaginaResponse<UsuarioResponse> listar(
         @RequestParam(defaultValue = "") String buscar,
         @RequestParam(defaultValue = "0") @Min(0) int pagina,
@@ -55,12 +62,14 @@ public class UsuarioAdminController {
 
     @GetMapping("/{id}")
     @PreAuthorize("hasAuthority('" + PermisosSeguridad.USUARIOS_VER + "')")
+    @Operation(summary = "Consultar un usuario")
     public UsuarioResponse obtener(@PathVariable Long id) {
         return usuarioAdminService.obtener(id);
     }
 
     @PostMapping
     @PreAuthorize("hasAuthority('" + PermisosSeguridad.USUARIOS_CREAR + "')")
+    @Operation(summary = "Crear un usuario")
     public ResponseEntity<UsuarioResponse> crear(@Valid @RequestBody UsuarioCrearRequest request) {
         UsuarioResponse usuario = usuarioAdminService.crear(request);
         return ResponseEntity.created(URI.create("/api/v1/usuarios/" + usuario.id())).body(usuario);
@@ -68,6 +77,7 @@ public class UsuarioAdminController {
 
     @PutMapping("/{id}")
     @PreAuthorize("hasAuthority('" + PermisosSeguridad.USUARIOS_EDITAR + "')")
+    @Operation(summary = "Actualizar los datos permitidos de un usuario")
     public UsuarioResponse actualizar(
         @PathVariable Long id,
         @Valid @RequestBody UsuarioActualizarRequest request
@@ -77,6 +87,7 @@ public class UsuarioAdminController {
 
     @PatchMapping("/{id}/estado")
     @PreAuthorize("hasAuthority('" + PermisosSeguridad.USUARIOS_ESTADO + "')")
+    @Operation(summary = "Activar o suspender un usuario")
     public UsuarioResponse cambiarEstado(
         @PathVariable Long id,
         @Valid @RequestBody UsuarioEstadoRequest request,
@@ -87,6 +98,7 @@ public class UsuarioAdminController {
 
     @PatchMapping("/{id}/password")
     @PreAuthorize("hasAuthority('" + PermisosSeguridad.USUARIOS_PASSWORD + "')")
+    @Operation(summary = "Restablecer la contraseña de un usuario")
     public ResponseEntity<Void> cambiarPassword(
         @PathVariable Long id,
         @Valid @RequestBody UsuarioPasswordRequest request
