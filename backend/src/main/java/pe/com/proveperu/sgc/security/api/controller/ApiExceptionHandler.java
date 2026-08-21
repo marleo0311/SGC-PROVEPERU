@@ -14,6 +14,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import pe.com.proveperu.sgc.security.application.exception.ConflictoNegocioException;
 import pe.com.proveperu.sgc.security.application.exception.OperacionNoPermitidaException;
 import pe.com.proveperu.sgc.security.application.exception.RecursoNoEncontradoException;
+import pe.com.proveperu.sgc.shared.application.exception.ReglaNegocioException;
+import pe.com.proveperu.sgc.shared.application.exception.SolicitudInvalidaException;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
@@ -35,6 +37,20 @@ public class ApiExceptionHandler {
             "Conflicto de datos",
             "La operación entra en conflicto con datos existentes"
         );
+    }
+
+    @ExceptionHandler(ReglaNegocioException.class)
+    ProblemDetail reglaNegocio(ReglaNegocioException exception) {
+        return crearProblema(
+            HttpStatus.UNPROCESSABLE_ENTITY,
+            "Regla de negocio",
+            exception.getMessage()
+        );
+    }
+
+    @ExceptionHandler(SolicitudInvalidaException.class)
+    ProblemDetail solicitudInvalida(SolicitudInvalidaException exception) {
+        return crearProblema(HttpStatus.BAD_REQUEST, "Solicitud inválida", exception.getMessage());
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
