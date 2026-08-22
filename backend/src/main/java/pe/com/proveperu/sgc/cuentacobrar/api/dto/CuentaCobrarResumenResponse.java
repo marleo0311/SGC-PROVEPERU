@@ -38,7 +38,7 @@ public record CuentaCobrarResumenResponse(
             nombreCliente(cliente),
             venta.getFechaHora(),
             venta.getTipoComprobante(),
-            "NV-%08d".formatted(venta.getId()),
+            venta.getNumeroComprobante(),
             venta.getCondicionPago(),
             cuenta.getTotal(),
             cuenta.getImportePagado(),

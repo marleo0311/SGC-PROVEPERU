@@ -53,7 +53,7 @@ public record VentaResumenResponse(
             venta.getTipoVenta(),
             venta.getCondicionPago(),
             venta.getTipoComprobante(),
-            "NV-%08d".formatted(venta.getId()),
+            venta.getNumeroComprobante(),
             venta.getSubtotal(),
             venta.getIgv(),
             venta.getDescuentoTotal(),

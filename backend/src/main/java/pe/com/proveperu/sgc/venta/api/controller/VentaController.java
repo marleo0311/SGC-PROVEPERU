@@ -28,7 +28,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import pe.com.proveperu.sgc.config.OpenApiConfig;
 import pe.com.proveperu.sgc.shared.api.dto.PaginaResponse;
-import pe.com.proveperu.sgc.venta.api.dto.ComprobanteVentaResponse;
 import pe.com.proveperu.sgc.venta.api.dto.MetodoPagoVentaResponse;
 import pe.com.proveperu.sgc.venta.api.dto.VentaAnularRequest;
 import pe.com.proveperu.sgc.venta.api.dto.VentaCrearRequest;
@@ -119,18 +118,6 @@ public class VentaController {
         @AuthenticationPrincipal Jwt jwt
     ) {
         return ventaService.anular(id, request, jwt.getSubject());
-    }
-
-    @GetMapping("/{id}/comprobante")
-    @PreAuthorize("hasAuthority('" + PermisosVenta.COMPROBANTES_VER + "')")
-    @Operation(
-        summary = "Consultar la nota de venta interna",
-        description = "No representa todavía un comprobante electrónico emitido ante SUNAT"
-    )
-    public ComprobanteVentaResponse obtenerComprobante(
-        @PathVariable @Positive Long id
-    ) {
-        return ventaService.obtenerComprobante(id);
     }
 
     @GetMapping("/metodos-pago")

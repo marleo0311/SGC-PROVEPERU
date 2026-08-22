@@ -24,7 +24,8 @@ public interface VentaRepository
         "detalles.producto",
         "detalles.producto.unidadBase",
         "detalles.unidadMedida",
-        "cuentaCobrar"
+        "cuentaCobrar",
+        "comprobante"
     })
     @Query("select distinct v from Venta v where v.id = :id")
     Optional<Venta> findDetalleById(@Param("id") Long id);

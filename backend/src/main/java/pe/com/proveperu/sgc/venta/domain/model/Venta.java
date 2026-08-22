@@ -24,6 +24,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import pe.com.proveperu.sgc.cliente.domain.model.Cliente;
+import pe.com.proveperu.sgc.comprobante.domain.model.Comprobante;
 import pe.com.proveperu.sgc.inventario.domain.model.Sede;
 import pe.com.proveperu.sgc.pedido.domain.model.Pedido;
 import pe.com.proveperu.sgc.security.domain.model.Usuario;
@@ -100,9 +101,18 @@ public class Venta {
     @OneToOne(mappedBy = "venta", fetch = FetchType.LAZY)
     private CuentaCobrar cuentaCobrar;
 
+    @OneToOne(mappedBy = "venta", fetch = FetchType.LAZY)
+    private Comprobante comprobante;
+
     public void agregarDetalle(DetalleVenta detalle) {
         detalle.setVenta(this);
         detalles.add(detalle);
+    }
+
+    public String getNumeroComprobante() {
+        return comprobante == null
+            ? "NV-%08d".formatted(id)
+            : comprobante.getNumeroCompleto();
     }
 
     @PrePersist

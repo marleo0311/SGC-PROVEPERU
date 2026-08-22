@@ -18,7 +18,9 @@ public interface DevolucionRepository
         JpaSpecificationExecutor<Devolucion> {
 
     @Override
-    @EntityGraph(attributePaths = {"venta", "venta.cliente", "usuario"})
+    @EntityGraph(attributePaths = {
+        "venta", "venta.cliente", "venta.comprobante", "usuario"
+    })
     Page<Devolucion> findAll(
         Specification<Devolucion> specification,
         Pageable pageable
@@ -29,6 +31,7 @@ public interface DevolucionRepository
         "venta.cliente",
         "venta.vendedor",
         "venta.sede",
+        "venta.comprobante",
         "usuario",
         "detalles",
         "detalles.detalleVenta",

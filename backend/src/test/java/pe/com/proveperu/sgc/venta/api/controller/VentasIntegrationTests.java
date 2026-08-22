@@ -53,6 +53,8 @@ import pe.com.proveperu.sgc.cliente.domain.model.Cliente;
 import pe.com.proveperu.sgc.cliente.domain.model.TipoDocumentoCliente;
 import pe.com.proveperu.sgc.cliente.domain.model.TipoPersona;
 import pe.com.proveperu.sgc.cliente.infrastructure.persistence.ClienteRepository;
+import pe.com.proveperu.sgc.comprobante.domain.model.EstadoComprobante;
+import pe.com.proveperu.sgc.comprobante.infrastructure.persistence.ComprobanteRepository;
 import pe.com.proveperu.sgc.configuracion.domain.model.MetodoPago;
 import pe.com.proveperu.sgc.configuracion.infrastructure.persistence.MetodoPagoRepository;
 import pe.com.proveperu.sgc.inventario.application.service.InventarioService;
@@ -139,6 +141,9 @@ class VentasIntegrationTests {
 
     @Autowired
     private VentaRepository ventaRepository;
+
+    @Autowired
+    private ComprobanteRepository comprobanteRepository;
 
     @Autowired
     private CuentaCobrarRepository cuentaRepository;
@@ -459,6 +464,8 @@ class VentasIntegrationTests {
             .isEqualByComparingTo("20.000");
         assertThat(ventaRepository.findById(idVenta).orElseThrow().getEstado())
             .isEqualTo(EstadoVenta.ANULADA);
+        assertThat(comprobanteRepository.findByVentaId(idVenta).orElseThrow()
+            .getEstado()).isEqualTo(EstadoComprobante.ANULADO);
         assertThat(movimientosVenta(idVenta).stream()
             .map(MovimientoInventario::getTipoMovimiento))
             .containsExactlyInAnyOrder(
@@ -512,15 +519,55 @@ class VentasIntegrationTests {
         ).andExpect(status().isCreated()).andReturn();
         long idVenta = idVenta(resultado);
 
-        mockMvc.perform(get("/api/v1/ventas/{id}/comprobante", idVenta)
+        MvcResult comprobanteResult = mockMvc.perform(get(
+                "/api/v1/ventas/{id}/comprobante",
+                idVenta
+            )
                 .header(HttpHeaders.AUTHORIZATION, bearer(
                     PermisosVenta.COMPROBANTES_VER
                 )))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.tipo").value("NOTA_VENTA"))
-            .andExpect(jsonPath("$.numero").value("NV-%08d".formatted(idVenta)))
+            .andExpect(jsonPath("$.serie").value("NV01"))
+            .andExpect(jsonPath("$.numero").value(
+                org.hamcrest.Matchers.matchesPattern("[0-9]{8,}")
+            ))
+            .andExpect(jsonPath("$.numeroCompleto").value(
+                org.hamcrest.Matchers.startsWith("NV01-")
+            ))
+            .andExpect(jsonPath("$.estado").value("EMITIDO"))
             .andExpect(jsonPath("$.items[0].codigoProducto")
-                .value(producto.getCodigoInterno()));
+                .value(producto.getCodigoInterno()))
+            .andReturn();
+        long idComprobante = ((Number) JsonPath.read(
+            comprobanteResult.getResponse().getContentAsString(),
+            "$.id"
+        )).longValue();
+
+        mockMvc.perform(get("/api/v1/comprobantes/{id}", idComprobante)
+                .header(HttpHeaders.AUTHORIZATION, bearer(
+                    PermisosVenta.COMPROBANTES_VER
+                )))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.idVenta").value(idVenta))
+            .andExpect(jsonPath("$.numeroCompleto").value(
+                org.hamcrest.Matchers.startsWith("NV01-")
+            ));
+
+        mockMvc.perform(get(
+                "/api/v1/comprobantes/{id}/representacion",
+                idComprobante
+            )
+                .header(HttpHeaders.AUTHORIZATION, bearer(
+                    PermisosVenta.COMPROBANTES_VER
+                )))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.titulo").value("NOTA DE VENTA"))
+            .andExpect(jsonPath("$.moneda").value("PEN"))
+            .andExpect(jsonPath("$.emisor.ruc").value("20612296911"))
+            .andExpect(jsonPath("$.cliente.numeroDocumento")
+                .value(cliente.getNumeroDocumento()))
+            .andExpect(jsonPath("$.comprobante.id").value(idComprobante));
 
         mockMvc.perform(get("/api/v1/ventas")
                 .header(HttpHeaders.AUTHORIZATION, bearer("INV_STOCK_VER")))
@@ -534,7 +581,6 @@ class VentasIntegrationTests {
             PermisosVenta.VENTAS_VER,
             PermisosVenta.VENTAS_CREAR,
             PermisosVenta.VENTAS_ANULAR,
-            PermisosVenta.COMPROBANTES_VER,
             PermisosVenta.DESCUENTOS_APLICAR
         );
         Set<String> registrados = permisoRepository
@@ -544,15 +590,163 @@ class VentasIntegrationTests {
             .collect(Collectors.toSet());
         assertThat(registrados).containsExactlyInAnyOrderElementsOf(esperados);
 
+        Set<String> esperadosComprobantes = Set.of(
+            PermisosVenta.COMPROBANTES_VER,
+            PermisosVenta.COMPROBANTES_ANULAR
+        );
+        Set<String> registradosComprobantes = permisoRepository
+            .findAllByModuloOrderByCodigoAsc("Comprobantes")
+            .stream()
+            .map(permiso -> permiso.getCodigo())
+            .collect(Collectors.toSet());
+        assertThat(registradosComprobantes)
+            .containsExactlyInAnyOrderElementsOf(esperadosComprobantes);
+
         Rol administrador = rolRepository.findByNombreIgnoreCase("Administrador")
             .orElseThrow();
         Set<String> asignados = rolRepository.findByIdWithPermisos(administrador.getId())
             .orElseThrow()
             .getPermisos().stream()
             .map(permiso -> permiso.getCodigo())
-            .filter(esperados::contains)
+            .filter(codigo -> esperados.contains(codigo)
+                || esperadosComprobantes.contains(codigo))
             .collect(Collectors.toSet());
-        assertThat(asignados).containsExactlyInAnyOrderElementsOf(esperados);
+        assertThat(asignados).containsExactlyInAnyOrderElementsOf(
+            java.util.stream.Stream.concat(
+                esperados.stream(),
+                esperadosComprobantes.stream()
+            ).collect(Collectors.toSet())
+        );
+    }
+
+    @Test
+    void emiteBoletaYFacturaConCorrelativosIndependientes() throws Exception {
+        String boleta = cuerpoVentaDirecta(
+            "CONTADO",
+            "\"idMetodoPago\": %d,".formatted(efectivo.getId()),
+            "",
+            "25.00",
+            "0.00"
+        ).replace("\"NOTA_VENTA\"", "\"BOLETA\"");
+        MvcResult ventaBoleta = mockMvc.perform(post("/api/v1/ventas")
+                .header(HttpHeaders.AUTHORIZATION, bearer(
+                    PermisosVenta.VENTAS_CREAR
+                ))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(boleta))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.venta.tipoComprobante").value("BOLETA"))
+            .andExpect(jsonPath("$.venta.numeroComprobante").value(
+                org.hamcrest.Matchers.startsWith("B001-")
+            ))
+            .andReturn();
+        mockMvc.perform(get(
+                "/api/v1/ventas/{id}/comprobante",
+                idVenta(ventaBoleta)
+            )
+                .header(HttpHeaders.AUTHORIZATION, bearer(
+                    PermisosVenta.COMPROBANTES_VER
+                )))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.serie").value("B001"));
+
+        Cliente empresa = new Cliente();
+        empresa.setTipoPersona(TipoPersona.JURIDICA);
+        empresa.setTipoDocumento(TipoDocumentoCliente.RUC);
+        empresa.setNumeroDocumento(nuevoRuc());
+        empresa.setRazonSocial("Cliente Factura " + UUID.randomUUID());
+        empresa.setEstado(EstadoCatalogo.ACTIVO);
+        cliente = clienteRepository.saveAndFlush(empresa);
+        String factura = cuerpoVentaDirecta(
+            "CONTADO",
+            "\"idMetodoPago\": %d,".formatted(efectivo.getId()),
+            "",
+            "25.00",
+            "0.00"
+        ).replace("\"NOTA_VENTA\"", "\"FACTURA\"");
+        MvcResult ventaFactura = mockMvc.perform(post("/api/v1/ventas")
+                .header(HttpHeaders.AUTHORIZATION, bearer(
+                    PermisosVenta.VENTAS_CREAR
+                ))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(factura))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.venta.tipoComprobante").value("FACTURA"))
+            .andExpect(jsonPath("$.venta.numeroComprobante").value(
+                org.hamcrest.Matchers.startsWith("F001-")
+            ))
+            .andReturn();
+        mockMvc.perform(get(
+                "/api/v1/ventas/{id}/comprobante",
+                idVenta(ventaFactura)
+            )
+                .header(HttpHeaders.AUTHORIZATION, bearer(
+                    PermisosVenta.COMPROBANTES_VER
+                )))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.serie").value("F001"));
+    }
+
+    @Test
+    void rechazaFacturaSinClienteRucYRevierteTodaLaVenta() throws Exception {
+        long ventasAntes = ventaRepository.count();
+        long comprobantesAntes = comprobanteRepository.count();
+        String factura = cuerpoVentaDirecta(
+            "CONTADO",
+            "\"idMetodoPago\": %d,".formatted(efectivo.getId()),
+            "",
+            "25.00",
+            "0.00"
+        ).replace("\"NOTA_VENTA\"", "\"FACTURA\"");
+
+        mockMvc.perform(post("/api/v1/ventas")
+                .header(HttpHeaders.AUTHORIZATION, bearer(
+                    PermisosVenta.VENTAS_CREAR
+                ))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(factura))
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.detail").value(
+                "Una factura requiere un cliente identificado con RUC"
+            ));
+
+        assertThat(ventaRepository.count()).isEqualTo(ventasAntes);
+        assertThat(comprobanteRepository.count()).isEqualTo(comprobantesAntes);
+        assertThat(inventarioActual().getStockFisico())
+            .isEqualByComparingTo("20.000");
+    }
+
+    @Test
+    void anulaComprobanteYVentaConTrazabilidad() throws Exception {
+        MvcResult ventaResult = crearVentaDirecta(
+            "CONTADO",
+            "\"idMetodoPago\": %d,".formatted(efectivo.getId()),
+            "",
+            PermisosVenta.VENTAS_CREAR
+        ).andExpect(status().isCreated()).andReturn();
+        long idVenta = idVenta(ventaResult);
+        long idComprobante = comprobanteRepository.findByVentaId(idVenta)
+            .orElseThrow()
+            .getId();
+
+        mockMvc.perform(post("/api/v1/comprobantes/{id}/anular", idComprobante)
+                .header(HttpHeaders.AUTHORIZATION, bearer(
+                    PermisosVenta.COMPROBANTES_ANULAR
+                ))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"motivo\":\"Comprobante emitido por error\"}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.estado").value("ANULADO"))
+            .andExpect(jsonPath("$.motivoAnulacion")
+                .value("Comprobante emitido por error"))
+            .andExpect(jsonPath("$.usuarioAnulacion")
+                .value(usuario.getUsuarioLogin()))
+            .andExpect(jsonPath("$.venta.estado").value("ANULADA"));
+
+        assertThat(inventarioActual().getStockFisico())
+            .isEqualByComparingTo("20.000");
+        assertThat(ventaRepository.findById(idVenta).orElseThrow().getEstado())
+            .isEqualTo(EstadoVenta.ANULADA);
     }
 
     private org.springframework.test.web.servlet.ResultActions crearVentaDirecta(
@@ -677,6 +871,13 @@ class VentasIntegrationTests {
         return Integer.toString(ThreadLocalRandom.current().nextInt(
             10_000_000,
             100_000_000
+        ));
+    }
+
+    private String nuevoRuc() {
+        return Long.toString(ThreadLocalRandom.current().nextLong(
+            10_000_000_000L,
+            100_000_000_000L
         ));
     }
 

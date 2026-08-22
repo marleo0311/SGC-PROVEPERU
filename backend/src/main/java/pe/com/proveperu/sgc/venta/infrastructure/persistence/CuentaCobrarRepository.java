@@ -23,7 +23,8 @@ public interface CuentaCobrarRepository
         "venta.cliente",
         "venta.vendedor",
         "venta.pedido",
-        "venta.sede"
+        "venta.sede",
+        "venta.comprobante"
     })
     Optional<CuentaCobrar> findByVentaId(Long idVenta);
 
@@ -32,7 +33,8 @@ public interface CuentaCobrarRepository
         "venta.cliente",
         "venta.vendedor",
         "venta.pedido",
-        "venta.sede"
+        "venta.sede",
+        "venta.comprobante"
     })
     @Query("select cc from CuentaCobrar cc where cc.id = :id")
     Optional<CuentaCobrar> findDetalleById(@Param("id") Long id);
@@ -43,7 +45,8 @@ public interface CuentaCobrarRepository
         "venta.cliente",
         "venta.vendedor",
         "venta.pedido",
-        "venta.sede"
+        "venta.sede",
+        "venta.comprobante"
     })
     @Query("select cc from CuentaCobrar cc where cc.id = :id")
     Optional<CuentaCobrar> findForUpdate(@Param("id") Long id);
@@ -54,7 +57,8 @@ public interface CuentaCobrarRepository
         "venta.cliente",
         "venta.vendedor",
         "venta.pedido",
-        "venta.sede"
+        "venta.sede",
+        "venta.comprobante"
     })
     @Query("select cc from CuentaCobrar cc where cc.venta.id = :idVenta")
     Optional<CuentaCobrar> findByVentaIdForUpdate(

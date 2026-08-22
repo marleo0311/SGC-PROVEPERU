@@ -36,7 +36,7 @@ public record DevolucionResumenResponse(
         return new DevolucionResumenResponse(
             devolucion.getId(),
             idVenta,
-            "NV-%08d".formatted(idVenta),
+            devolucion.getVenta().getNumeroComprobante(),
             idCliente,
             cliente,
             devolucion.getUsuario().getId(),

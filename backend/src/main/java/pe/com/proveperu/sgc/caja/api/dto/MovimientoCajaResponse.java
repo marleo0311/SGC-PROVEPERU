@@ -32,7 +32,7 @@ public record MovimientoCajaResponse(
             : movimiento.getVenta().getId();
         String numeroComprobante = idVenta == null
             ? null
-            : "NV-%08d".formatted(idVenta);
+            : movimiento.getVenta().getNumeroComprobante();
         Long idVendedor = movimiento.getVendedor() == null
             ? null
             : movimiento.getVendedor().getId();

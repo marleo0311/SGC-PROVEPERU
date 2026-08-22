@@ -15,7 +15,7 @@ public interface MovimientoCajaRepository
 
     @Override
     @EntityGraph(attributePaths = {
-        "sesion", "metodoPago", "usuario", "venta", "vendedor"
+        "sesion", "metodoPago", "usuario", "venta", "venta.comprobante", "vendedor"
     })
     Page<MovimientoCaja> findAll(
         Specification<MovimientoCaja> specification,
@@ -23,7 +23,7 @@ public interface MovimientoCajaRepository
     );
 
     @EntityGraph(attributePaths = {
-        "sesion", "metodoPago", "usuario", "venta", "vendedor"
+        "sesion", "metodoPago", "usuario", "venta", "venta.comprobante", "vendedor"
     })
     List<MovimientoCaja> findAllBySesionIdOrderByFechaHoraAscIdAsc(Long idSesion);
 }

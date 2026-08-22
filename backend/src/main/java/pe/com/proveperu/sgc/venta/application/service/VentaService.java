@@ -32,6 +32,7 @@ import pe.com.proveperu.sgc.cliente.domain.model.Cliente;
 import pe.com.proveperu.sgc.cliente.domain.model.ClientePrecioEspecial;
 import pe.com.proveperu.sgc.cliente.infrastructure.persistence.ClientePrecioEspecialRepository;
 import pe.com.proveperu.sgc.cliente.infrastructure.persistence.ClienteRepository;
+import pe.com.proveperu.sgc.comprobante.application.service.ComprobanteService;
 import pe.com.proveperu.sgc.configuracion.domain.model.MetodoPago;
 import pe.com.proveperu.sgc.configuracion.infrastructure.persistence.MetodoPagoRepository;
 import pe.com.proveperu.sgc.inventario.application.service.InventarioService;
@@ -51,7 +52,6 @@ import pe.com.proveperu.sgc.security.domain.model.Usuario;
 import pe.com.proveperu.sgc.security.infrastructure.persistence.UsuarioRepository;
 import pe.com.proveperu.sgc.shared.api.dto.PaginaResponse;
 import pe.com.proveperu.sgc.shared.application.exception.SolicitudInvalidaException;
-import pe.com.proveperu.sgc.venta.api.dto.ComprobanteVentaResponse;
 import pe.com.proveperu.sgc.venta.api.dto.CuentaCobrarVentaResponse;
 import pe.com.proveperu.sgc.venta.api.dto.MetodoPagoVentaResponse;
 import pe.com.proveperu.sgc.venta.api.dto.PagoClienteResponse;
@@ -105,6 +105,7 @@ public class VentaService {
     private final SedeRepository sedeRepository;
     private final InventarioService inventarioService;
     private final CajaService cajaService;
+    private final ComprobanteService comprobanteService;
 
     @Transactional
     public PaginaResponse<VentaResumenResponse> listar(
@@ -148,6 +149,7 @@ public class VentaService {
         if (pedido == null) {
             prepararVentaDirecta(venta, request, puedeAplicarDescuento);
         }
+        comprobanteService.validarEmision(venta);
         validarCondicionPago(request, venta);
         venta = ventaRepository.saveAndFlush(venta);
 
@@ -157,6 +159,7 @@ public class VentaService {
             consumirReservas(venta, pedido, vendedor);
         }
         registrarFinanciamientoYPago(venta, request, vendedor);
+        comprobanteService.emitirParaVenta(venta);
         return respuesta(buscarVenta(venta.getId()));
     }
 
@@ -203,19 +206,8 @@ public class VentaService {
         venta.setFechaAnulacion(Instant.now());
         venta.setMotivoAnulacion(request.motivo().strip());
         ventaRepository.saveAndFlush(venta);
+        comprobanteService.anularPorVenta(venta, usuario, request.motivo());
         return respuesta(buscarVenta(id));
-    }
-
-    @Transactional(readOnly = true)
-    public ComprobanteVentaResponse obtenerComprobante(Long id) {
-        VentaResponse response = respuesta(buscarVenta(id));
-        return new ComprobanteVentaResponse(
-            response.venta().tipoComprobante(),
-            response.venta().numeroComprobante(),
-            response.venta().fechaHora(),
-            response.venta(),
-            response.detalles()
-        );
     }
 
     @Transactional(readOnly = true)
