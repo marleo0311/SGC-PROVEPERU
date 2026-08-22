@@ -2,6 +2,8 @@ import type {
   AjusteInventarioRequest,
   AjusteInventarioResponse,
   InventarioFiltros,
+  KardexFiltros,
+  PaginaMovimientos,
   PaginaInventario,
   Sede,
 } from '../types/inventory'
@@ -36,5 +38,22 @@ export async function createInventoryAdjustment(
   request: AjusteInventarioRequest,
 ): Promise<AjusteInventarioResponse> {
   const { data } = await api.post<AjusteInventarioResponse>('/v1/inventario/ajustes', request)
+  return data
+}
+
+export async function listKardex(
+  idProducto: number,
+  filters: KardexFiltros,
+): Promise<PaginaMovimientos> {
+  const { data } = await api.get<PaginaMovimientos>(`/v1/kardex/${idProducto}`, {
+    params: {
+      idSede: filters.idSede || undefined,
+      tipo: filters.tipo || undefined,
+      desde: filters.desde || undefined,
+      hasta: filters.hasta || undefined,
+      page: filters.page,
+      size: filters.size,
+    },
+  })
   return data
 }

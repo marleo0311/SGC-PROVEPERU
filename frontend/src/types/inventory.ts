@@ -2,6 +2,17 @@ import type { Pagina } from './catalog'
 
 export type EstadoStock = 'NORMAL' | 'BAJO' | 'AGOTADO'
 export type TipoAjusteInventario = 'ENTRADA' | 'SALIDA'
+export type TipoMovimientoInventario =
+  | 'INICIAL'
+  | 'COMPRA'
+  | 'VENTA'
+  | 'AJUSTE_ENTRADA'
+  | 'AJUSTE_SALIDA'
+  | 'DEVOLUCION_ENTRADA'
+  | 'DEVOLUCION_SALIDA'
+  | 'RESERVA'
+  | 'LIBERACION_RESERVA'
+  | 'ANULACION_VENTA'
 
 export interface Sede {
   id: number
@@ -36,7 +47,7 @@ export interface MovimientoInventario {
   idProducto: number
   codigoProducto: string
   nombreProducto: string
-  tipoMovimiento: string
+  tipoMovimiento: TipoMovimientoInventario
   cantidad: number
   idUnidadMedida: number
   codigoUnidadMedida: string
@@ -61,6 +72,15 @@ export interface InventarioFiltros {
   size: number
 }
 
+export interface KardexFiltros {
+  idSede: number | ''
+  tipo: TipoMovimientoInventario | ''
+  desde: string
+  hasta: string
+  page: number
+  size: number
+}
+
 export interface AjusteInventarioRequest {
   idSede: number
   idProducto: number
@@ -76,3 +96,4 @@ export interface AjusteInventarioResponse {
 }
 
 export type PaginaInventario = Pagina<StockInventario>
+export type PaginaMovimientos = Pagina<MovimientoInventario>

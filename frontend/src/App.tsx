@@ -3,6 +3,7 @@ import { AppShell } from './layout/AppShell'
 import { CatalogsPage } from './pages/CatalogsPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { InventoryPage } from './pages/InventoryPage'
+import { KardexPage } from './pages/KardexPage'
 import { LoginPage } from './pages/LoginPage'
 import { ModulePage } from './pages/ModulePage'
 import { NotFoundPage } from './pages/NotFoundPage'
@@ -19,6 +20,7 @@ export default function App() {
           <Route path="catalogos" element={<CatalogsPage />} />
           <Route path="productos" element={<ProductsPage />} />
           <Route path="inventario" element={<InventoryPage />} />
+          <Route path="kardex" element={<KardexPage />} />
           <Route path=":module" element={<ModulePage />} />
         </Route>
       </Route>

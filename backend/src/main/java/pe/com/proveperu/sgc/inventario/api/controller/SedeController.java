@@ -24,7 +24,10 @@ public class SedeController {
     private final SedeService sedeService;
 
     @GetMapping
-    @PreAuthorize("hasAuthority('" + PermisosInventario.STOCK_VER + "')")
+    @PreAuthorize(
+        "hasAnyAuthority('" + PermisosInventario.STOCK_VER
+            + "', '" + PermisosInventario.KARDEX_VER + "')"
+    )
     @Operation(summary = "Listar sedes activas")
     public List<SedeResponse> listar() {
         return sedeService.listarActivas();

@@ -22,6 +22,7 @@ import pe.com.proveperu.sgc.config.OpenApiConfig;
 import pe.com.proveperu.sgc.inventario.api.dto.MovimientoInventarioResponse;
 import pe.com.proveperu.sgc.inventario.application.service.InventarioService;
 import pe.com.proveperu.sgc.inventario.application.service.PermisosInventario;
+import pe.com.proveperu.sgc.inventario.domain.model.TipoMovimientoInventario;
 import pe.com.proveperu.sgc.shared.api.dto.PaginaResponse;
 
 @RestController
@@ -40,6 +41,7 @@ public class KardexController {
     public PaginaResponse<MovimientoInventarioResponse> consultar(
         @PathVariable @Positive Long idProducto,
         @RequestParam(required = false) @Positive Long idSede,
+        @RequestParam(required = false) TipoMovimientoInventario tipo,
         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
         LocalDate desde,
         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
@@ -55,6 +57,7 @@ public class KardexController {
         return inventarioService.consultarKardex(
             idProducto,
             idSede,
+            tipo,
             desde,
             hasta,
             pageable

@@ -653,12 +653,13 @@ public class InventarioService {
     public PaginaResponse<MovimientoInventarioResponse> consultarKardex(
         Long idProducto,
         Long idSede,
+        TipoMovimientoInventario tipo,
         LocalDate desde,
         LocalDate hasta,
         Pageable pageable
     ) {
         buscarProducto(idProducto, false);
-        return listarMovimientos(idSede, idProducto, null, desde, hasta, pageable);
+        return listarMovimientos(idSede, idProducto, tipo, desde, hasta, pageable);
     }
 
     private PaginaResponse<StockInventarioResponse> mapearPaginaStock(

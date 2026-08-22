@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { Link } from 'react-router-dom'
 import { InventoryAdjustmentModal } from '../components/InventoryAdjustmentModal'
 import { ToastMessage } from '../components/ToastMessage'
 import { useAuth } from '../hooks/useAuth'
@@ -66,6 +67,7 @@ export function InventoryPage() {
   const { hasAnyAuthority } = useAuth()
 
   const canAdjust = hasAnyAuthority('INV_AJUSTES_CREAR')
+  const canViewKardex = hasAnyAuthority('INV_KARDEX_VER')
 
   useEffect(() => {
     let active = true
@@ -259,7 +261,7 @@ export function InventoryPage() {
                       <th>Stock mínimo</th>
                       <th>Situación</th>
                       <th>Actualización</th>
-                      {canAdjust && <th className="catalog-table__actions-heading">Acciones</th>}
+                      {(canAdjust || canViewKardex) && <th className="catalog-table__actions-heading">Acciones</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -289,11 +291,20 @@ export function InventoryPage() {
                             {stock.fechaActualizacion ? dateFormatter.format(new Date(stock.fechaActualizacion)) : 'Sin movimientos'}
                           </span>
                         </td>
-                        {canAdjust && (
+                        {(canAdjust || canViewKardex) && (
                           <td>
-                            <button className="inventory-adjust-button" type="button" onClick={() => setAdjustmentTarget(stock)} aria-label={`Ajustar existencias de ${stock.nombreProducto}`}>
-                              <i className="bi bi-sliders" /> Ajustar
-                            </button>
+                            <div className="inventory-row-actions">
+                              {canViewKardex && (
+                                <Link className="inventory-kardex-button" to={`/app/kardex?producto=${stock.idProducto}&sede=${stock.idSede}`} aria-label={`Ver Kardex de ${stock.nombreProducto}`}>
+                                  <i className="bi bi-clock-history" /> Kardex
+                                </Link>
+                              )}
+                              {canAdjust && (
+                                <button className="inventory-adjust-button" type="button" onClick={() => setAdjustmentTarget(stock)} aria-label={`Ajustar existencias de ${stock.nombreProducto}`}>
+                                  <i className="bi bi-sliders" /> Ajustar
+                                </button>
+                              )}
+                            </div>
                           </td>
                         )}
                       </tr>

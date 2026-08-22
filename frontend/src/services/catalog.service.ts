@@ -27,6 +27,11 @@ export async function listProducts(filters: ProductoFiltros): Promise<Pagina<Pro
   return data
 }
 
+export async function getProduct(id: number): Promise<Producto> {
+  const { data } = await api.get<Producto>(`/v1/productos/${id}`)
+  return data
+}
+
 export async function listCategories(estado?: EstadoCatalogo, buscar = ''): Promise<Categoria[]> {
   const { data } = await api.get<Categoria[]>('/v1/categorias', {
     params: { estado, buscar: buscar || undefined },

@@ -294,6 +294,14 @@ class InventarioIntegrationTests {
             .andExpect(jsonPath("$.contenido[0].stockResultante").value(5.0))
             .andExpect(jsonPath("$.contenido[1].tipoMovimiento").value("AJUSTE_SALIDA"))
             .andExpect(jsonPath("$.contenido[1].stockResultante").value(3.0));
+
+        mockMvc.perform(get("/api/v1/kardex/{idProducto}", producto.getId())
+                .param("tipo", "AJUSTE_SALIDA")
+                .header(HttpHeaders.AUTHORIZATION, bearer(PermisosInventario.KARDEX_VER)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.totalElementos").value(1))
+            .andExpect(jsonPath("$.contenido[0].tipoMovimiento").value("AJUSTE_SALIDA"))
+            .andExpect(jsonPath("$.contenido[0].stockResultante").value(3.0));
     }
 
     @Test
