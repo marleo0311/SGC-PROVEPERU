@@ -56,10 +56,41 @@ public class GastoService {
 
     @Transactional
     public GastoResponse crear(GastoCrearRequest request, String usuarioLogin) {
+        return crear(request, usuarioLogin, null);
+    }
+
+    @Transactional
+    public GastoResponse crearParaCompra(
+        Long idCompra,
+        GastoCrearRequest request,
+        String usuarioLogin
+    ) {
+        return crear(request, usuarioLogin, idCompra);
+    }
+
+    @Transactional(readOnly = true)
+    public List<GastoResponse> listarPorCompra(Long idCompra) {
+        return gastoRepository.findAllByIdCompraOrderByFechaDescIdDesc(idCompra)
+            .stream()
+            .map(GastoResponse::from)
+            .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public java.math.BigDecimal sumarImportesPorCompra(Long idCompra) {
+        return gastoRepository.sumarImportesPorCompra(idCompra);
+    }
+
+    private GastoResponse crear(
+        GastoCrearRequest request,
+        String usuarioLogin,
+        Long idCompra
+    ) {
         Transportista transportista = buscarTransportistaActivo(request.idTransportista());
         Usuario usuario = buscarUsuarioActivo(usuarioLogin);
 
         Gasto gasto = new Gasto();
+        gasto.setIdCompra(idCompra);
         gasto.setTransportista(transportista);
         gasto.setUsuario(usuario);
         gasto.setTipoGasto(request.tipoGasto());

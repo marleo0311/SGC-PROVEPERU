@@ -12,6 +12,11 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pe.com.proveperu.sgc.catalogo.domain.model.EstadoCatalogo;
+import pe.com.proveperu.sgc.compra.domain.model.Compra;
+import pe.com.proveperu.sgc.compra.domain.model.CondicionPagoCompra;
+import pe.com.proveperu.sgc.compra.domain.model.EstadoCompra;
+import pe.com.proveperu.sgc.compra.infrastructure.persistence.CompraRepository;
+import pe.com.proveperu.sgc.proveedor.api.dto.ProveedorCompraResponse;
 import pe.com.proveperu.sgc.proveedor.api.dto.ProveedorGuardarRequest;
 import pe.com.proveperu.sgc.proveedor.api.dto.ProveedorHistorialResponse;
 import pe.com.proveperu.sgc.proveedor.api.dto.ProveedorResponse;
@@ -26,6 +31,7 @@ import pe.com.proveperu.sgc.shared.api.dto.PaginaResponse;
 public class ProveedorService {
 
     private final ProveedorRepository proveedorRepository;
+    private final CompraRepository compraRepository;
 
     @Transactional(readOnly = true)
     public PaginaResponse<ProveedorResponse> listar(
@@ -74,16 +80,47 @@ public class ProveedorService {
     @Transactional(readOnly = true)
     public ProveedorHistorialResponse obtenerHistorialCompras(Long id) {
         Proveedor proveedor = buscarProveedor(id);
+        List<Compra> compras = compraRepository
+            .findAllByProveedorIdOrderByFechaDescIdDesc(id);
+        List<ProveedorCompraResponse> historial = compras.stream()
+            .map(this::mapearCompra)
+            .toList();
+        List<Compra> comprasVigentes = compras.stream()
+            .filter(compra -> compra.getEstado() != EstadoCompra.ANULADA)
+            .toList();
         ProveedorHistorialResponse.Resumen resumen = new ProveedorHistorialResponse.Resumen(
-            0,
-            new BigDecimal("0.00"),
-            new BigDecimal("0.00"),
-            null
+            comprasVigentes.size(),
+            comprasVigentes.stream()
+                .map(Compra::getTotal)
+                .reduce(new BigDecimal("0.00"), BigDecimal::add),
+            historial.stream()
+                .map(ProveedorCompraResponse::saldoPendiente)
+                .reduce(new BigDecimal("0.00"), BigDecimal::add),
+            comprasVigentes.stream()
+                .map(Compra::getFecha)
+                .max(java.time.LocalDate::compareTo)
+                .orElse(null)
         );
         return new ProveedorHistorialResponse(
             ProveedorResponse.from(proveedor),
             resumen,
-            List.of()
+            historial
+        );
+    }
+
+    private ProveedorCompraResponse mapearCompra(Compra compra) {
+        BigDecimal saldoPendiente = compra.getEstado() == EstadoCompra.ANULADA
+            || compra.getCondicionPago() == CondicionPagoCompra.CONTADO
+            ? new BigDecimal("0.00")
+            : compra.getTotal();
+        return new ProveedorCompraResponse(
+            compra.getId(),
+            compra.getTipoComprobante(),
+            compra.getNumeroComprobante(),
+            compra.getFecha(),
+            compra.getEstado().name(),
+            compra.getTotal(),
+            saldoPendiente
         );
     }
 
