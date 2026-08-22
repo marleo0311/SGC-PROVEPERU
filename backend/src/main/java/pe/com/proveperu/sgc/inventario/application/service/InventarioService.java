@@ -473,6 +473,70 @@ public class InventarioService {
         return movimientoRepository.save(movimiento);
     }
 
+    @Transactional
+    public MovimientoInventario registrarSalidaCambio(
+        Sede sede,
+        Producto producto,
+        UnidadMedida unidad,
+        BigDecimal cantidad,
+        BigDecimal cantidadBase,
+        Usuario usuario,
+        Long idDevolucion
+    ) {
+        Inventario inventario = inventarioRepository
+            .findForUpdate(sede.getId(), producto.getId())
+            .orElseThrow(() -> new ReglaNegocioException(
+                "Stock insuficiente para " + producto.getCodigoInterno()
+                    + ". Disponible: 0.000"
+            ));
+        BigDecimal cantidadNormalizada = cantidad.setScale(
+            ESCALA_STOCK,
+            RoundingMode.UNNECESSARY
+        );
+        BigDecimal cantidadBaseNormalizada = cantidadBase.setScale(
+            ESCALA_STOCK,
+            RoundingMode.UNNECESSARY
+        );
+        if (cantidadBaseNormalizada.compareTo(inventario.getStockFisico()) > 0) {
+            throw new ReglaNegocioException(
+                "Stock físico insuficiente para " + producto.getCodigoInterno()
+                    + ". Físico: " + inventario.getStockFisico().toPlainString()
+            );
+        }
+        BigDecimal disponible = inventario.getStockDisponible();
+        if (cantidadBaseNormalizada.compareTo(disponible) > 0) {
+            throw new ReglaNegocioException(
+                "Stock insuficiente para " + producto.getCodigoInterno()
+                    + ". Disponible: " + disponible.toPlainString()
+            );
+        }
+
+        Instant ahora = Instant.now();
+        BigDecimal stockAnterior = inventario.getStockFisico();
+        BigDecimal stockResultante = stockAnterior.subtract(cantidadBaseNormalizada);
+        inventario.setStockFisico(stockResultante);
+        inventario.setFechaActualizacion(ahora);
+        inventarioRepository.save(inventario);
+
+        MovimientoInventario movimiento = new MovimientoInventario();
+        movimiento.setSede(sede);
+        movimiento.setProducto(producto);
+        movimiento.setUsuario(usuario);
+        movimiento.setUnidadMedida(unidad);
+        movimiento.setTipoMovimiento(TipoMovimientoInventario.DEVOLUCION_SALIDA);
+        movimiento.setCantidad(cantidadNormalizada.negate());
+        movimiento.setCantidadBase(cantidadBaseNormalizada.negate());
+        movimiento.setStockAnterior(stockAnterior);
+        movimiento.setStockResultante(stockResultante);
+        movimiento.setDocumentoOrigen("CAMBIO");
+        movimiento.setIdOrigen(idDevolucion);
+        movimiento.setMotivo(
+            "Producto de reemplazo entregado por la devolución #" + idDevolucion
+        );
+        movimiento.setFechaHora(ahora);
+        return movimientoRepository.save(movimiento);
+    }
+
     private MovimientoInventario registrarSalidaVenta(
         Sede sede,
         Producto producto,

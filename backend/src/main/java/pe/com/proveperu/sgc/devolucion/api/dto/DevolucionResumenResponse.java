@@ -23,7 +23,9 @@ public record DevolucionResumenResponse(
     BigDecimal importeTotal,
     BigDecimal importeAplicadoSaldo,
     BigDecimal importeReembolsable,
-    BigDecimal importeReembolsado
+    BigDecimal importeReembolsado,
+    BigDecimal importeReemplazo,
+    BigDecimal importeCobrado
 ) {
     public static DevolucionResumenResponse from(Devolucion devolucion) {
         Long idCliente = devolucion.getVenta().getCliente() == null
@@ -46,7 +48,9 @@ public record DevolucionResumenResponse(
             devolucion.getImporteTotal(),
             devolucion.getImporteAplicadoSaldo(),
             devolucion.getImporteReembolsable(),
-            devolucion.getImporteReembolsado()
+            devolucion.getImporteReembolsado(),
+            devolucion.getImporteReemplazo(),
+            devolucion.getImporteCobrado()
         );
     }
 

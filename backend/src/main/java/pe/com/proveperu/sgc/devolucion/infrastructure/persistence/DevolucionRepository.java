@@ -36,7 +36,9 @@ public interface DevolucionRepository
         "detalles.unidadMedida",
         "reembolso",
         "reembolso.metodoPago",
-        "reembolso.usuario"
+        "reembolso.usuario",
+        "usuarioResolucion",
+        "metodoPagoResolucion"
     })
     @Query("select distinct d from Devolucion d where d.id = :id")
     Optional<Devolucion> findDetalleById(@Param("id") Long id);

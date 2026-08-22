@@ -242,11 +242,106 @@ public class CajaService {
         Usuario usuario,
         String referencia
     ) {
+        registrarMovimientoPostventa(
+            venta,
+            idReembolso,
+            metodo,
+            importe,
+            usuario,
+            referencia,
+            TipoMovimientoCaja.EGRESO,
+            ConceptoMovimientoCaja.REEMBOLSO,
+            "Reembolso de la devolución #" + idDevolucion,
+            "Debe abrir una caja antes de registrar un reembolso"
+        );
+    }
+
+    @Transactional
+    public void registrarIngresoCambio(
+        Venta venta,
+        Long idDevolucion,
+        MetodoPago metodo,
+        BigDecimal importe,
+        Usuario usuario,
+        String referencia
+    ) {
+        registrarMovimientoPostventa(
+            venta,
+            idDevolucion,
+            metodo,
+            importe,
+            usuario,
+            referencia,
+            TipoMovimientoCaja.INGRESO,
+            ConceptoMovimientoCaja.CAMBIO_COBRO,
+            "Diferencia cobrada por el cambio de la devolución #" + idDevolucion,
+            "Debe abrir una caja antes de cobrar la diferencia del cambio"
+        );
+    }
+
+    @Transactional
+    public void registrarEgresoCambio(
+        Venta venta,
+        Long idDevolucion,
+        MetodoPago metodo,
+        BigDecimal importe,
+        Usuario usuario,
+        String referencia
+    ) {
+        registrarMovimientoPostventa(
+            venta,
+            idDevolucion,
+            metodo,
+            importe,
+            usuario,
+            referencia,
+            TipoMovimientoCaja.EGRESO,
+            ConceptoMovimientoCaja.CAMBIO_REEMBOLSO,
+            "Diferencia devuelta por el cambio de la devolución #" + idDevolucion,
+            "Debe abrir una caja antes de devolver la diferencia del cambio"
+        );
+    }
+
+    @Transactional
+    public void registrarEgresoDescuento(
+        Venta venta,
+        Long idDevolucion,
+        MetodoPago metodo,
+        BigDecimal importe,
+        Usuario usuario,
+        String referencia
+    ) {
+        registrarMovimientoPostventa(
+            venta,
+            idDevolucion,
+            metodo,
+            importe,
+            usuario,
+            referencia,
+            TipoMovimientoCaja.EGRESO,
+            ConceptoMovimientoCaja.DESCUENTO_REEMBOLSO,
+            "Importe entregado por descuento de la devolución #" + idDevolucion,
+            "Debe abrir una caja antes de entregar el descuento"
+        );
+    }
+
+    private void registrarMovimientoPostventa(
+        Venta venta,
+        Long idOrigen,
+        MetodoPago metodo,
+        BigDecimal importe,
+        Usuario usuario,
+        String referencia,
+        TipoMovimientoCaja tipo,
+        ConceptoMovimientoCaja concepto,
+        String observacion,
+        String mensajeCajaCerrada
+    ) {
         SesionCaja sesion = sesionRepository.findActivaForUpdate(
             usuario.getUsuarioLogin(),
             EstadoSesionCaja.ABIERTA
         ).orElseThrow(() -> new OperacionNoPermitidaException(
-            "Debe abrir una caja antes de registrar un reembolso"
+            mensajeCajaCerrada
         ));
         if (!sesion.getCaja().getSede().getId().equals(venta.getSede().getId())) {
             throw new OperacionNoPermitidaException(
@@ -260,12 +355,12 @@ public class CajaService {
         movimiento.setUsuario(usuario);
         movimiento.setVenta(venta);
         movimiento.setVendedor(venta.getVendedor());
-        movimiento.setTipo(TipoMovimientoCaja.EGRESO);
-        movimiento.setConcepto(ConceptoMovimientoCaja.REEMBOLSO);
-        movimiento.setIdOrigen(idReembolso);
-        movimiento.setImporte(importe);
+        movimiento.setTipo(tipo);
+        movimiento.setConcepto(concepto);
+        movimiento.setIdOrigen(idOrigen);
+        movimiento.setImporte(normalizarDinero(importe, "El importe"));
         movimiento.setReferencia(normalizarTexto(referencia));
-        movimiento.setObservacion("Reembolso de la devolución #" + idDevolucion);
+        movimiento.setObservacion(observacion);
         movimientoRepository.saveAndFlush(movimiento);
     }
 

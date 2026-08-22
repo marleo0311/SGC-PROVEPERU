@@ -24,6 +24,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import pe.com.proveperu.sgc.security.domain.model.Usuario;
+import pe.com.proveperu.sgc.configuracion.domain.model.MetodoPago;
 import pe.com.proveperu.sgc.venta.domain.model.Venta;
 
 @Entity
@@ -72,9 +73,33 @@ public class Devolucion {
     @Column(name = "importe_reembolsado", nullable = false, precision = 14, scale = 2)
     private BigDecimal importeReembolsado;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_usuario_resolucion")
+    private Usuario usuarioResolucion;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_metodo_pago_resolucion")
+    private MetodoPago metodoPagoResolucion;
+
+    @Column(name = "fecha_resolucion")
+    private Instant fechaResolucion;
+
+    @Column(name = "referencia_resolucion", length = 120)
+    private String referenciaResolucion;
+
+    @Column(name = "importe_reemplazo", nullable = false, precision = 14, scale = 2)
+    private BigDecimal importeReemplazo = BigDecimal.ZERO.setScale(2);
+
+    @Column(name = "importe_cobrado", nullable = false, precision = 14, scale = 2)
+    private BigDecimal importeCobrado = BigDecimal.ZERO.setScale(2);
+
     @OneToMany(mappedBy = "devolucion", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("id ASC")
     private List<DetalleDevolucion> detalles = new ArrayList<>();
+
+    @OneToMany(mappedBy = "devolucion", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("id ASC")
+    private List<DetalleCambioDevolucion> detallesCambio = new ArrayList<>();
 
     @OneToOne(mappedBy = "devolucion", fetch = FetchType.LAZY)
     private ReembolsoDevolucion reembolso;
@@ -82,6 +107,11 @@ public class Devolucion {
     public void agregarDetalle(DetalleDevolucion detalle) {
         detalle.setDevolucion(this);
         detalles.add(detalle);
+    }
+
+    public void agregarDetalleCambio(DetalleCambioDevolucion detalle) {
+        detalle.setDevolucion(this);
+        detallesCambio.add(detalle);
     }
 
     @PrePersist

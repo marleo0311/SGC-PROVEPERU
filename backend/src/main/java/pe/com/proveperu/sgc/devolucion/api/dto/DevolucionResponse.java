@@ -6,7 +6,8 @@ import pe.com.proveperu.sgc.devolucion.domain.model.Devolucion;
 public record DevolucionResponse(
     DevolucionResumenResponse devolucion,
     List<DetalleDevolucionResponse> items,
-    ReembolsoDevolucionResponse reembolso
+    ReembolsoDevolucionResponse reembolso,
+    ResolucionDevolucionResponse resolucion
 ) {
     public static DevolucionResponse from(Devolucion devolucion) {
         ReembolsoDevolucionResponse reembolso = devolucion.getReembolso() == null
@@ -17,7 +18,8 @@ public record DevolucionResponse(
             devolucion.getDetalles().stream()
                 .map(DetalleDevolucionResponse::from)
                 .toList(),
-            reembolso
+            reembolso,
+            ResolucionDevolucionResponse.from(devolucion)
         );
     }
 }

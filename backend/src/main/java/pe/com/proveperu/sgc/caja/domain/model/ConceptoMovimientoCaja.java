@@ -7,5 +7,8 @@ public enum ConceptoMovimientoCaja {
     EGRESO_MANUAL,
     GASTO,
     PAGO_PROVEEDOR,
-    REEMBOLSO
+    REEMBOLSO,
+    CAMBIO_COBRO,
+    CAMBIO_REEMBOLSO,
+    DESCUENTO_REEMBOLSO
 }

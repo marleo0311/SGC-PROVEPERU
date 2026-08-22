@@ -20,13 +20,29 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pe.com.proveperu.sgc.caja.application.service.CajaService;
+import pe.com.proveperu.sgc.catalogo.domain.model.EstadoCatalogo;
+import pe.com.proveperu.sgc.catalogo.domain.model.PrecioProducto;
+import pe.com.proveperu.sgc.catalogo.domain.model.Producto;
+import pe.com.proveperu.sgc.catalogo.domain.model.ProductoUnidadConversion;
+import pe.com.proveperu.sgc.catalogo.domain.model.UnidadMedida;
+import pe.com.proveperu.sgc.catalogo.infrastructure.persistence.PrecioProductoRepository;
+import pe.com.proveperu.sgc.catalogo.infrastructure.persistence.ProductoRepository;
+import pe.com.proveperu.sgc.catalogo.infrastructure.persistence.ProductoUnidadConversionRepository;
+import pe.com.proveperu.sgc.catalogo.infrastructure.persistence.UnidadMedidaRepository;
+import pe.com.proveperu.sgc.cliente.domain.model.Cliente;
+import pe.com.proveperu.sgc.cliente.domain.model.ClientePrecioEspecial;
+import pe.com.proveperu.sgc.cliente.infrastructure.persistence.ClientePrecioEspecialRepository;
 import pe.com.proveperu.sgc.configuracion.domain.model.MetodoPago;
 import pe.com.proveperu.sgc.configuracion.infrastructure.persistence.MetodoPagoRepository;
+import pe.com.proveperu.sgc.devolucion.api.dto.CambioDevolucionRequest;
+import pe.com.proveperu.sgc.devolucion.api.dto.CambioItemRequest;
 import pe.com.proveperu.sgc.devolucion.api.dto.DevolucionCrearRequest;
 import pe.com.proveperu.sgc.devolucion.api.dto.DevolucionItemRequest;
 import pe.com.proveperu.sgc.devolucion.api.dto.DevolucionResponse;
 import pe.com.proveperu.sgc.devolucion.api.dto.DevolucionResumenResponse;
+import pe.com.proveperu.sgc.devolucion.api.dto.DescuentoDevolucionRequest;
 import pe.com.proveperu.sgc.devolucion.api.dto.ReembolsoDevolucionRequest;
+import pe.com.proveperu.sgc.devolucion.domain.model.DetalleCambioDevolucion;
 import pe.com.proveperu.sgc.devolucion.domain.model.DetalleDevolucion;
 import pe.com.proveperu.sgc.devolucion.domain.model.Devolucion;
 import pe.com.proveperu.sgc.devolucion.domain.model.EstadoDevolucion;
@@ -69,6 +85,11 @@ public class DevolucionService {
     private final CuentaCobrarRepository cuentaRepository;
     private final MetodoPagoRepository metodoPagoRepository;
     private final UsuarioRepository usuarioRepository;
+    private final ProductoRepository productoRepository;
+    private final UnidadMedidaRepository unidadMedidaRepository;
+    private final ProductoUnidadConversionRepository conversionRepository;
+    private final PrecioProductoRepository precioRepository;
+    private final ClientePrecioEspecialRepository precioEspecialRepository;
     private final InventarioService inventarioService;
     private final CajaService cajaService;
 
@@ -99,11 +120,6 @@ public class DevolucionService {
         DevolucionCrearRequest request,
         String usuarioLogin
     ) {
-        if (request.tipoSolucion() != TipoSolucionDevolucion.REEMBOLSO) {
-            throw new OperacionNoPermitidaException(
-                "V18 admite la solución REEMBOLSO; cambios y descuentos se habilitarán en una operación específica"
-            );
-        }
         Venta venta = ventaRepository.findForUpdate(request.idVenta())
             .orElseThrow(() -> new RecursoNoEncontradoException(
                 "No existe la venta solicitada"
@@ -116,6 +132,7 @@ public class DevolucionService {
             detalle
         ));
         validarItemsUnicos(request.items());
+        validarItemsSegunSolucion(request);
 
         Devolucion devolucion = new Devolucion();
         devolucion.setVenta(venta);
@@ -141,22 +158,18 @@ public class DevolucionService {
             importeTotal = importeTotal.add(detalle.getImporteDevolucion());
         }
 
-        BigDecimal aplicadoSaldo = aplicarAlSaldoPendiente(
-            venta,
-            importeTotal
-        );
-        BigDecimal reembolsable = importeTotal.subtract(aplicadoSaldo);
         devolucion.setImporteTotal(importeTotal);
-        devolucion.setImporteAplicadoSaldo(aplicadoSaldo);
-        devolucion.setImporteReembolsable(reembolsable);
+        devolucion.setImporteAplicadoSaldo(CERO_DINERO);
+        devolucion.setImporteReembolsable(CERO_DINERO);
         devolucion.setImporteReembolsado(CERO_DINERO);
-        devolucion.setEstado(reembolsable.compareTo(BigDecimal.ZERO) > 0
-            ? EstadoDevolucion.PENDIENTE_REEMBOLSO
-            : EstadoDevolucion.COMPLETADA);
+        devolucion.setImporteReemplazo(CERO_DINERO);
+        devolucion.setImporteCobrado(CERO_DINERO);
+        prepararEstadoInicial(devolucion, venta);
         devolucion = devolucionRepository.saveAndFlush(devolucion);
 
         for (DetalleDevolucion detalle : devolucion.getDetalles()) {
-            if (detalle.getEstadoProducto() == EstadoProductoDevuelto.APTO) {
+            if (request.tipoSolucion() != TipoSolucionDevolucion.DESCUENTO
+                && detalle.getEstadoProducto() == EstadoProductoDevuelto.APTO) {
                 inventarioService.registrarDevolucionVenta(
                     venta.getSede(),
                     detalle.getProducto(),
@@ -170,10 +183,12 @@ public class DevolucionService {
             }
         }
 
-        venta.setEstado(esDevolucionTotal(venta)
-            ? EstadoVenta.DEVUELTA_TOTAL
-            : EstadoVenta.DEVUELTA_PARCIAL);
-        ventaRepository.saveAndFlush(venta);
+        if (request.tipoSolucion() != TipoSolucionDevolucion.DESCUENTO) {
+            venta.setEstado(esDevolucionTotal(venta)
+                ? EstadoVenta.DEVUELTA_TOTAL
+                : EstadoVenta.DEVUELTA_PARCIAL);
+            ventaRepository.saveAndFlush(venta);
+        }
         return DevolucionResponse.from(buscarDevolucion(devolucion.getId()));
     }
 
@@ -237,6 +252,200 @@ public class DevolucionService {
             reembolso.getReferencia()
         );
         return DevolucionResponse.from(buscarDevolucion(id));
+    }
+
+    @Transactional
+    public DevolucionResponse cambiar(
+        Long id,
+        CambioDevolucionRequest request,
+        String usuarioLogin
+    ) {
+        Devolucion devolucion = devolucionRepository.findForUpdate(id)
+            .orElseThrow(() -> new RecursoNoEncontradoException(
+                "No existe la devolución solicitada"
+            ));
+        if (devolucion.getTipoSolucion() != TipoSolucionDevolucion.CAMBIO
+            || devolucion.getEstado() != EstadoDevolucion.PENDIENTE_CAMBIO) {
+            throw new OperacionNoPermitidaException(
+                "La devolución no está pendiente de un cambio"
+            );
+        }
+        validarReemplazosUnicos(request.items());
+        Usuario usuario = buscarUsuarioActivo(usuarioLogin);
+        BigDecimal importeReemplazo = CERO_DINERO;
+        for (CambioItemRequest item : request.items()) {
+            DetalleCambioDevolucion detalle = prepararDetalleCambio(
+                devolucion.getVenta(),
+                item
+            );
+            devolucion.agregarDetalleCambio(detalle);
+            importeReemplazo = importeReemplazo.add(detalle.getSubtotal());
+        }
+
+        BigDecimal aplicadoSaldo = CERO_DINERO;
+        BigDecimal reembolsable = CERO_DINERO;
+        BigDecimal cobrado = CERO_DINERO;
+        MetodoPago metodo = null;
+        int comparacion = importeReemplazo.compareTo(devolucion.getImporteTotal());
+        if (comparacion > 0) {
+            cobrado = importeReemplazo.subtract(devolucion.getImporteTotal());
+            metodo = exigirMetodoPago(
+                request.idMetodoPago(),
+                "cobrar la diferencia del cambio"
+            );
+        } else if (comparacion < 0) {
+            BigDecimal credito = devolucion.getImporteTotal()
+                .subtract(importeReemplazo);
+            aplicadoSaldo = aplicarAlSaldoPendiente(
+                devolucion.getVenta(),
+                credito
+            );
+            reembolsable = credito.subtract(aplicadoSaldo);
+            if (reembolsable.compareTo(BigDecimal.ZERO) > 0) {
+                metodo = exigirMetodoPago(
+                    request.idMetodoPago(),
+                    "devolver la diferencia del cambio"
+                );
+                descontarImportePagado(devolucion.getVenta(), reembolsable);
+            }
+        }
+
+        devolucion.setUsuarioResolucion(usuario);
+        devolucion.setMetodoPagoResolucion(metodo);
+        devolucion.setFechaResolucion(Instant.now());
+        devolucion.setReferenciaResolucion(normalizarTexto(request.referencia()));
+        devolucion.setImporteReemplazo(importeReemplazo);
+        devolucion.setImporteCobrado(cobrado);
+        devolucion.setImporteAplicadoSaldo(aplicadoSaldo);
+        devolucion.setImporteReembolsable(reembolsable);
+        devolucion.setImporteReembolsado(reembolsable);
+        devolucion.setEstado(EstadoDevolucion.CAMBIADA);
+        distribuirReembolso(devolucion, reembolsable);
+        devolucionRepository.saveAndFlush(devolucion);
+
+        devolucion.getDetallesCambio().stream()
+            .sorted(Comparator.comparing(detalle -> detalle.getProducto().getId()))
+            .forEach(detalle -> inventarioService.registrarSalidaCambio(
+                devolucion.getVenta().getSede(),
+                detalle.getProducto(),
+                detalle.getUnidadMedida(),
+                detalle.getCantidad(),
+                detalle.getCantidadBase(),
+                usuario,
+                devolucion.getId()
+            ));
+
+        if (cobrado.compareTo(BigDecimal.ZERO) > 0) {
+            cajaService.registrarIngresoCambio(
+                devolucion.getVenta(),
+                devolucion.getId(),
+                metodo,
+                cobrado,
+                usuario,
+                devolucion.getReferenciaResolucion()
+            );
+        } else if (reembolsable.compareTo(BigDecimal.ZERO) > 0) {
+            cajaService.registrarEgresoCambio(
+                devolucion.getVenta(),
+                devolucion.getId(),
+                metodo,
+                reembolsable,
+                usuario,
+                devolucion.getReferenciaResolucion()
+            );
+        }
+        return DevolucionResponse.from(buscarDevolucion(id));
+    }
+
+    @Transactional
+    public DevolucionResponse descontar(
+        Long id,
+        DescuentoDevolucionRequest request,
+        String usuarioLogin
+    ) {
+        Devolucion devolucion = devolucionRepository.findForUpdate(id)
+            .orElseThrow(() -> new RecursoNoEncontradoException(
+                "No existe la devolución solicitada"
+            ));
+        if (devolucion.getTipoSolucion() != TipoSolucionDevolucion.DESCUENTO
+            || devolucion.getEstado() != EstadoDevolucion.PENDIENTE_DESCUENTO) {
+            throw new OperacionNoPermitidaException(
+                "La devolución no está pendiente de un descuento"
+            );
+        }
+        BigDecimal importe = normalizarDinero(
+            request.importe(),
+            "El descuento"
+        );
+        if (importe.compareTo(devolucion.getImporteTotal()) > 0) {
+            throw new ReglaNegocioException(
+                "El descuento no puede superar el valor reclamado: "
+                    + devolucion.getImporteTotal().toPlainString()
+            );
+        }
+
+        Usuario usuario = buscarUsuarioActivo(usuarioLogin);
+        BigDecimal aplicadoSaldo = aplicarAlSaldoPendiente(
+            devolucion.getVenta(),
+            importe
+        );
+        BigDecimal reembolsable = importe.subtract(aplicadoSaldo);
+        MetodoPago metodo = null;
+        if (reembolsable.compareTo(BigDecimal.ZERO) > 0) {
+            metodo = exigirMetodoPago(
+                request.idMetodoPago(),
+                "entregar el descuento"
+            );
+            descontarImportePagado(devolucion.getVenta(), reembolsable);
+        }
+
+        devolucion.setUsuarioResolucion(usuario);
+        devolucion.setMetodoPagoResolucion(metodo);
+        devolucion.setFechaResolucion(Instant.now());
+        devolucion.setReferenciaResolucion(normalizarTexto(request.referencia()));
+        devolucion.setImporteAplicadoSaldo(aplicadoSaldo);
+        devolucion.setImporteReembolsable(reembolsable);
+        devolucion.setImporteReembolsado(reembolsable);
+        devolucion.setEstado(EstadoDevolucion.DESCONTADA);
+        distribuirDescuento(devolucion, importe);
+        distribuirReembolso(devolucion, reembolsable);
+        devolucionRepository.saveAndFlush(devolucion);
+
+        if (reembolsable.compareTo(BigDecimal.ZERO) > 0) {
+            cajaService.registrarEgresoDescuento(
+                devolucion.getVenta(),
+                devolucion.getId(),
+                metodo,
+                reembolsable,
+                usuario,
+                devolucion.getReferenciaResolucion()
+            );
+        }
+        return DevolucionResponse.from(buscarDevolucion(id));
+    }
+
+    private void prepararEstadoInicial(Devolucion devolucion, Venta venta) {
+        switch (devolucion.getTipoSolucion()) {
+            case REEMBOLSO -> {
+                BigDecimal aplicadoSaldo = aplicarAlSaldoPendiente(
+                    venta,
+                    devolucion.getImporteTotal()
+                );
+                BigDecimal reembolsable = devolucion.getImporteTotal()
+                    .subtract(aplicadoSaldo);
+                devolucion.setImporteAplicadoSaldo(aplicadoSaldo);
+                devolucion.setImporteReembolsable(reembolsable);
+                devolucion.setEstado(reembolsable.compareTo(BigDecimal.ZERO) > 0
+                    ? EstadoDevolucion.PENDIENTE_REEMBOLSO
+                    : EstadoDevolucion.COMPLETADA);
+            }
+            case CAMBIO -> devolucion.setEstado(
+                EstadoDevolucion.PENDIENTE_CAMBIO
+            );
+            case DESCUENTO -> devolucion.setEstado(
+                EstadoDevolucion.PENDIENTE_DESCUENTO
+            );
+        }
     }
 
     private DetalleDevolucion prepararDetalle(
@@ -308,6 +517,51 @@ public class DevolucionService {
         detalle.setImporteDevolucion(importe);
         detalle.setImporteReembolso(CERO_DINERO);
         detalle.setDescuentoAplicado(CERO_DINERO);
+        return detalle;
+    }
+
+    private DetalleCambioDevolucion prepararDetalleCambio(
+        Venta venta,
+        CambioItemRequest item
+    ) {
+        Producto producto = buscarProductoActivo(item.idProducto());
+        UnidadMedida unidad = buscarUnidadActiva(item.idUnidadMedida());
+        BigDecimal cantidad = normalizarCantidadCambio(item.cantidad(), unidad);
+        BigDecimal factor = factorAUnidadBase(producto, unidad);
+        BigDecimal precio = resolverPrecioBase(
+            venta.getCliente(),
+            producto,
+            venta.getTipoVenta().name(),
+            LocalDate.now(ZONA_NEGOCIO)
+        ).multiply(factor).setScale(ESCALA_DINERO, RoundingMode.HALF_UP);
+        if (item.precioUnitario() != null
+            && normalizarDinero(item.precioUnitario(), "El precio esperado")
+                .compareTo(precio) != 0) {
+            throw new OperacionNoPermitidaException(
+                "El precio vigente del producto " + producto.getCodigoInterno()
+                    + " es " + precio.toPlainString()
+            );
+        }
+        BigDecimal cantidadBase = cantidad.multiply(factor).setScale(
+            ESCALA_CANTIDAD,
+            RoundingMode.HALF_UP
+        );
+        if (cantidadBase.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new SolicitudInvalidaException(
+                "La conversión produce una cantidad menor a la precisión admitida"
+            );
+        }
+
+        DetalleCambioDevolucion detalle = new DetalleCambioDevolucion();
+        detalle.setProducto(producto);
+        detalle.setUnidadMedida(unidad);
+        detalle.setCantidad(cantidad);
+        detalle.setCantidadBase(cantidadBase);
+        detalle.setPrecioUnitario(precio);
+        detalle.setSubtotal(cantidad.multiply(precio).setScale(
+            ESCALA_DINERO,
+            RoundingMode.HALF_UP
+        ));
         return detalle;
     }
 
@@ -411,9 +665,25 @@ public class DevolucionService {
         detalleRepository.saveAll(devolucion.getDetalles());
     }
 
+    private void distribuirDescuento(
+        Devolucion devolucion,
+        BigDecimal importe
+    ) {
+        BigDecimal restante = importe;
+        for (DetalleDevolucion detalle : devolucion.getDetalles()) {
+            BigDecimal asignado = detalle.getImporteDevolucion().min(restante);
+            detalle.setDescuentoAplicado(asignado);
+            restante = restante.subtract(asignado);
+        }
+        detalleRepository.saveAll(devolucion.getDetalles());
+    }
+
     private boolean esDevolucionTotal(Venta venta) {
         return venta.getDetalles().stream().allMatch(detalle ->
-            detalleRepository.sumarCantidadDevuelta(detalle.getId())
+            detalleRepository.sumarCantidadFisicamenteDevuelta(
+                detalle.getId(),
+                TipoSolucionDevolucion.DESCUENTO
+            )
                 .compareTo(detalle.getCantidad()) >= 0
         );
     }
@@ -466,6 +736,32 @@ public class DevolucionService {
         }
     }
 
+    private void validarItemsSegunSolucion(DevolucionCrearRequest request) {
+        if (request.tipoSolucion() != TipoSolucionDevolucion.DESCUENTO) {
+            return;
+        }
+        boolean contieneApto = request.items().stream().anyMatch(item ->
+            item.estadoProducto() == EstadoProductoDevuelto.APTO
+        );
+        if (contieneApto) {
+            throw new SolicitudInvalidaException(
+                "El descuento postventa solo corresponde a productos defectuosos, dañados o pendientes de evaluación"
+            );
+        }
+    }
+
+    private void validarReemplazosUnicos(List<CambioItemRequest> items) {
+        Set<String> claves = new HashSet<>();
+        for (CambioItemRequest item : items) {
+            String clave = item.idProducto() + ":" + item.idUnidadMedida();
+            if (!claves.add(clave)) {
+                throw new SolicitudInvalidaException(
+                    "No puede repetir el mismo producto y unidad en el cambio"
+                );
+            }
+        }
+    }
+
     private Specification<Devolucion> crearFiltros(
         Long idVenta,
         EstadoDevolucion estado,
@@ -505,6 +801,136 @@ public class DevolucionService {
             .orElseThrow(() -> new RecursoNoEncontradoException(
                 "No existe la devolución solicitada"
             ));
+    }
+
+    private Producto buscarProductoActivo(Long idProducto) {
+        Producto producto = productoRepository.findByIdWithReferencias(idProducto)
+            .orElseThrow(() -> new RecursoNoEncontradoException(
+                "No existe el producto de reemplazo solicitado"
+            ));
+        if (producto.getEstado() != EstadoCatalogo.ACTIVO) {
+            throw new OperacionNoPermitidaException(
+                "El producto de reemplazo no está activo"
+            );
+        }
+        return producto;
+    }
+
+    private UnidadMedida buscarUnidadActiva(Long idUnidad) {
+        UnidadMedida unidad = unidadMedidaRepository.findById(idUnidad)
+            .orElseThrow(() -> new RecursoNoEncontradoException(
+                "No existe la unidad de medida solicitada"
+            ));
+        if (unidad.getEstado() != EstadoCatalogo.ACTIVO) {
+            throw new OperacionNoPermitidaException(
+                "La unidad de medida seleccionada no está activa"
+            );
+        }
+        return unidad;
+    }
+
+    private BigDecimal resolverPrecioBase(
+        Cliente cliente,
+        Producto producto,
+        String tipoPrecio,
+        LocalDate fecha
+    ) {
+        if (cliente != null) {
+            List<ClientePrecioEspecial> especiales = precioEspecialRepository
+                .buscarVigentes(
+                    cliente.getId(),
+                    producto.getId(),
+                    fecha,
+                    EstadoCatalogo.ACTIVO
+                );
+            if (!especiales.isEmpty()) {
+                return especiales.getFirst().getPrecio();
+            }
+        }
+        List<PrecioProducto> precios = precioRepository.buscarVigentes(
+            producto.getId(),
+            tipoPrecio,
+            fecha,
+            EstadoCatalogo.ACTIVO
+        );
+        if (precios.isEmpty()) {
+            throw new OperacionNoPermitidaException(
+                "No existe un precio " + tipoPrecio
+                    + " vigente para el producto "
+                    + producto.getCodigoInterno()
+            );
+        }
+        return precios.getFirst().getMonto();
+    }
+
+    private BigDecimal factorAUnidadBase(
+        Producto producto,
+        UnidadMedida unidad
+    ) {
+        Long idBase = producto.getUnidadBase().getId();
+        if (idBase.equals(unidad.getId())) {
+            return BigDecimal.ONE;
+        }
+        return conversionRepository
+            .findByProductoIdAndUnidadOrigenIdAndUnidadDestinoIdAndEstado(
+                producto.getId(),
+                unidad.getId(),
+                idBase,
+                EstadoCatalogo.ACTIVO
+            )
+            .map(ProductoUnidadConversion::getFactorConversion)
+            .orElseGet(() -> conversionRepository
+                .findByProductoIdAndUnidadOrigenIdAndUnidadDestinoIdAndEstado(
+                    producto.getId(),
+                    idBase,
+                    unidad.getId(),
+                    EstadoCatalogo.ACTIVO
+                )
+                .map(conversion -> BigDecimal.ONE.divide(
+                    conversion.getFactorConversion(),
+                    12,
+                    RoundingMode.HALF_UP
+                ))
+                .orElseThrow(() -> new SolicitudInvalidaException(
+                    "La unidad " + unidad.getCodigo()
+                        + " no es la unidad base ni tiene una conversión activa para el producto "
+                        + producto.getCodigoInterno()
+                ))
+            );
+    }
+
+    private BigDecimal normalizarCantidadCambio(
+        BigDecimal cantidadSolicitada,
+        UnidadMedida unidad
+    ) {
+        BigDecimal cantidad;
+        try {
+            cantidad = cantidadSolicitada.setScale(
+                ESCALA_CANTIDAD,
+                RoundingMode.UNNECESSARY
+            );
+        } catch (ArithmeticException exception) {
+            throw new SolicitudInvalidaException(
+                "La cantidad admite como máximo tres decimales"
+            );
+        }
+        if (!unidad.isPermiteDecimales()
+            && cantidad.stripTrailingZeros().scale() > 0) {
+            throw new SolicitudInvalidaException(
+                "La unidad " + unidad.getCodigo()
+                    + " no permite cantidades decimales"
+            );
+        }
+        return cantidad;
+    }
+
+    private MetodoPago exigirMetodoPago(Long idMetodoPago, String operacion) {
+        if (idMetodoPago == null) {
+            throw new SolicitudInvalidaException(
+                "El método de pago es obligatorio para " + operacion
+            );
+        }
+        return buscarMetodoPagoActivo(idMetodoPago);
     }
 
     private MetodoPago buscarMetodoPagoActivo(Long idMetodoPago) {

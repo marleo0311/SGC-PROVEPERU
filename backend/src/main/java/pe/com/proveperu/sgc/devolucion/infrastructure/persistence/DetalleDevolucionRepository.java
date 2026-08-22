@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import pe.com.proveperu.sgc.devolucion.domain.model.DetalleDevolucion;
+import pe.com.proveperu.sgc.devolucion.domain.model.TipoSolucionDevolucion;
 
 public interface DetalleDevolucionRepository
     extends JpaRepository<DetalleDevolucion, Long> {
@@ -16,6 +17,17 @@ public interface DetalleDevolucionRepository
         """)
     BigDecimal sumarCantidadDevuelta(
         @Param("idDetalleVenta") Long idDetalleVenta
+    );
+
+    @Query("""
+        select coalesce(sum(dd.cantidad), 0)
+        from DetalleDevolucion dd
+        where dd.detalleVenta.id = :idDetalleVenta
+          and dd.devolucion.tipoSolucion <> :tipoExcluido
+        """)
+    BigDecimal sumarCantidadFisicamenteDevuelta(
+        @Param("idDetalleVenta") Long idDetalleVenta,
+        @Param("tipoExcluido") TipoSolucionDevolucion tipoExcluido
     );
 
     @Query("""

@@ -42,9 +42,11 @@ import pe.com.proveperu.sgc.caja.infrastructure.persistence.MovimientoCajaReposi
 import pe.com.proveperu.sgc.caja.infrastructure.persistence.SesionCajaRepository;
 import pe.com.proveperu.sgc.catalogo.domain.model.Categoria;
 import pe.com.proveperu.sgc.catalogo.domain.model.EstadoCatalogo;
+import pe.com.proveperu.sgc.catalogo.domain.model.PrecioProducto;
 import pe.com.proveperu.sgc.catalogo.domain.model.Producto;
 import pe.com.proveperu.sgc.catalogo.domain.model.UnidadMedida;
 import pe.com.proveperu.sgc.catalogo.infrastructure.persistence.CategoriaRepository;
+import pe.com.proveperu.sgc.catalogo.infrastructure.persistence.PrecioProductoRepository;
 import pe.com.proveperu.sgc.catalogo.infrastructure.persistence.ProductoRepository;
 import pe.com.proveperu.sgc.catalogo.infrastructure.persistence.UnidadMedidaRepository;
 import pe.com.proveperu.sgc.cliente.domain.model.Cliente;
@@ -101,6 +103,9 @@ class DevolucionesIntegrationTests {
     private ProductoRepository productoRepository;
 
     @Autowired
+    private PrecioProductoRepository precioProductoRepository;
+
+    @Autowired
     private ClienteRepository clienteRepository;
 
     @Autowired
@@ -146,6 +151,9 @@ class DevolucionesIntegrationTests {
     private Venta venta;
     private DetalleVenta detalleVenta;
     private Inventario inventario;
+    private Producto productoReemplazo;
+    private Inventario inventarioReemplazo;
+    private PrecioProducto precioReemplazo;
     private MetodoPago efectivo;
     private SesionCaja sesion;
 
@@ -172,6 +180,23 @@ class DevolucionesIntegrationTests {
         producto.setStockMinimo(BigDecimal.ZERO);
         producto.setEstado(EstadoCatalogo.ACTIVO);
         producto = productoRepository.save(producto);
+
+        productoReemplazo = new Producto();
+        productoReemplazo.setCategoria(categoria);
+        productoReemplazo.setUnidadBase(unidad);
+        productoReemplazo.setCodigoInterno("CAM-" + sufijo);
+        productoReemplazo.setNombre("Producto de cambio " + sufijo);
+        productoReemplazo.setStockMinimo(BigDecimal.ZERO);
+        productoReemplazo.setEstado(EstadoCatalogo.ACTIVO);
+        productoReemplazo = productoRepository.save(productoReemplazo);
+
+        precioReemplazo = new PrecioProducto();
+        precioReemplazo.setProducto(productoReemplazo);
+        precioReemplazo.setTipoPrecio("MINORISTA");
+        precioReemplazo.setMonto(new BigDecimal("25.00"));
+        precioReemplazo.setVigenteDesde(LocalDate.now().minusDays(1));
+        precioReemplazo.setEstado(EstadoCatalogo.ACTIVO);
+        precioReemplazo = precioProductoRepository.save(precioReemplazo);
 
         Cliente cliente = new Cliente();
         cliente.setTipoPersona(TipoPersona.NATURAL);
@@ -224,6 +249,15 @@ class DevolucionesIntegrationTests {
         inventario.setStockFisico(new BigDecimal("18.000"));
         inventario.setStockReservado(BigDecimal.ZERO.setScale(3));
         inventario = inventarioRepository.saveAndFlush(inventario);
+
+        inventarioReemplazo = new Inventario();
+        inventarioReemplazo.setSede(sede);
+        inventarioReemplazo.setProducto(productoReemplazo);
+        inventarioReemplazo.setStockFisico(new BigDecimal("8.000"));
+        inventarioReemplazo.setStockReservado(BigDecimal.ZERO.setScale(3));
+        inventarioReemplazo = inventarioRepository.saveAndFlush(
+            inventarioReemplazo
+        );
 
         efectivo = metodoPagoRepository.findByCodigoIgnoreCase("EFECTIVO")
             .orElseThrow();
@@ -415,6 +449,227 @@ class DevolucionesIntegrationTests {
     }
 
     @Test
+    void cambiaProductoDelMismoValorYRegistraSalidaEnKardex() throws Exception {
+        long id = idDevolucion(registrarDevolucion(
+            "1.000",
+            "APTO",
+            "CAMBIO"
+        )
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.devolucion.estado")
+                .value("PENDIENTE_CAMBIO"))
+            .andReturn());
+
+        mockMvc.perform(post("/api/v1/devoluciones/{id}/cambio", id)
+                .header(HttpHeaders.AUTHORIZATION, bearer(
+                    PermisosDevolucion.DEVOLUCIONES_VER
+                ))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(cuerpoCambio("1.000", "25.00", false)))
+            .andExpect(status().isForbidden());
+
+        mockMvc.perform(post("/api/v1/devoluciones/{id}/cambio", id)
+                .header(HttpHeaders.AUTHORIZATION, bearer(
+                    PermisosDevolucion.CAMBIOS_CREAR
+                ))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(cuerpoCambio("1.000", "25.00", false)))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.devolucion.estado").value("CAMBIADA"))
+            .andExpect(jsonPath("$.devolucion.importeReemplazo").value(25.0))
+            .andExpect(jsonPath("$.devolucion.importeCobrado").value(0.0))
+            .andExpect(jsonPath("$.resolucion.usuarioLogin")
+                .value(usuario.getUsuarioLogin()))
+            .andExpect(jsonPath("$.resolucion.reemplazos[0].idProducto")
+                .value(productoReemplazo.getId()))
+            .andExpect(jsonPath("$.resolucion.reemplazos[0].subtotal")
+                .value(25.0));
+
+        Inventario original = inventarioRepository.findById(inventario.getId())
+            .orElseThrow();
+        Inventario reemplazo = inventarioRepository
+            .findById(inventarioReemplazo.getId()).orElseThrow();
+        assertThat(original.getStockFisico()).isEqualByComparingTo("19.000");
+        assertThat(reemplazo.getStockFisico()).isEqualByComparingTo("7.000");
+        assertThat(movimientosCambio(id)).singleElement().satisfies(movimiento -> {
+            assertThat(movimiento.getTipoMovimiento())
+                .isEqualTo(TipoMovimientoInventario.DEVOLUCION_SALIDA);
+            assertThat(movimiento.getCantidadBase())
+                .isEqualByComparingTo("-1.000");
+        });
+        assertThat(movimientoCajaRepository
+            .findAllBySesionIdOrderByFechaHoraAscIdAsc(sesion.getId())).isEmpty();
+    }
+
+    @Test
+    void cobraEnCajaLaDiferenciaDeUnReemplazoMasCaro() throws Exception {
+        precioReemplazo.setMonto(new BigDecimal("30.00"));
+        precioProductoRepository.saveAndFlush(precioReemplazo);
+        long id = idDevolucion(registrarDevolucion(
+            "1.000",
+            "DEFECTUOSO",
+            "CAMBIO"
+        ).andExpect(status().isCreated()).andReturn());
+
+        mockMvc.perform(post("/api/v1/devoluciones/{id}/cambio", id)
+                .header(HttpHeaders.AUTHORIZATION, bearer(
+                    PermisosDevolucion.CAMBIOS_CREAR
+                ))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(cuerpoCambio("1.000", "30.00", true)))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.devolucion.importeReemplazo").value(30.0))
+            .andExpect(jsonPath("$.devolucion.importeCobrado").value(5.0))
+            .andExpect(jsonPath("$.resolucion.metodoPagoCodigo")
+                .value("EFECTIVO"));
+
+        assertThat(movimientoCajaRepository
+            .findAllBySesionIdOrderByFechaHoraAscIdAsc(sesion.getId()))
+            .singleElement()
+            .satisfies(movimiento -> {
+                assertThat(movimiento.getTipo())
+                    .isEqualTo(TipoMovimientoCaja.INGRESO);
+                assertThat(movimiento.getConcepto())
+                    .isEqualTo(ConceptoMovimientoCaja.CAMBIO_COBRO);
+                assertThat(movimiento.getImporte()).isEqualByComparingTo("5.00");
+            });
+    }
+
+    @Test
+    void devuelveEnCajaLaDiferenciaDeUnReemplazoMasBarato() throws Exception {
+        precioReemplazo.setMonto(new BigDecimal("20.00"));
+        precioProductoRepository.saveAndFlush(precioReemplazo);
+        long id = idDevolucion(registrarDevolucion(
+            "1.000",
+            "DEFECTUOSO",
+            "CAMBIO"
+        ).andExpect(status().isCreated()).andReturn());
+
+        mockMvc.perform(post("/api/v1/devoluciones/{id}/cambio", id)
+                .header(HttpHeaders.AUTHORIZATION, bearer(
+                    PermisosDevolucion.CAMBIOS_CREAR
+                ))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(cuerpoCambio("1.000", "20.00", true)))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.devolucion.importeReemplazo").value(20.0))
+            .andExpect(jsonPath("$.devolucion.importeReembolsable").value(5.0))
+            .andExpect(jsonPath("$.devolucion.importeReembolsado").value(5.0))
+            .andExpect(jsonPath("$.items[0].importeReembolso").value(5.0));
+
+        assertThat(movimientoCajaRepository
+            .findAllBySesionIdOrderByFechaHoraAscIdAsc(sesion.getId()))
+            .singleElement()
+            .satisfies(movimiento -> {
+                assertThat(movimiento.getTipo())
+                    .isEqualTo(TipoMovimientoCaja.EGRESO);
+                assertThat(movimiento.getConcepto())
+                    .isEqualTo(ConceptoMovimientoCaja.CAMBIO_REEMBOLSO);
+                assertThat(movimiento.getImporte()).isEqualByComparingTo("5.00");
+            });
+    }
+
+    @Test
+    void autorizaDescuentoDefectuosoSinRetornarProductoAlStock() throws Exception {
+        long id = idDevolucion(registrarDevolucion(
+            "1.000",
+            "DEFECTUOSO",
+            "DESCUENTO"
+        )
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.devolucion.estado")
+                .value("PENDIENTE_DESCUENTO"))
+            .andExpect(jsonPath("$.items[0].reincorporadoInventario")
+                .value(false))
+            .andReturn());
+
+        assertThat(inventarioRepository.findById(inventario.getId())
+            .orElseThrow().getStockFisico()).isEqualByComparingTo("18.000");
+        assertThat(ventaRepository.findById(venta.getId()).orElseThrow().getEstado())
+            .isEqualTo(EstadoVenta.REGISTRADA);
+
+        mockMvc.perform(post("/api/v1/devoluciones/{id}/descuento", id)
+                .header(HttpHeaders.AUTHORIZATION, bearer(
+                    PermisosDevolucion.DEVOLUCIONES_VER
+                ))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"importe": 10.00, "idMetodoPago": %d}
+                    """.formatted(efectivo.getId())))
+            .andExpect(status().isForbidden());
+
+        mockMvc.perform(post("/api/v1/devoluciones/{id}/descuento", id)
+                .header(HttpHeaders.AUTHORIZATION, bearer(
+                    PermisosDevolucion.DESCUENTOS_APLICAR
+                ))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "importe": 10.00,
+                      "idMetodoPago": %d,
+                      "referencia": "ACUERDO-DEFECTUOSO"
+                    }
+                    """.formatted(efectivo.getId())))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.devolucion.estado").value("DESCONTADA"))
+            .andExpect(jsonPath("$.devolucion.importeReembolsado").value(10.0))
+            .andExpect(jsonPath("$.items[0].descuentoAplicado").value(10.0))
+            .andExpect(jsonPath("$.resolucion.importeDescuento").value(10.0))
+            .andExpect(jsonPath("$.resolucion.usuarioLogin")
+                .value(usuario.getUsuarioLogin()));
+
+        assertThat(movimientoCajaRepository
+            .findAllBySesionIdOrderByFechaHoraAscIdAsc(sesion.getId()))
+            .singleElement()
+            .satisfies(movimiento -> {
+                assertThat(movimiento.getConcepto())
+                    .isEqualTo(ConceptoMovimientoCaja.DESCUENTO_REEMBOLSO);
+                assertThat(movimiento.getImporte()).isEqualByComparingTo("10.00");
+            });
+    }
+
+    @Test
+    void aplicaDescuentoPrimeroAlSaldoSinExigirCaja() throws Exception {
+        venta.setCondicionPago(CondicionPagoVenta.PARCIAL);
+        ventaRepository.saveAndFlush(venta);
+        CuentaCobrar cuenta = new CuentaCobrar();
+        cuenta.setVenta(venta);
+        cuenta.setTotal(new BigDecimal("50.00"));
+        cuenta.setImportePagado(new BigDecimal("10.00"));
+        cuenta.setSaldoPendiente(new BigDecimal("40.00"));
+        cuenta.setFechaVencimiento(LocalDate.now().plusDays(15));
+        cuenta.setEstado(EstadoCuentaCobrar.PARCIAL);
+        cuenta = cuentaRepository.saveAndFlush(cuenta);
+
+        long id = idDevolucion(registrarDevolucion(
+            "1.000",
+            "DANADO",
+            "DESCUENTO"
+        ).andExpect(status().isCreated()).andReturn());
+        mockMvc.perform(post("/api/v1/devoluciones/{id}/descuento", id)
+                .header(HttpHeaders.AUTHORIZATION, bearer(
+                    PermisosDevolucion.DESCUENTOS_APLICAR
+                ))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"importe": 10.00, "referencia": "AJUSTE-SALDO"}
+                    """))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.devolucion.importeAplicadoSaldo")
+                .value(10.0))
+            .andExpect(jsonPath("$.devolucion.importeReembolsable")
+                .value(0.0))
+            .andExpect(jsonPath("$.resolucion.metodoPagoCodigo").doesNotExist());
+
+        CuentaCobrar ajustada = cuentaRepository.findById(cuenta.getId())
+            .orElseThrow();
+        assertThat(ajustada.getTotal()).isEqualByComparingTo("40.00");
+        assertThat(ajustada.getSaldoPendiente()).isEqualByComparingTo("30.00");
+        assertThat(movimientoCajaRepository
+            .findAllBySesionIdOrderByFechaHoraAscIdAsc(sesion.getId())).isEmpty();
+    }
+
+    @Test
     void validaCantidadesSolucionPermisosYReembolsoPendiente() throws Exception {
         registrarDevolucion("2.001", "APTO")
             .andExpect(status().isUnprocessableEntity())
@@ -428,8 +683,11 @@ class DevolucionesIntegrationTests {
                 ))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(cuerpoDevolucion("1.000", "APTO")
-                    .replace("REEMBOLSO", "CAMBIO")))
-            .andExpect(status().isConflict());
+                    .replace("REEMBOLSO", "DESCUENTO")))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString(
+                "solo corresponde a productos defectuosos"
+            )));
 
         MvcResult resultado = registrarDevolucion("1.000", "PENDIENTE")
             .andExpect(status().isCreated())
@@ -458,7 +716,9 @@ class DevolucionesIntegrationTests {
         Set<String> esperados = Set.of(
             PermisosDevolucion.DEVOLUCIONES_VER,
             PermisosDevolucion.DEVOLUCIONES_CREAR,
-            PermisosDevolucion.REEMBOLSOS_CREAR
+            PermisosDevolucion.REEMBOLSOS_CREAR,
+            PermisosDevolucion.CAMBIOS_CREAR,
+            PermisosDevolucion.DESCUENTOS_APLICAR
         );
         Set<String> registrados = permisoRepository
             .findAllByModuloOrderByCodigoAsc("Devoluciones")
@@ -504,12 +764,58 @@ class DevolucionesIntegrationTests {
         String cantidad,
         String estadoProducto
     ) throws Exception {
+        return registrarDevolucion(cantidad, estadoProducto, "REEMBOLSO");
+    }
+
+    private org.springframework.test.web.servlet.ResultActions registrarDevolucion(
+        String cantidad,
+        String estadoProducto,
+        String tipoSolucion
+    ) throws Exception {
         return mockMvc.perform(post("/api/v1/devoluciones")
             .header(HttpHeaders.AUTHORIZATION, bearer(
                 PermisosDevolucion.DEVOLUCIONES_CREAR
             ))
             .contentType(MediaType.APPLICATION_JSON)
-            .content(cuerpoDevolucion(cantidad, estadoProducto)));
+            .content(cuerpoDevolucion(cantidad, estadoProducto)
+                .replace("REEMBOLSO", tipoSolucion)));
+    }
+
+    private long idDevolucion(MvcResult resultado) throws Exception {
+        return ((Number) JsonPath.read(
+            resultado.getResponse().getContentAsString(),
+            "$.devolucion.id"
+        )).longValue();
+    }
+
+    private String cuerpoCambio(
+        String cantidad,
+        String precio,
+        boolean incluirMetodo
+    ) {
+        String metodo = incluirMetodo
+            ? "\"idMetodoPago\": " + efectivo.getId() + ","
+            : "";
+        return """
+            {
+              "items": [
+                {
+                  "idProducto": %d,
+                  "idUnidadMedida": %d,
+                  "cantidad": %s,
+                  "precioUnitario": %s
+                }
+              ],
+              %s
+              "referencia": "CAMBIO-CLIENTE"
+            }
+            """.formatted(
+                productoReemplazo.getId(),
+                productoReemplazo.getUnidadBase().getId(),
+                cantidad,
+                precio,
+                metodo
+            );
     }
 
     private String cuerpoDevolucion(String cantidad, String estadoProducto) {
@@ -538,6 +844,18 @@ class DevolucionesIntegrationTests {
         movimientosInventario(long idDevolucion) {
         return movimientoInventarioRepository.findAll().stream()
             .filter(movimiento -> "DEVOLUCION".equals(
+                movimiento.getDocumentoOrigen()
+            ))
+            .filter(movimiento -> Long.valueOf(idDevolucion).equals(
+                movimiento.getIdOrigen()
+            ))
+            .toList();
+    }
+
+    private List<pe.com.proveperu.sgc.inventario.domain.model.MovimientoInventario>
+        movimientosCambio(long idDevolucion) {
+        return movimientoInventarioRepository.findAll().stream()
+            .filter(movimiento -> "CAMBIO".equals(
                 movimiento.getDocumentoOrigen()
             ))
             .filter(movimiento -> Long.valueOf(idDevolucion).equals(

@@ -26,9 +26,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import pe.com.proveperu.sgc.config.OpenApiConfig;
+import pe.com.proveperu.sgc.devolucion.api.dto.CambioDevolucionRequest;
 import pe.com.proveperu.sgc.devolucion.api.dto.DevolucionCrearRequest;
 import pe.com.proveperu.sgc.devolucion.api.dto.DevolucionResponse;
 import pe.com.proveperu.sgc.devolucion.api.dto.DevolucionResumenResponse;
+import pe.com.proveperu.sgc.devolucion.api.dto.DescuentoDevolucionRequest;
 import pe.com.proveperu.sgc.devolucion.api.dto.ReembolsoDevolucionRequest;
 import pe.com.proveperu.sgc.devolucion.application.service.DevolucionService;
 import pe.com.proveperu.sgc.devolucion.application.service.PermisosDevolucion;
@@ -42,7 +44,7 @@ import pe.com.proveperu.sgc.shared.api.dto.PaginaResponse;
 @Validated
 @Tag(
     name = "Devoluciones",
-    description = "Devoluciones de ventas, clasificación del producto y reembolsos en caja"
+    description = "Devoluciones, productos defectuosos, cambios, descuentos autorizados y reembolsos"
 )
 @SecurityRequirement(name = OpenApiConfig.BEARER_AUTH)
 public class DevolucionController {
@@ -121,6 +123,48 @@ public class DevolucionController {
         );
         return ResponseEntity.created(URI.create(
             "/api/v1/devoluciones/" + id + "/reembolso"
+        )).body(devolucion);
+    }
+
+    @PostMapping("/{id}/cambio")
+    @PreAuthorize("hasAuthority('" + PermisosDevolucion.CAMBIOS_CREAR + "')")
+    @Operation(
+        summary = "Entregar productos de reemplazo",
+        description = "Valida precio y stock, registra la salida en Kardex y cobra o devuelve la diferencia económica en caja"
+    )
+    public ResponseEntity<DevolucionResponse> cambiar(
+        @PathVariable @Positive Long id,
+        @Valid @RequestBody CambioDevolucionRequest request,
+        @AuthenticationPrincipal Jwt jwt
+    ) {
+        DevolucionResponse devolucion = devolucionService.cambiar(
+            id,
+            request,
+            jwt.getSubject()
+        );
+        return ResponseEntity.created(URI.create(
+            "/api/v1/devoluciones/" + id + "/cambio"
+        )).body(devolucion);
+    }
+
+    @PostMapping("/{id}/descuento")
+    @PreAuthorize("hasAuthority('" + PermisosDevolucion.DESCUENTOS_APLICAR + "')")
+    @Operation(
+        summary = "Autorizar descuento por producto defectuoso",
+        description = "Registra al usuario autorizador; reduce primero el saldo pendiente y entrega en caja únicamente el importe ya pagado"
+    )
+    public ResponseEntity<DevolucionResponse> descontar(
+        @PathVariable @Positive Long id,
+        @Valid @RequestBody DescuentoDevolucionRequest request,
+        @AuthenticationPrincipal Jwt jwt
+    ) {
+        DevolucionResponse devolucion = devolucionService.descontar(
+            id,
+            request,
+            jwt.getSubject()
+        );
+        return ResponseEntity.created(URI.create(
+            "/api/v1/devoluciones/" + id + "/descuento"
         )).body(devolucion);
     }
 }
