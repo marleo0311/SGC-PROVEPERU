@@ -35,6 +35,7 @@ import pe.com.proveperu.sgc.catalogo.infrastructure.persistence.CategoriaReposit
 import pe.com.proveperu.sgc.catalogo.infrastructure.persistence.ProductoRepository;
 import pe.com.proveperu.sgc.catalogo.infrastructure.persistence.ProductoUnidadConversionRepository;
 import pe.com.proveperu.sgc.catalogo.infrastructure.persistence.UnidadMedidaRepository;
+import pe.com.proveperu.sgc.compra.application.service.PermisosCompra;
 import pe.com.proveperu.sgc.inventario.application.service.PermisosInventario;
 import pe.com.proveperu.sgc.inventario.domain.model.Inventario;
 import pe.com.proveperu.sgc.inventario.domain.model.Sede;
@@ -155,6 +156,12 @@ class InventarioIntegrationTests {
             .andExpect(jsonPath("$[0].id").value(sede.getId()))
             .andExpect(jsonPath("$[0].nombre").value(sede.getNombre()))
             .andExpect(jsonPath("$[0].estado").value("ACTIVO"));
+
+        mockMvc.perform(get("/api/v1/sedes")
+                .header(HttpHeaders.AUTHORIZATION, bearer(
+                    PermisosCompra.RECEPCIONES_CREAR
+                )))
+            .andExpect(status().isOk());
     }
 
     @Test

@@ -90,6 +90,12 @@ class TransportistasGastosIntegrationTests {
                 )))
             .andExpect(status().isOk());
 
+        mockMvc.perform(get("/api/v1/transportistas")
+                .header(HttpHeaders.AUTHORIZATION, bearer(
+                    PermisosTransporte.GASTOS_CREAR
+                )))
+            .andExpect(status().isOk());
+
         mockMvc.perform(get("/api/v1/gastos")
                 .header(HttpHeaders.AUTHORIZATION, bearer(PermisosTransporte.GASTOS_VER)))
             .andExpect(status().isOk());

@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import pe.com.proveperu.sgc.config.OpenApiConfig;
+import pe.com.proveperu.sgc.compra.application.service.PermisosCompra;
 import pe.com.proveperu.sgc.inventario.api.dto.SedeResponse;
 import pe.com.proveperu.sgc.inventario.application.service.PermisosInventario;
 import pe.com.proveperu.sgc.inventario.application.service.SedeService;
@@ -26,7 +27,8 @@ public class SedeController {
     @GetMapping
     @PreAuthorize(
         "hasAnyAuthority('" + PermisosInventario.STOCK_VER
-            + "', '" + PermisosInventario.KARDEX_VER + "')"
+            + "', '" + PermisosInventario.KARDEX_VER
+            + "', '" + PermisosCompra.RECEPCIONES_CREAR + "')"
     )
     @Operation(summary = "Listar sedes activas")
     public List<SedeResponse> listar() {

@@ -9,6 +9,9 @@ import { LoginPage } from './pages/LoginPage'
 import { ModulePage } from './pages/ModulePage'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { ProductsPage } from './pages/ProductsPage'
+import { PurchasesPage } from './pages/PurchasesPage'
+import { PermissionsPage, RolesPage, UsersPage } from './pages/SecurityPages'
+import { SuppliersPage } from './pages/SuppliersPage'
 import { ProtectedRoute } from './router/ProtectedRoute'
 
 export default function App() {
@@ -23,6 +26,11 @@ export default function App() {
           <Route path="productos" element={<ProductsPage />} />
           <Route path="inventario" element={<InventoryPage />} />
           <Route path="kardex" element={<KardexPage />} />
+          <Route path="usuarios" element={<UsersPage />} />
+          <Route path="roles" element={<RolesPage />} />
+          <Route path="permisos" element={<PermissionsPage />} />
+          <Route path="proveedores" element={<SuppliersPage />} />
+          <Route path="compras" element={<PurchasesPage />} />
           <Route path=":module" element={<ModulePage />} />
         </Route>
       </Route>

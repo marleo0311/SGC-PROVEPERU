@@ -45,7 +45,8 @@ public class TransportistaController {
     private final TransportistaService transportistaService;
 
     @GetMapping
-    @PreAuthorize("hasAuthority('" + PermisosTransporte.TRANSPORTISTAS_VER + "')")
+    @PreAuthorize("hasAnyAuthority('" + PermisosTransporte.TRANSPORTISTAS_VER + "', '"
+        + PermisosTransporte.GASTOS_CREAR + "')")
     @Operation(summary = "Listar y buscar transportistas")
     public PaginaResponse<TransportistaResponse> listar(
         @RequestParam(defaultValue = "")
