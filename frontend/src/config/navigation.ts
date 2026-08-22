@@ -27,6 +27,7 @@ export const navigationGroups: NavigationGroup[] = [
   {
     label: 'Inventario',
     items: [
+      { label: 'Catálogos', path: '/app/catalogos', icon: 'bi-tags', authorities: ['CAT_CATEGORIAS_VER', 'CAT_MARCAS_VER', 'CAT_UNIDADES_VER'] },
       { label: 'Productos', path: '/app/productos', icon: 'bi-box-seam', authorities: ['CAT_PRODUCTOS_VER'] },
       { label: 'Existencias', path: '/app/inventario', icon: 'bi-boxes', authorities: ['INV_STOCK_VER'] },
       { label: 'Kardex', path: '/app/kardex', icon: 'bi-arrow-left-right', authorities: ['INV_KARDEX_VER'] },

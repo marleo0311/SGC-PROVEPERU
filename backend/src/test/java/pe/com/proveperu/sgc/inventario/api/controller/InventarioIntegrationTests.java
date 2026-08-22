@@ -145,6 +145,19 @@ class InventarioIntegrationTests {
     }
 
     @Test
+    void listaSedesActivasConPermisoDeConsultaDeStock() throws Exception {
+        mockMvc.perform(get("/api/v1/sedes"))
+            .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(get("/api/v1/sedes")
+                .header(HttpHeaders.AUTHORIZATION, bearer(PermisosInventario.STOCK_VER)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].id").value(sede.getId()))
+            .andExpect(jsonPath("$[0].nombre").value(sede.getNombre()))
+            .andExpect(jsonPath("$[0].estado").value("ACTIVO"));
+    }
+
+    @Test
     void consultaStockInicialYDetectaProductoAgotado() throws Exception {
         mockMvc.perform(get("/api/v1/inventario/{idProducto}", producto.getId())
                 .header(HttpHeaders.AUTHORIZATION, bearer(PermisosInventario.STOCK_VER)))

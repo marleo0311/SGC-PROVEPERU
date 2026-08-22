@@ -1,13 +1,16 @@
 import type {
   CatalogoOpciones,
   Categoria,
+  CategoriaGuardarRequest,
   EstadoCatalogo,
   Marca,
+  MarcaGuardarRequest,
   Pagina,
   Producto,
   ProductoFiltros,
   ProductoGuardarRequest,
   UnidadMedida,
+  UnidadMedidaGuardarRequest,
 } from '../types/catalog'
 import { api } from './api'
 
@@ -24,9 +27,86 @@ export async function listProducts(filters: ProductoFiltros): Promise<Pagina<Pro
   return data
 }
 
-export async function listCategories(estado?: EstadoCatalogo): Promise<Categoria[]> {
-  const { data } = await api.get<Categoria[]>('/v1/categorias', { params: { estado } })
+export async function listCategories(estado?: EstadoCatalogo, buscar = ''): Promise<Categoria[]> {
+  const { data } = await api.get<Categoria[]>('/v1/categorias', {
+    params: { estado, buscar: buscar || undefined },
+  })
   return data
+}
+
+export async function createCategory(request: CategoriaGuardarRequest): Promise<Categoria> {
+  const { data } = await api.post<Categoria>('/v1/categorias', request)
+  return data
+}
+
+export async function updateCategory(id: number, request: CategoriaGuardarRequest): Promise<Categoria> {
+  const { data } = await api.put<Categoria>(`/v1/categorias/${id}`, request)
+  return data
+}
+
+export async function changeCategoryStatus(id: number, estado: EstadoCatalogo): Promise<Categoria> {
+  const { data } = await api.patch<Categoria>(`/v1/categorias/${id}/estado`, { estado })
+  return data
+}
+
+export async function listBrands(estado?: EstadoCatalogo, buscar = ''): Promise<Marca[]> {
+  const { data } = await api.get<Marca[]>('/v1/marcas', {
+    params: { estado, buscar: buscar || undefined },
+  })
+  return data
+}
+
+export async function createBrand(request: MarcaGuardarRequest): Promise<Marca> {
+  const { data } = await api.post<Marca>('/v1/marcas', request)
+  return data
+}
+
+export async function updateBrand(
+  brand: Marca,
+  request: MarcaGuardarRequest,
+  estado: EstadoCatalogo = brand.estado,
+): Promise<Marca> {
+  const { data } = await api.put<Marca>(`/v1/marcas/${brand.id}`, { ...request, estado })
+  return data
+}
+
+export async function changeBrandStatus(brand: Marca, estado: EstadoCatalogo): Promise<Marca> {
+  return updateBrand(brand, { nombre: brand.nombre }, estado)
+}
+
+export async function listUnits(estado?: EstadoCatalogo, buscar = ''): Promise<UnidadMedida[]> {
+  const { data } = await api.get<UnidadMedida[]>('/v1/unidades-medida', {
+    params: { estado, buscar: buscar || undefined },
+  })
+  return data
+}
+
+export async function createUnit(request: UnidadMedidaGuardarRequest): Promise<UnidadMedida> {
+  const { data } = await api.post<UnidadMedida>('/v1/unidades-medida', request)
+  return data
+}
+
+export async function updateUnit(
+  unit: UnidadMedida,
+  request: UnidadMedidaGuardarRequest,
+  estado: EstadoCatalogo = unit.estado,
+): Promise<UnidadMedida> {
+  const { data } = await api.put<UnidadMedida>(`/v1/unidades-medida/${unit.id}`, {
+    ...request,
+    estado,
+  })
+  return data
+}
+
+export async function changeUnitStatus(
+  unit: UnidadMedida,
+  estado: EstadoCatalogo,
+): Promise<UnidadMedida> {
+  return updateUnit(unit, {
+    codigo: unit.codigo,
+    nombre: unit.nombre,
+    permiteDecimales: unit.permiteDecimales,
+  }, estado)
 }
 
 export async function getCatalogOptions(): Promise<CatalogoOpciones> {

@@ -1,4 +1,5 @@
 import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react'
+import { Link } from 'react-router-dom'
 import { createProduct, updateProduct } from '../services/catalog.service'
 import { getApiErrorDetails } from '../services/api'
 import type { CatalogoOpciones, Producto, ProductoGuardarRequest } from '../types/catalog'
@@ -135,6 +136,10 @@ export function ProductFormModal({
   }
 
   const title = mode === 'create' ? 'Registrar producto' : 'Editar producto'
+  const missingRequiredCatalog = options
+    ? options.categorias.length === 0 || options.unidades.length === 0
+    : false
+  const missingCatalogTab = options?.categorias.length === 0 ? 'categories' : 'units'
 
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && !isSubmitting && onClose()}>
@@ -165,6 +170,23 @@ export function ProductFormModal({
             <div className="form-modal__body">
               {submitError && <div className="alert-message alert-message--danger" role="alert"><i className="bi bi-exclamation-circle-fill" /><span>{submitError}</span></div>}
 
+              {missingRequiredCatalog && (
+                <div className="catalog-requirements-warning" role="alert">
+                  <span><i className="bi bi-exclamation-triangle-fill" /></span>
+                  <div>
+                    <strong>Faltan catálogos obligatorios</strong>
+                    <small>
+                      {options.categorias.length === 0 && options.unidades.length === 0
+                        ? 'Crea al menos una categoría y una unidad de medida antes de registrar productos.'
+                        : options.categorias.length === 0
+                          ? 'Crea al menos una categoría activa antes de registrar productos.'
+                          : 'Crea al menos una unidad de medida activa antes de registrar productos.'}
+                    </small>
+                  </div>
+                  <Link to={`/app/catalogos?tab=${missingCatalogTab}`}>Ir a Catálogos <i className="bi bi-arrow-right" /></Link>
+                </div>
+              )}
+
               <fieldset className="product-form-section">
                 <legend><span>1</span> Información principal</legend>
                 <div className="product-form-grid">
@@ -187,20 +209,20 @@ export function ProductFormModal({
                 <legend><span>2</span> Clasificación</legend>
                 <div className="product-form-grid product-form-grid--three">
                   <FormField label="Categoría" name="idCategoria" error={errors.idCategoria} required>
-                    <select id="idCategoria" name="idCategoria" value={values.idCategoria} onChange={handleChange}>
-                      <option value="">Seleccionar</option>
+                    <select id="idCategoria" name="idCategoria" value={values.idCategoria} onChange={handleChange} disabled={options.categorias.length === 0}>
+                      <option value="">{options.categorias.length === 0 ? 'No hay categorías activas' : 'Seleccionar'}</option>
                       {options.categorias.map((category) => <option key={category.id} value={category.id}>{category.nombre}</option>)}
                     </select>
                   </FormField>
                   <FormField label="Marca" name="idMarca" error={errors.idMarca} hint="Opcional">
                     <select id="idMarca" name="idMarca" value={values.idMarca} onChange={handleChange}>
-                      <option value="">Sin marca</option>
+                      <option value="">{options.marcas.length === 0 ? 'Sin marcas activas' : 'Sin marca'}</option>
                       {options.marcas.map((brand) => <option key={brand.id} value={brand.id}>{brand.nombre}</option>)}
                     </select>
                   </FormField>
                   <FormField label="Unidad base" name="idUnidadBase" error={errors.idUnidadBase} required>
-                    <select id="idUnidadBase" name="idUnidadBase" value={values.idUnidadBase} onChange={handleChange}>
-                      <option value="">Seleccionar</option>
+                    <select id="idUnidadBase" name="idUnidadBase" value={values.idUnidadBase} onChange={handleChange} disabled={options.unidades.length === 0}>
+                      <option value="">{options.unidades.length === 0 ? 'No hay unidades activas' : 'Seleccionar'}</option>
                       {options.unidades.map((unit) => <option key={unit.id} value={unit.id}>{unit.codigo} · {unit.nombre}</option>)}
                     </select>
                   </FormField>
@@ -231,7 +253,7 @@ export function ProductFormModal({
               <span><i className="bi bi-shield-check" /> Los campos marcados con * son obligatorios.</span>
               <div>
                 <button className="secondary-button" type="button" onClick={onClose} disabled={isSubmitting}>Cancelar</button>
-                <button className="primary-button primary-button--inline" type="submit" disabled={isSubmitting}>
+                <button className="primary-button primary-button--inline" type="submit" disabled={isSubmitting || missingRequiredCatalog}>
                   {isSubmitting ? <><span className="spinner-border spinner-border-sm" /> Guardando…</> : <><i className="bi bi-check2" /> {mode === 'create' ? 'Registrar producto' : 'Guardar cambios'}</>}
                 </button>
               </div>

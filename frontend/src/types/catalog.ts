@@ -7,10 +7,19 @@ export interface Categoria {
   estado: EstadoCatalogo
 }
 
+export interface CategoriaGuardarRequest {
+  nombre: string
+  descripcion: string | null
+}
+
 export interface Marca {
   id: number
   nombre: string
   estado: EstadoCatalogo
+}
+
+export interface MarcaGuardarRequest {
+  nombre: string
 }
 
 export interface UnidadMedida {
@@ -19,6 +28,12 @@ export interface UnidadMedida {
   nombre: string
   permiteDecimales: boolean
   estado: EstadoCatalogo
+}
+
+export interface UnidadMedidaGuardarRequest {
+  codigo: string
+  nombre: string
+  permiteDecimales: boolean
 }
 
 export interface Producto {
