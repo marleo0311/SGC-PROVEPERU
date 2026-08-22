@@ -48,6 +48,19 @@ public interface CuentaCobrarRepository
     @Query("select cc from CuentaCobrar cc where cc.id = :id")
     Optional<CuentaCobrar> findForUpdate(@Param("id") Long id);
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @EntityGraph(attributePaths = {
+        "venta",
+        "venta.cliente",
+        "venta.vendedor",
+        "venta.pedido",
+        "venta.sede"
+    })
+    @Query("select cc from CuentaCobrar cc where cc.venta.id = :idVenta")
+    Optional<CuentaCobrar> findByVentaIdForUpdate(
+        @Param("idVenta") Long idVenta
+    );
+
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
         update CuentaCobrar cc

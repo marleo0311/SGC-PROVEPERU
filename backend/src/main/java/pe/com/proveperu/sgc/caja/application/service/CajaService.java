@@ -232,6 +232,43 @@ public class CajaService {
         );
     }
 
+    @Transactional
+    public void registrarEgresoReembolso(
+        Venta venta,
+        Long idDevolucion,
+        Long idReembolso,
+        MetodoPago metodo,
+        BigDecimal importe,
+        Usuario usuario,
+        String referencia
+    ) {
+        SesionCaja sesion = sesionRepository.findActivaForUpdate(
+            usuario.getUsuarioLogin(),
+            EstadoSesionCaja.ABIERTA
+        ).orElseThrow(() -> new OperacionNoPermitidaException(
+            "Debe abrir una caja antes de registrar un reembolso"
+        ));
+        if (!sesion.getCaja().getSede().getId().equals(venta.getSede().getId())) {
+            throw new OperacionNoPermitidaException(
+                "La caja abierta pertenece a una sede diferente a la venta"
+            );
+        }
+
+        MovimientoCaja movimiento = new MovimientoCaja();
+        movimiento.setSesion(sesion);
+        movimiento.setMetodoPago(metodo);
+        movimiento.setUsuario(usuario);
+        movimiento.setVenta(venta);
+        movimiento.setVendedor(venta.getVendedor());
+        movimiento.setTipo(TipoMovimientoCaja.EGRESO);
+        movimiento.setConcepto(ConceptoMovimientoCaja.REEMBOLSO);
+        movimiento.setIdOrigen(idReembolso);
+        movimiento.setImporte(importe);
+        movimiento.setReferencia(normalizarTexto(referencia));
+        movimiento.setObservacion("Reembolso de la devolución #" + idDevolucion);
+        movimientoRepository.saveAndFlush(movimiento);
+    }
+
     private void registrarIngresoAutomatico(
         Usuario usuario,
         Venta venta,

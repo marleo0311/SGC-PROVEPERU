@@ -425,6 +425,54 @@ public class InventarioService {
         return movimientoRepository.save(movimiento);
     }
 
+    @Transactional
+    public MovimientoInventario registrarDevolucionVenta(
+        Sede sede,
+        Producto producto,
+        UnidadMedida unidad,
+        BigDecimal cantidad,
+        BigDecimal cantidadBase,
+        Usuario usuario,
+        Long idDevolucion,
+        Long idVenta
+    ) {
+        Inventario inventario = inventarioRepository
+            .findForUpdate(sede.getId(), producto.getId())
+            .orElseGet(() -> crearInventarioVacio(sede, producto));
+        BigDecimal cantidadNormalizada = cantidad.setScale(
+            ESCALA_STOCK,
+            RoundingMode.UNNECESSARY
+        );
+        BigDecimal cantidadBaseNormalizada = cantidadBase.setScale(
+            ESCALA_STOCK,
+            RoundingMode.UNNECESSARY
+        );
+        BigDecimal stockAnterior = inventario.getStockFisico();
+        BigDecimal stockResultante = stockAnterior.add(cantidadBaseNormalizada);
+        validarCapacidadStock(stockResultante);
+
+        Instant ahora = Instant.now();
+        inventario.setStockFisico(stockResultante);
+        inventario.setFechaActualizacion(ahora);
+        inventarioRepository.save(inventario);
+
+        MovimientoInventario movimiento = new MovimientoInventario();
+        movimiento.setSede(sede);
+        movimiento.setProducto(producto);
+        movimiento.setUsuario(usuario);
+        movimiento.setUnidadMedida(unidad);
+        movimiento.setTipoMovimiento(TipoMovimientoInventario.DEVOLUCION_ENTRADA);
+        movimiento.setCantidad(cantidadNormalizada);
+        movimiento.setCantidadBase(cantidadBaseNormalizada);
+        movimiento.setStockAnterior(stockAnterior);
+        movimiento.setStockResultante(stockResultante);
+        movimiento.setDocumentoOrigen("DEVOLUCION");
+        movimiento.setIdOrigen(idDevolucion);
+        movimiento.setMotivo("Producto apto devuelto de la venta #" + idVenta);
+        movimiento.setFechaHora(ahora);
+        return movimientoRepository.save(movimiento);
+    }
+
     private MovimientoInventario registrarSalidaVenta(
         Sede sede,
         Producto producto,
