@@ -9,6 +9,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -29,6 +31,7 @@ import pe.com.proveperu.sgc.compra.domain.model.Compra;
 import pe.com.proveperu.sgc.compra.domain.model.DetalleCompra;
 import pe.com.proveperu.sgc.compra.domain.model.EstadoCompra;
 import pe.com.proveperu.sgc.compra.infrastructure.persistence.CompraRepository;
+import pe.com.proveperu.sgc.compra.infrastructure.persistence.DetalleRecepcionCompraRepository;
 import pe.com.proveperu.sgc.proveedor.domain.model.Proveedor;
 import pe.com.proveperu.sgc.proveedor.infrastructure.persistence.ProveedorRepository;
 import pe.com.proveperu.sgc.security.application.exception.ConflictoNegocioException;
@@ -52,6 +55,7 @@ public class CompraService {
     private static final int MAX_ENTEROS_DINERO = 12;
 
     private final CompraRepository compraRepository;
+    private final DetalleRecepcionCompraRepository detalleRecepcionRepository;
     private final ProveedorRepository proveedorRepository;
     private final ProductoRepository productoRepository;
     private final UnidadMedidaRepository unidadMedidaRepository;
@@ -77,7 +81,15 @@ public class CompraService {
 
     @Transactional(readOnly = true)
     public CompraResponse obtener(Long id) {
-        return CompraResponse.from(buscarCompraDetallada(id));
+        Compra compra = buscarCompraDetallada(id);
+        Map<Long, BigDecimal> cantidadesRecibidas = detalleRecepcionRepository
+            .sumarCantidadesPorCompra(id)
+            .stream()
+            .collect(Collectors.toMap(
+                DetalleRecepcionCompraRepository.CantidadRecibidaPorDetalle::getIdDetalleCompra,
+                DetalleRecepcionCompraRepository.CantidadRecibidaPorDetalle::getCantidadRecibida
+            ));
+        return CompraResponse.from(compra, cantidadesRecibidas);
     }
 
     @Transactional

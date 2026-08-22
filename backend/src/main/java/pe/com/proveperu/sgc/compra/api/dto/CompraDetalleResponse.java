@@ -12,10 +12,19 @@ public record CompraDetalleResponse(
     String codigoUnidad,
     String unidadMedida,
     BigDecimal cantidad,
+    BigDecimal cantidadRecibida,
+    BigDecimal cantidadPendiente,
     BigDecimal precioCompra,
     BigDecimal subtotal
 ) {
     public static CompraDetalleResponse from(DetalleCompra detalle) {
+        return from(detalle, BigDecimal.ZERO.setScale(3));
+    }
+
+    public static CompraDetalleResponse from(
+        DetalleCompra detalle,
+        BigDecimal cantidadRecibida
+    ) {
         return new CompraDetalleResponse(
             detalle.getId(),
             detalle.getProducto().getId(),
@@ -25,6 +34,8 @@ public record CompraDetalleResponse(
             detalle.getUnidadMedida().getCodigo(),
             detalle.getUnidadMedida().getNombre(),
             detalle.getCantidad(),
+            cantidadRecibida,
+            detalle.getCantidad().subtract(cantidadRecibida),
             detalle.getPrecioCompra(),
             detalle.getSubtotal()
         );

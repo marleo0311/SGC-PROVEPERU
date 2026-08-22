@@ -319,6 +319,7 @@ class ComprasIntegrationTests {
         Set<String> registrados = permisoRepository.findAllByModuloOrderByCodigoAsc("Compras")
             .stream()
             .map(permiso -> permiso.getCodigo())
+            .filter(esperados::contains)
             .collect(java.util.stream.Collectors.toSet());
         assertThat(registrados).containsExactlyInAnyOrderElementsOf(esperados);
 

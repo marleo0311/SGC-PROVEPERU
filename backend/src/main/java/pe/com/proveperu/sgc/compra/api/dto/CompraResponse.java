@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import pe.com.proveperu.sgc.compra.domain.model.Compra;
 import pe.com.proveperu.sgc.compra.domain.model.CondicionPagoCompra;
 import pe.com.proveperu.sgc.compra.domain.model.EstadoCompra;
@@ -29,6 +30,13 @@ public record CompraResponse(
     Instant fechaActualizacion
 ) {
     public static CompraResponse from(Compra compra) {
+        return from(compra, Map.of());
+    }
+
+    public static CompraResponse from(
+        Compra compra,
+        Map<Long, BigDecimal> cantidadesRecibidas
+    ) {
         return new CompraResponse(
             compra.getId(),
             compra.getProveedor().getId(),
@@ -45,7 +53,15 @@ public record CompraResponse(
             compra.getGastosAdicionales(),
             compra.getTotal(),
             compra.getEstado(),
-            compra.getDetalles().stream().map(CompraDetalleResponse::from).toList(),
+            compra.getDetalles().stream()
+                .map(detalle -> CompraDetalleResponse.from(
+                    detalle,
+                    cantidadesRecibidas.getOrDefault(
+                        detalle.getId(),
+                        BigDecimal.ZERO.setScale(3)
+                    )
+                ))
+                .toList(),
             compra.getFechaRegistro(),
             compra.getFechaActualizacion()
         );

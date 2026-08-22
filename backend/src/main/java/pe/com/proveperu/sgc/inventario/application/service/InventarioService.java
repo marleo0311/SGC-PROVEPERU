@@ -159,6 +159,62 @@ public class InventarioService {
         );
     }
 
+    @Transactional
+    public MovimientoInventario registrarEntradaCompra(
+        Sede sede,
+        Producto producto,
+        UnidadMedida unidad,
+        BigDecimal cantidadRecibida,
+        Usuario usuario,
+        Long idRecepcion,
+        Long idCompra
+    ) {
+        if (!"ACTIVO".equalsIgnoreCase(sede.getEstado())) {
+            throw new OperacionNoPermitidaException(
+                "No se puede recibir mercadería en una sede inactiva"
+            );
+        }
+        validarCantidadPermitida(unidad, cantidadRecibida);
+        BigDecimal cantidad = cantidadRecibida.setScale(
+            ESCALA_STOCK,
+            RoundingMode.UNNECESSARY
+        );
+        BigDecimal cantidadBase = convertirAUnidadBase(producto, unidad, cantidad);
+        if (cantidadBase.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new SolicitudInvalidaException(
+                "La conversión produce una cantidad menor a la precisión admitida"
+            );
+        }
+
+        Inventario inventario = inventarioRepository
+            .findForUpdate(sede.getId(), producto.getId())
+            .orElseGet(() -> crearInventarioVacio(sede, producto));
+        BigDecimal stockAnterior = inventario.getStockFisico();
+        BigDecimal stockResultante = stockAnterior.add(cantidadBase);
+        validarCapacidadStock(stockResultante);
+
+        Instant ahora = Instant.now();
+        inventario.setStockFisico(stockResultante);
+        inventario.setFechaActualizacion(ahora);
+        inventarioRepository.save(inventario);
+
+        MovimientoInventario movimiento = new MovimientoInventario();
+        movimiento.setSede(sede);
+        movimiento.setProducto(producto);
+        movimiento.setUsuario(usuario);
+        movimiento.setUnidadMedida(unidad);
+        movimiento.setTipoMovimiento(TipoMovimientoInventario.COMPRA);
+        movimiento.setCantidad(cantidad);
+        movimiento.setCantidadBase(cantidadBase);
+        movimiento.setStockAnterior(stockAnterior);
+        movimiento.setStockResultante(stockResultante);
+        movimiento.setDocumentoOrigen("RECEPCION_COMPRA");
+        movimiento.setIdOrigen(idRecepcion);
+        movimiento.setMotivo("Recepción confirmada de la compra #" + idCompra);
+        movimiento.setFechaHora(ahora);
+        return movimientoRepository.save(movimiento);
+    }
+
     @Transactional(readOnly = true)
     public PaginaResponse<MovimientoInventarioResponse> listarMovimientos(
         Long idSede,
@@ -325,6 +381,16 @@ public class InventarioService {
 
     private BigDecimal firmar(TipoAjusteInventario tipo, BigDecimal cantidad) {
         return tipo == TipoAjusteInventario.ENTRADA ? cantidad : cantidad.negate();
+    }
+
+    private void validarCapacidadStock(BigDecimal stock) {
+        BigDecimal normalizado = stock.setScale(ESCALA_STOCK, RoundingMode.UNNECESSARY);
+        int enteros = Math.max(0, normalizado.precision() - normalizado.scale());
+        if (enteros > 11) {
+            throw new SolicitudInvalidaException(
+                "El stock resultante supera la capacidad máxima permitida"
+            );
+        }
     }
 
     private TipoMovimientoInventario tipoMovimiento(TipoAjusteInventario tipo) {

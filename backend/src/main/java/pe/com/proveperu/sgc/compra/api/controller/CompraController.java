@@ -32,8 +32,11 @@ import pe.com.proveperu.sgc.compra.api.dto.CompraEstadoRequest;
 import pe.com.proveperu.sgc.compra.api.dto.CompraGuardarRequest;
 import pe.com.proveperu.sgc.compra.api.dto.CompraResponse;
 import pe.com.proveperu.sgc.compra.api.dto.CompraResumenResponse;
+import pe.com.proveperu.sgc.compra.api.dto.RecepcionCompraRequest;
+import pe.com.proveperu.sgc.compra.api.dto.RecepcionCompraResponse;
 import pe.com.proveperu.sgc.compra.application.service.CompraService;
 import pe.com.proveperu.sgc.compra.application.service.PermisosCompra;
+import pe.com.proveperu.sgc.compra.application.service.RecepcionCompraService;
 import pe.com.proveperu.sgc.compra.domain.model.EstadoCompra;
 import pe.com.proveperu.sgc.config.OpenApiConfig;
 import pe.com.proveperu.sgc.shared.api.dto.PaginaResponse;
@@ -53,6 +56,7 @@ import pe.com.proveperu.sgc.transporte.application.service.PermisosTransporte;
 public class CompraController {
 
     private final CompraService compraService;
+    private final RecepcionCompraService recepcionCompraService;
 
     @GetMapping
     @PreAuthorize("hasAuthority('" + PermisosCompra.COMPRAS_VER + "')")
@@ -141,5 +145,35 @@ public class CompraController {
     @Operation(summary = "Consultar los gastos relacionados con una compra")
     public List<GastoResponse> listarGastos(@PathVariable @Positive Long id) {
         return compraService.listarGastos(id);
+    }
+
+    @PostMapping("/{id}/recepciones")
+    @PreAuthorize("hasAuthority('" + PermisosCompra.RECEPCIONES_CREAR + "')")
+    @Operation(
+        summary = "Confirmar una recepción total o parcial",
+        description = "Registra las cantidades reales y actualiza inventario y Kardex en una sola transacción"
+    )
+    public ResponseEntity<RecepcionCompraResponse> crearRecepcion(
+        @PathVariable @Positive Long id,
+        @Valid @RequestBody RecepcionCompraRequest request,
+        @AuthenticationPrincipal Jwt jwt
+    ) {
+        RecepcionCompraResponse recepcion = recepcionCompraService.crear(
+            id,
+            request,
+            jwt.getSubject()
+        );
+        return ResponseEntity.created(URI.create(
+            "/api/v1/compras/" + id + "/recepciones/" + recepcion.id()
+        )).body(recepcion);
+    }
+
+    @GetMapping("/{id}/recepciones")
+    @PreAuthorize("hasAuthority('" + PermisosCompra.RECEPCIONES_VER + "')")
+    @Operation(summary = "Consultar las recepciones de una compra")
+    public List<RecepcionCompraResponse> listarRecepciones(
+        @PathVariable @Positive Long id
+    ) {
+        return recepcionCompraService.listar(id);
     }
 }
