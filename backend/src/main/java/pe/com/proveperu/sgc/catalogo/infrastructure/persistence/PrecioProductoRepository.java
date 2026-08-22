@@ -28,4 +28,20 @@ public interface PrecioProductoRepository extends JpaRepository<PrecioProducto, 
         @Param("vigenteHasta") LocalDate vigenteHasta,
         @Param("estado") EstadoCatalogo estado
     );
+
+    @Query("""
+        select p from PrecioProducto p
+        where p.producto.id = :idProducto
+          and upper(p.tipoPrecio) = upper(:tipoPrecio)
+          and p.estado = :estado
+          and p.vigenteDesde <= :fecha
+          and (p.vigenteHasta is null or p.vigenteHasta >= :fecha)
+        order by p.vigenteDesde desc, p.id desc
+        """)
+    List<PrecioProducto> buscarVigentes(
+        @Param("idProducto") Long idProducto,
+        @Param("tipoPrecio") String tipoPrecio,
+        @Param("fecha") LocalDate fecha,
+        @Param("estado") EstadoCatalogo estado
+    );
 }
