@@ -135,6 +135,24 @@ class OpenApiIntegrationTests {
             ).exists())
             .andExpect(jsonPath(
                 "$.paths['/api/v1/ventas/metodos-pago'].get.security"
+            ).exists())
+            .andExpect(jsonPath(
+                "$.paths['/api/v1/cuentas-cobrar'].get.security"
+            ).exists())
+            .andExpect(jsonPath(
+                "$.paths['/api/v1/cuentas-cobrar/vencidas'].get.security"
+            ).exists())
+            .andExpect(jsonPath(
+                "$.paths['/api/v1/cuentas-cobrar/metodos-pago'].get.security"
+            ).exists())
+            .andExpect(jsonPath(
+                "$.paths['/api/v1/cuentas-cobrar/{id}'].get.security"
+            ).exists())
+            .andExpect(jsonPath(
+                "$.paths['/api/v1/cuentas-cobrar/{id}/vencimiento'].patch.security"
+            ).exists())
+            .andExpect(jsonPath(
+                "$.paths['/api/v1/cuentas-cobrar/{id}/pagos'].post.security"
             ).exists());
     }
 

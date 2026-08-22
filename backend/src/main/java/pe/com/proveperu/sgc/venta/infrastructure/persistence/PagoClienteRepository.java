@@ -9,4 +9,9 @@ public interface PagoClienteRepository extends JpaRepository<PagoCliente, Long> 
 
     @EntityGraph(attributePaths = {"metodoPago", "usuario", "cuentaCobrar"})
     List<PagoCliente> findAllByVentaIdOrderByFechaHoraDescIdDesc(Long idVenta);
+
+    @EntityGraph(attributePaths = {"metodoPago", "usuario", "venta"})
+    List<PagoCliente> findAllByCuentaCobrarIdOrderByFechaHoraDescIdDesc(
+        Long idCuentaCobrar
+    );
 }
