@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { AppShell } from './layout/AppShell'
 import { CatalogsPage } from './pages/CatalogsPage'
+import { ClientsPage } from './pages/ClientsPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { InventoryPage } from './pages/InventoryPage'
 import { KardexPage } from './pages/KardexPage'
@@ -18,6 +19,7 @@ export default function App() {
         <Route path="/app" element={<AppShell />}>
           <Route index element={<DashboardPage />} />
           <Route path="catalogos" element={<CatalogsPage />} />
+          <Route path="clientes" element={<ClientsPage />} />
           <Route path="productos" element={<ProductsPage />} />
           <Route path="inventario" element={<InventoryPage />} />
           <Route path="kardex" element={<KardexPage />} />
