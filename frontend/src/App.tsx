@@ -4,6 +4,7 @@ import { DashboardPage } from './pages/DashboardPage'
 import { LoginPage } from './pages/LoginPage'
 import { ModulePage } from './pages/ModulePage'
 import { NotFoundPage } from './pages/NotFoundPage'
+import { ProductsPage } from './pages/ProductsPage'
 import { ProtectedRoute } from './router/ProtectedRoute'
 
 export default function App() {
@@ -13,6 +14,7 @@ export default function App() {
       <Route element={<ProtectedRoute />}>
         <Route path="/app" element={<AppShell />}>
           <Route index element={<DashboardPage />} />
+          <Route path="productos" element={<ProductsPage />} />
           <Route path=":module" element={<ModulePage />} />
         </Route>
       </Route>

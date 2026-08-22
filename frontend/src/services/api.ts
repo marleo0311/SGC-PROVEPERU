@@ -34,25 +34,47 @@ interface ApiErrorBody {
   mensaje?: string
   detail?: string
   title?: string
+  errores?: Record<string, string>
 }
 
-export function getApiErrorMessage(error: unknown): string {
+export interface ApiErrorDetails {
+  message: string
+  fieldErrors: Record<string, string>
+}
+
+export function getApiErrorDetails(error: unknown): ApiErrorDetails {
   if (!axios.isAxiosError<ApiErrorBody>(error)) {
-    return 'Ocurrió un error inesperado. Inténtalo nuevamente.'
+    return {
+      message: 'Ocurrió un error inesperado. Inténtalo nuevamente.',
+      fieldErrors: {},
+    }
   }
 
   if (!error.response) {
-    return 'No se pudo conectar con el servidor. Verifica que el backend esté iniciado.'
+    return {
+      message: 'No se pudo conectar con el servidor. Verifica que el backend esté iniciado.',
+      fieldErrors: {},
+    }
   }
 
   if (error.response.status === 401) {
-    return 'El usuario o la contraseña son incorrectos.'
+    return { message: 'El usuario o la contraseña son incorrectos.', fieldErrors: {} }
   }
 
   if (error.response.status === 403) {
-    return 'Tu usuario no tiene permiso para consultar esta información.'
+    return {
+      message: 'Tu usuario no tiene permiso para realizar esta operación.',
+      fieldErrors: {},
+    }
   }
 
   const body = error.response.data
-  return body?.message ?? body?.mensaje ?? body?.detail ?? body?.title ?? 'No se pudo completar la operación.'
+  return {
+    message: body?.message ?? body?.mensaje ?? body?.detail ?? body?.title ?? 'No se pudo completar la operación.',
+    fieldErrors: body?.errores ?? {},
+  }
+}
+
+export function getApiErrorMessage(error: unknown): string {
+  return getApiErrorDetails(error).message
 }

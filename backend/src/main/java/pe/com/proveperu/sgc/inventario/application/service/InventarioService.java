@@ -69,6 +69,7 @@ public class InventarioService {
         Page<Producto> productos = productoRepository.buscar(
             criterio,
             EstadoCatalogo.ACTIVO,
+            null,
             pageable
         );
         return mapearPaginaStock(sede, productos);

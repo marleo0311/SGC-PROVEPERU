@@ -165,12 +165,20 @@ class ProductosIntegrationTests {
         mockMvc.perform(get("/api/v1/productos")
                 .param("buscar", codigoNormalizado)
                 .param("estado", "ACTIVO")
+                .param("idCategoria", categoria.getId().toString())
                 .param("page", "0")
                 .param("size", "10")
                 .header(HttpHeaders.AUTHORIZATION, bearer(PermisosCatalogo.PRODUCTOS_VER)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.totalElementos").value(1))
             .andExpect(jsonPath("$.contenido[0].id").value(id.longValue()));
+
+        mockMvc.perform(get("/api/v1/productos")
+                .param("buscar", codigoNormalizado)
+                .param("idCategoria", "999999999")
+                .header(HttpHeaders.AUTHORIZATION, bearer(PermisosCatalogo.PRODUCTOS_VER)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.totalElementos").value(0));
 
         mockMvc.perform(get("/api/v1/productos/{id}", id.longValue())
                 .header(HttpHeaders.AUTHORIZATION, bearer(PermisosCatalogo.PRODUCTOS_VER)))

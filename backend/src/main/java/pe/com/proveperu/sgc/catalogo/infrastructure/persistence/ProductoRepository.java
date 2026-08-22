@@ -16,6 +16,7 @@ public interface ProductoRepository extends JpaRepository<Producto, Long> {
     @Query("""
         select p from Producto p
         where (:estado is null or p.estado = :estado)
+          and (:idCategoria is null or p.categoria.id = :idCategoria)
           and (
               :buscar = ''
               or lower(p.nombre) like lower(concat('%', :buscar, '%'))
@@ -26,6 +27,7 @@ public interface ProductoRepository extends JpaRepository<Producto, Long> {
     Page<Producto> buscar(
         @Param("buscar") String buscar,
         @Param("estado") EstadoCatalogo estado,
+        @Param("idCategoria") Long idCategoria,
         Pageable pageable
     );
 

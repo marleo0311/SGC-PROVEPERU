@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import java.net.URI;
 import lombok.RequiredArgsConstructor;
@@ -51,11 +52,12 @@ public class ProductoController {
         @Size(max = 180, message = "La búsqueda no puede superar 180 caracteres")
         String buscar,
         @RequestParam(required = false) EstadoCatalogo estado,
+        @RequestParam(required = false) @Positive Long idCategoria,
         @RequestParam(defaultValue = "0") @Min(0) int page,
         @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size
     ) {
         PageRequest pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "nombre"));
-        return productoService.listar(buscar, estado, pageable);
+        return productoService.listar(buscar, estado, idCategoria, pageable);
     }
 
     @GetMapping("/{id}")

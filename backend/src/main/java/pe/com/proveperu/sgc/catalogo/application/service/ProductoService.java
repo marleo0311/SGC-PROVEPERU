@@ -41,10 +41,11 @@ public class ProductoService {
     public PaginaResponse<ProductoResponse> listar(
         String buscar,
         EstadoCatalogo estado,
+        Long idCategoria,
         Pageable pageable
     ) {
         String criterio = buscar == null ? "" : buscar.strip();
-        Page<ProductoResponse> pagina = productoRepository.buscar(criterio, estado, pageable)
+        Page<ProductoResponse> pagina = productoRepository.buscar(criterio, estado, idCategoria, pageable)
             .map(ProductoResponse::from);
         return PaginaResponse.from(pagina);
     }
