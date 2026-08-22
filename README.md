@@ -73,3 +73,20 @@ ni modificar CORS localmente.
 
 El frontend incluye inicio de sesión JWT, rutas protegidas, menú condicionado por permisos,
 dashboard conectado a los reportes y una interfaz responsive basada en Bootstrap Icons y CSS propio.
+
+## Iniciar todo con un comando
+
+Con Docker Desktop abierto, ejecuta desde la raíz del proyecto:
+
+```powershell
+.\iniciar-sistema.cmd
+```
+
+El script inicia PostgreSQL, Spring Boot y React, comprueba que los servicios respondan y abre
+`http://localhost:5173`. Los procesos se ejecutan en segundo plano y sus logs quedan en `.run/`.
+
+Para detener todos los componentes iniciados por el proyecto:
+
+```powershell
+.\detener-sistema.cmd
+```

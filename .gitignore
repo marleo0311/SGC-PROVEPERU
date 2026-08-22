@@ -24,6 +24,7 @@ Thumbs.db
 
 # Logs
 *.log
+.run/
 
 # Base de datos local
 *.sql.backup
