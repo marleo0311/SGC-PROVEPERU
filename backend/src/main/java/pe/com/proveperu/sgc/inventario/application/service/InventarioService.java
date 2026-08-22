@@ -215,6 +215,124 @@ public class InventarioService {
         return movimientoRepository.save(movimiento);
     }
 
+    @Transactional
+    public MovimientoInventario reservarParaPedido(
+        Sede sede,
+        Producto producto,
+        UnidadMedida unidad,
+        BigDecimal cantidad,
+        BigDecimal cantidadBase,
+        Usuario usuario,
+        Long idPedido
+    ) {
+        Inventario inventario = inventarioRepository
+            .findForUpdate(sede.getId(), producto.getId())
+            .orElseThrow(() -> new ReglaNegocioException(
+                "Stock insuficiente para " + producto.getCodigoInterno()
+                    + ". Disponible: 0.000"
+            ));
+        BigDecimal cantidadNormalizada = cantidad.setScale(
+            ESCALA_STOCK,
+            RoundingMode.UNNECESSARY
+        );
+        BigDecimal cantidadBaseNormalizada = cantidadBase.setScale(
+            ESCALA_STOCK,
+            RoundingMode.UNNECESSARY
+        );
+        BigDecimal disponibleAnterior = inventario.getStockDisponible();
+        if (cantidadBaseNormalizada.compareTo(disponibleAnterior) > 0) {
+            throw new ReglaNegocioException(
+                "Stock insuficiente para " + producto.getCodigoInterno()
+                    + ". Disponible: " + disponibleAnterior.toPlainString()
+            );
+        }
+
+        Instant ahora = Instant.now();
+        BigDecimal disponibleResultante = disponibleAnterior.subtract(
+            cantidadBaseNormalizada
+        );
+        inventario.setStockReservado(
+            inventario.getStockReservado().add(cantidadBaseNormalizada)
+        );
+        inventario.setFechaActualizacion(ahora);
+        inventarioRepository.save(inventario);
+
+        MovimientoInventario movimiento = new MovimientoInventario();
+        movimiento.setSede(sede);
+        movimiento.setProducto(producto);
+        movimiento.setUsuario(usuario);
+        movimiento.setUnidadMedida(unidad);
+        movimiento.setTipoMovimiento(TipoMovimientoInventario.RESERVA);
+        movimiento.setCantidad(cantidadNormalizada);
+        movimiento.setCantidadBase(cantidadBaseNormalizada);
+        movimiento.setStockAnterior(disponibleAnterior);
+        movimiento.setStockResultante(disponibleResultante);
+        movimiento.setDocumentoOrigen("PEDIDO");
+        movimiento.setIdOrigen(idPedido);
+        movimiento.setMotivo("Reserva confirmada para el pedido #" + idPedido);
+        movimiento.setFechaHora(ahora);
+        return movimientoRepository.save(movimiento);
+    }
+
+    @Transactional
+    public MovimientoInventario liberarReservaDePedido(
+        Sede sede,
+        Producto producto,
+        UnidadMedida unidad,
+        BigDecimal cantidad,
+        BigDecimal cantidadBase,
+        Usuario usuario,
+        Long idPedido
+    ) {
+        Inventario inventario = inventarioRepository
+            .findForUpdate(sede.getId(), producto.getId())
+            .orElseThrow(() -> new OperacionNoPermitidaException(
+                "No existe inventario para liberar la reserva del producto "
+                    + producto.getCodigoInterno()
+            ));
+        BigDecimal cantidadNormalizada = cantidad.setScale(
+            ESCALA_STOCK,
+            RoundingMode.UNNECESSARY
+        );
+        BigDecimal cantidadBaseNormalizada = cantidadBase.setScale(
+            ESCALA_STOCK,
+            RoundingMode.UNNECESSARY
+        );
+        if (cantidadBaseNormalizada.compareTo(inventario.getStockReservado()) > 0) {
+            throw new OperacionNoPermitidaException(
+                "La reserva registrada supera el stock reservado del producto "
+                    + producto.getCodigoInterno()
+            );
+        }
+
+        Instant ahora = Instant.now();
+        BigDecimal disponibleAnterior = inventario.getStockDisponible();
+        BigDecimal disponibleResultante = disponibleAnterior.add(
+            cantidadBaseNormalizada
+        );
+        inventario.setStockReservado(
+            inventario.getStockReservado().subtract(cantidadBaseNormalizada)
+        );
+        inventario.setFechaActualizacion(ahora);
+        inventarioRepository.save(inventario);
+
+        MovimientoInventario movimiento = new MovimientoInventario();
+        movimiento.setSede(sede);
+        movimiento.setProducto(producto);
+        movimiento.setUsuario(usuario);
+        movimiento.setUnidadMedida(unidad);
+        movimiento.setTipoMovimiento(TipoMovimientoInventario.LIBERACION_RESERVA);
+        movimiento.setCantidad(cantidadNormalizada.negate());
+        movimiento.setCantidadBase(cantidadBaseNormalizada.negate());
+        movimiento.setStockAnterior(disponibleAnterior);
+        movimiento.setStockResultante(disponibleResultante);
+        movimiento.setDocumentoOrigen("PEDIDO");
+        movimiento.setIdOrigen(idPedido);
+        movimiento.setMotivo("Reserva liberada por cancelación del pedido #" + idPedido);
+        movimiento.setFechaHora(ahora);
+        return movimientoRepository.save(movimiento);
+    }
+
     @Transactional(readOnly = true)
     public PaginaResponse<MovimientoInventarioResponse> listarMovimientos(
         Long idSede,

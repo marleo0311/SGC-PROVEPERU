@@ -36,6 +36,10 @@ import pe.com.proveperu.sgc.cotizacion.api.dto.CotizacionResumenResponse;
 import pe.com.proveperu.sgc.cotizacion.application.service.CotizacionService;
 import pe.com.proveperu.sgc.cotizacion.application.service.PermisosCotizacion;
 import pe.com.proveperu.sgc.cotizacion.domain.model.EstadoCotizacion;
+import pe.com.proveperu.sgc.pedido.api.dto.CotizacionConvertirPedidoRequest;
+import pe.com.proveperu.sgc.pedido.api.dto.PedidoResponse;
+import pe.com.proveperu.sgc.pedido.application.service.PedidoService;
+import pe.com.proveperu.sgc.pedido.application.service.PermisosPedido;
 import pe.com.proveperu.sgc.shared.api.dto.PaginaResponse;
 
 @RestController
@@ -50,6 +54,7 @@ import pe.com.proveperu.sgc.shared.api.dto.PaginaResponse;
 public class CotizacionController {
 
     private final CotizacionService cotizacionService;
+    private final PedidoService pedidoService;
 
     @GetMapping
     @PreAuthorize("hasAuthority('" + PermisosCotizacion.COTIZACIONES_VER + "')")
@@ -130,6 +135,27 @@ public class CotizacionController {
         @Valid @RequestBody CotizacionEstadoRequest request
     ) {
         return cotizacionService.cambiarEstado(id, request.estado());
+    }
+
+    @PostMapping("/{id}/convertir-pedido")
+    @PreAuthorize("hasAuthority('" + PermisosPedido.PEDIDOS_CONVERTIR + "')")
+    @Operation(
+        summary = "Convertir una cotización aceptada en pedido",
+        description = "Reutiliza cliente, productos, unidades, precios y descuentos sin reservar todavía el inventario"
+    )
+    public ResponseEntity<PedidoResponse> convertirPedido(
+        @PathVariable @Positive Long id,
+        @Valid @RequestBody CotizacionConvertirPedidoRequest request,
+        @AuthenticationPrincipal Jwt jwt
+    ) {
+        PedidoResponse pedido = pedidoService.convertirCotizacion(
+            id,
+            request,
+            jwt.getSubject()
+        );
+        Long idPedido = pedido.pedido().id();
+        return ResponseEntity.created(URI.create("/api/v1/pedidos/" + idPedido))
+            .body(pedido);
     }
 
     private boolean tienePermisoDescuento(Jwt jwt) {

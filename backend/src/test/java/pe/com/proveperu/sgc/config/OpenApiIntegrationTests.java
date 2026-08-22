@@ -103,6 +103,24 @@ class OpenApiIntegrationTests {
             ).exists())
             .andExpect(jsonPath(
                 "$.paths['/api/v1/cotizaciones/{id}/estado'].patch.security"
+            ).exists())
+            .andExpect(jsonPath(
+                "$.paths['/api/v1/cotizaciones/{id}/convertir-pedido'].post.security"
+            ).exists())
+            .andExpect(jsonPath("$.paths['/api/v1/pedidos'].get.security").exists())
+            .andExpect(jsonPath("$.paths['/api/v1/pedidos'].post.security").exists())
+            .andExpect(jsonPath("$.paths['/api/v1/pedidos/{id}'].get.security").exists())
+            .andExpect(jsonPath(
+                "$.paths['/api/v1/pedidos/{id}/confirmar'].post.security"
+            ).exists())
+            .andExpect(jsonPath(
+                "$.paths['/api/v1/pedidos/{id}/cancelar'].post.security"
+            ).exists())
+            .andExpect(jsonPath(
+                "$.paths['/api/v1/pedidos/{id}/estado'].patch.security"
+            ).exists())
+            .andExpect(jsonPath(
+                "$.paths['/api/v1/pedidos/{id}/reservas'].get.security"
             ).exists());
     }
 
