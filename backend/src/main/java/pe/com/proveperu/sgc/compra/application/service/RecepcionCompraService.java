@@ -26,6 +26,7 @@ import pe.com.proveperu.sgc.compra.domain.model.RecepcionCompra;
 import pe.com.proveperu.sgc.compra.infrastructure.persistence.CompraRepository;
 import pe.com.proveperu.sgc.compra.infrastructure.persistence.DetalleRecepcionCompraRepository;
 import pe.com.proveperu.sgc.compra.infrastructure.persistence.RecepcionCompraRepository;
+import pe.com.proveperu.sgc.cuentapagar.application.service.CuentaPagarService;
 import pe.com.proveperu.sgc.inventario.application.service.InventarioService;
 import pe.com.proveperu.sgc.inventario.domain.model.Sede;
 import pe.com.proveperu.sgc.inventario.infrastructure.persistence.SedeRepository;
@@ -49,6 +50,7 @@ public class RecepcionCompraService {
     private final SedeRepository sedeRepository;
     private final UsuarioRepository usuarioRepository;
     private final InventarioService inventarioService;
+    private final CuentaPagarService cuentaPagarService;
 
     @Transactional
     public RecepcionCompraResponse crear(
@@ -113,6 +115,7 @@ public class RecepcionCompraService {
             ? EstadoCompra.RECIBIDA
             : EstadoCompra.PARCIALMENTE_RECIBIDA);
         compraRepository.saveAndFlush(compra);
+        cuentaPagarService.generarParaCompra(compra);
         return RecepcionCompraResponse.from(recepcion);
     }
 

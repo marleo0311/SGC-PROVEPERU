@@ -5,6 +5,9 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -16,6 +19,8 @@ import pe.com.proveperu.sgc.compra.domain.model.Compra;
 import pe.com.proveperu.sgc.compra.domain.model.CondicionPagoCompra;
 import pe.com.proveperu.sgc.compra.domain.model.EstadoCompra;
 import pe.com.proveperu.sgc.compra.infrastructure.persistence.CompraRepository;
+import pe.com.proveperu.sgc.cuentapagar.domain.model.CuentaPagar;
+import pe.com.proveperu.sgc.cuentapagar.infrastructure.persistence.CuentaPagarRepository;
 import pe.com.proveperu.sgc.proveedor.api.dto.ProveedorCompraResponse;
 import pe.com.proveperu.sgc.proveedor.api.dto.ProveedorGuardarRequest;
 import pe.com.proveperu.sgc.proveedor.api.dto.ProveedorHistorialResponse;
@@ -32,6 +37,7 @@ public class ProveedorService {
 
     private final ProveedorRepository proveedorRepository;
     private final CompraRepository compraRepository;
+    private final CuentaPagarRepository cuentaPagarRepository;
 
     @Transactional(readOnly = true)
     public PaginaResponse<ProveedorResponse> listar(
@@ -82,8 +88,15 @@ public class ProveedorService {
         Proveedor proveedor = buscarProveedor(id);
         List<Compra> compras = compraRepository
             .findAllByProveedorIdOrderByFechaDescIdDesc(id);
+        Map<Long, CuentaPagar> cuentasPorCompra = cuentaPagarRepository
+            .findAllByCompraIdIn(compras.stream().map(Compra::getId).toList())
+            .stream()
+            .collect(Collectors.toMap(
+                cuenta -> cuenta.getCompra().getId(),
+                Function.identity()
+            ));
         List<ProveedorCompraResponse> historial = compras.stream()
-            .map(this::mapearCompra)
+            .map(compra -> mapearCompra(compra, cuentasPorCompra.get(compra.getId())))
             .toList();
         List<Compra> comprasVigentes = compras.stream()
             .filter(compra -> compra.getEstado() != EstadoCompra.ANULADA)
@@ -108,11 +121,19 @@ public class ProveedorService {
         );
     }
 
-    private ProveedorCompraResponse mapearCompra(Compra compra) {
-        BigDecimal saldoPendiente = compra.getEstado() == EstadoCompra.ANULADA
-            || compra.getCondicionPago() == CondicionPagoCompra.CONTADO
-            ? new BigDecimal("0.00")
-            : compra.getTotal();
+    private ProveedorCompraResponse mapearCompra(
+        Compra compra,
+        CuentaPagar cuentaPagar
+    ) {
+        BigDecimal saldoPendiente;
+        if (cuentaPagar != null) {
+            saldoPendiente = cuentaPagar.getSaldoPendiente();
+        } else if (compra.getEstado() == EstadoCompra.ANULADA
+            || compra.getCondicionPago() == CondicionPagoCompra.CONTADO) {
+            saldoPendiente = new BigDecimal("0.00");
+        } else {
+            saldoPendiente = compra.getTotal();
+        }
         return new ProveedorCompraResponse(
             compra.getId(),
             compra.getTipoComprobante(),
