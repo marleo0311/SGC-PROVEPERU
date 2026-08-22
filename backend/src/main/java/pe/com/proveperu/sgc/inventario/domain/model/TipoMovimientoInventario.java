@@ -9,5 +9,6 @@ public enum TipoMovimientoInventario {
     DEVOLUCION_ENTRADA,
     DEVOLUCION_SALIDA,
     RESERVA,
-    LIBERACION_RESERVA
+    LIBERACION_RESERVA,
+    ANULACION_VENTA
 }

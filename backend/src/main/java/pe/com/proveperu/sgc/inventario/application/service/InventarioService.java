@@ -333,6 +333,176 @@ public class InventarioService {
         return movimientoRepository.save(movimiento);
     }
 
+    @Transactional
+    public MovimientoInventario registrarVentaDirecta(
+        Sede sede,
+        Producto producto,
+        UnidadMedida unidad,
+        BigDecimal cantidad,
+        BigDecimal cantidadBase,
+        Usuario usuario,
+        Long idVenta
+    ) {
+        return registrarSalidaVenta(
+            sede,
+            producto,
+            unidad,
+            cantidad,
+            cantidadBase,
+            usuario,
+            idVenta,
+            null
+        );
+    }
+
+    @Transactional
+    public MovimientoInventario consumirReservaParaVenta(
+        Sede sede,
+        Producto producto,
+        UnidadMedida unidad,
+        BigDecimal cantidad,
+        BigDecimal cantidadBase,
+        Usuario usuario,
+        Long idVenta,
+        Long idPedido
+    ) {
+        return registrarSalidaVenta(
+            sede,
+            producto,
+            unidad,
+            cantidad,
+            cantidadBase,
+            usuario,
+            idVenta,
+            idPedido
+        );
+    }
+
+    @Transactional
+    public MovimientoInventario restaurarVentaAnulada(
+        Sede sede,
+        Producto producto,
+        UnidadMedida unidad,
+        BigDecimal cantidad,
+        BigDecimal cantidadBase,
+        Usuario usuario,
+        Long idVenta
+    ) {
+        Inventario inventario = inventarioRepository
+            .findForUpdate(sede.getId(), producto.getId())
+            .orElseGet(() -> crearInventarioVacio(sede, producto));
+        BigDecimal cantidadNormalizada = cantidad.setScale(
+            ESCALA_STOCK,
+            RoundingMode.UNNECESSARY
+        );
+        BigDecimal cantidadBaseNormalizada = cantidadBase.setScale(
+            ESCALA_STOCK,
+            RoundingMode.UNNECESSARY
+        );
+        BigDecimal stockAnterior = inventario.getStockFisico();
+        BigDecimal stockResultante = stockAnterior.add(cantidadBaseNormalizada);
+        validarCapacidadStock(stockResultante);
+
+        Instant ahora = Instant.now();
+        inventario.setStockFisico(stockResultante);
+        inventario.setFechaActualizacion(ahora);
+        inventarioRepository.save(inventario);
+
+        MovimientoInventario movimiento = new MovimientoInventario();
+        movimiento.setSede(sede);
+        movimiento.setProducto(producto);
+        movimiento.setUsuario(usuario);
+        movimiento.setUnidadMedida(unidad);
+        movimiento.setTipoMovimiento(TipoMovimientoInventario.ANULACION_VENTA);
+        movimiento.setCantidad(cantidadNormalizada);
+        movimiento.setCantidadBase(cantidadBaseNormalizada);
+        movimiento.setStockAnterior(stockAnterior);
+        movimiento.setStockResultante(stockResultante);
+        movimiento.setDocumentoOrigen("VENTA");
+        movimiento.setIdOrigen(idVenta);
+        movimiento.setMotivo("Reposición por anulación de la venta #" + idVenta);
+        movimiento.setFechaHora(ahora);
+        return movimientoRepository.save(movimiento);
+    }
+
+    private MovimientoInventario registrarSalidaVenta(
+        Sede sede,
+        Producto producto,
+        UnidadMedida unidad,
+        BigDecimal cantidad,
+        BigDecimal cantidadBase,
+        Usuario usuario,
+        Long idVenta,
+        Long idPedido
+    ) {
+        Inventario inventario = inventarioRepository
+            .findForUpdate(sede.getId(), producto.getId())
+            .orElseThrow(() -> new ReglaNegocioException(
+                "Stock insuficiente para " + producto.getCodigoInterno()
+                    + ". Disponible: 0.000"
+            ));
+        BigDecimal cantidadNormalizada = cantidad.setScale(
+            ESCALA_STOCK,
+            RoundingMode.UNNECESSARY
+        );
+        BigDecimal cantidadBaseNormalizada = cantidadBase.setScale(
+            ESCALA_STOCK,
+            RoundingMode.UNNECESSARY
+        );
+        if (cantidadBaseNormalizada.compareTo(inventario.getStockFisico()) > 0) {
+            throw new ReglaNegocioException(
+                "Stock físico insuficiente para " + producto.getCodigoInterno()
+                    + ". Físico: " + inventario.getStockFisico().toPlainString()
+            );
+        }
+        if (idPedido == null) {
+            BigDecimal disponible = inventario.getStockDisponible();
+            if (cantidadBaseNormalizada.compareTo(disponible) > 0) {
+                throw new ReglaNegocioException(
+                    "Stock insuficiente para " + producto.getCodigoInterno()
+                        + ". Disponible: " + disponible.toPlainString()
+                );
+            }
+        } else if (cantidadBaseNormalizada.compareTo(
+            inventario.getStockReservado()
+        ) > 0) {
+            throw new OperacionNoPermitidaException(
+                "La reserva del pedido supera el stock reservado del producto "
+                    + producto.getCodigoInterno()
+            );
+        }
+
+        Instant ahora = Instant.now();
+        BigDecimal stockAnterior = inventario.getStockFisico();
+        BigDecimal stockResultante = stockAnterior.subtract(cantidadBaseNormalizada);
+        inventario.setStockFisico(stockResultante);
+        if (idPedido != null) {
+            inventario.setStockReservado(
+                inventario.getStockReservado().subtract(cantidadBaseNormalizada)
+            );
+        }
+        inventario.setFechaActualizacion(ahora);
+        inventarioRepository.save(inventario);
+
+        MovimientoInventario movimiento = new MovimientoInventario();
+        movimiento.setSede(sede);
+        movimiento.setProducto(producto);
+        movimiento.setUsuario(usuario);
+        movimiento.setUnidadMedida(unidad);
+        movimiento.setTipoMovimiento(TipoMovimientoInventario.VENTA);
+        movimiento.setCantidad(cantidadNormalizada.negate());
+        movimiento.setCantidadBase(cantidadBaseNormalizada.negate());
+        movimiento.setStockAnterior(stockAnterior);
+        movimiento.setStockResultante(stockResultante);
+        movimiento.setDocumentoOrigen("VENTA");
+        movimiento.setIdOrigen(idVenta);
+        movimiento.setMotivo(idPedido == null
+            ? "Salida confirmada por la venta #" + idVenta
+            : "Reserva del pedido #" + idPedido + " consumida por la venta #" + idVenta);
+        movimiento.setFechaHora(ahora);
+        return movimientoRepository.save(movimiento);
+    }
+
     @Transactional(readOnly = true)
     public PaginaResponse<MovimientoInventarioResponse> listarMovimientos(
         Long idSede,
