@@ -202,6 +202,21 @@ class OpenApiIntegrationTests {
             ).exists())
             .andExpect(jsonPath(
                 "$.paths['/api/v1/impresiones/ticket/{idComprobante}'].get.security"
+            ).exists())
+            .andExpect(jsonPath(
+                "$.paths['/api/v1/reportes/dashboard'].get.security"
+            ).exists())
+            .andExpect(jsonPath(
+                "$.paths['/api/v1/reportes/ventas'].get.security"
+            ).exists())
+            .andExpect(jsonPath(
+                "$.paths['/api/v1/reportes/inventario'].get.security"
+            ).exists())
+            .andExpect(jsonPath(
+                "$.paths['/api/v1/reportes/finanzas'].get.security"
+            ).exists())
+            .andExpect(jsonPath(
+                "$.paths['/api/v1/reportes/caja'].get.security"
             ).exists());
     }
 
