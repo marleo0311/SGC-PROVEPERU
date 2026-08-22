@@ -55,3 +55,21 @@ Luego abre:
 
 Para probar rutas protegidas, inicia sesión con `POST /api/v1/auth/login`, copia el valor de
 `token`, pulsa **Authorize** y pega únicamente el token JWT.
+
+## Frontend web
+
+Con el backend iniciado en el puerto `8080`, abre otra terminal y ejecuta:
+
+```powershell
+cd "D:\Proyecto Tienda\SGC-PROVEPERU\frontend"
+pnpm install
+Copy-Item .env.example .env
+pnpm dev
+```
+
+La aplicación estará disponible en `http://localhost:5173`. En desarrollo, Vite redirige
+las llamadas de `/api` hacia Spring Boot, por lo que no es necesario exponer credenciales
+ni modificar CORS localmente.
+
+El frontend incluye inicio de sesión JWT, rutas protegidas, menú condicionado por permisos,
+dashboard conectado a los reportes y una interfaz responsive basada en Bootstrap Icons y CSS propio.

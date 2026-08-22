@@ -1,0 +1,75 @@
+:root {
+  font-family: Inter, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color: #17213b;
+  background: #f4f7fb;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  --navy-950: #07112c;
+  --navy-900: #0b1739;
+  --navy-800: #122650;
+  --blue-700: #164ac2;
+  --blue-600: #1f5eff;
+  --blue-100: #e8efff;
+  --teal-600: #079a86;
+  --teal-100: #ddf7f2;
+  --amber-600: #c7790a;
+  --amber-100: #fff1d6;
+  --red-600: #dc3545;
+  --red-100: #ffeaed;
+  --violet-600: #7357d9;
+  --violet-100: #eeeafd;
+  --ink-900: #17213b;
+  --ink-700: #4b5875;
+  --ink-500: #7e899f;
+  --line: #e4e9f2;
+  --surface: #ffffff;
+  --page: #f4f7fb;
+  --shadow-sm: 0 4px 14px rgba(18, 38, 80, 0.06);
+  --shadow-md: 0 14px 36px rgba(18, 38, 80, 0.11);
+  --sidebar-width: 268px;
+  --topbar-height: 78px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-width: 320px;
+  min-height: 100%;
+  background: var(--page);
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+  background: var(--page);
+  color: var(--ink-900);
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+a {
+  color: inherit;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible {
+  outline: 3px solid rgba(31, 94, 255, 0.25);
+  outline-offset: 2px;
+}
+
+::selection {
+  color: white;
+  background: var(--blue-600);
+}
