@@ -65,6 +65,7 @@ import pe.com.proveperu.sgc.inventario.domain.model.TipoMovimientoInventario;
 import pe.com.proveperu.sgc.inventario.infrastructure.persistence.InventarioRepository;
 import pe.com.proveperu.sgc.inventario.infrastructure.persistence.MovimientoInventarioRepository;
 import pe.com.proveperu.sgc.inventario.infrastructure.persistence.SedeRepository;
+import pe.com.proveperu.sgc.impresion.application.service.PermisosImpresion;
 import pe.com.proveperu.sgc.pedido.domain.model.CanalPedido;
 import pe.com.proveperu.sgc.pedido.domain.model.DetallePedido;
 import pe.com.proveperu.sgc.pedido.domain.model.EstadoPedido;
@@ -602,21 +603,98 @@ class VentasIntegrationTests {
         assertThat(registradosComprobantes)
             .containsExactlyInAnyOrderElementsOf(esperadosComprobantes);
 
+        Set<String> esperadosTicketera = Set.of(
+            PermisosImpresion.TICKETS_IMPRIMIR
+        );
+        Set<String> registradosTicketera = permisoRepository
+            .findAllByModuloOrderByCodigoAsc("Ticketera")
+            .stream()
+            .map(permiso -> permiso.getCodigo())
+            .collect(Collectors.toSet());
+        assertThat(registradosTicketera)
+            .containsExactlyInAnyOrderElementsOf(esperadosTicketera);
+
         Rol administrador = rolRepository.findByNombreIgnoreCase("Administrador")
             .orElseThrow();
+        Set<String> todosEsperados = java.util.stream.Stream.of(
+                esperados,
+                esperadosComprobantes,
+                esperadosTicketera
+            )
+            .flatMap(Set::stream)
+            .collect(Collectors.toSet());
         Set<String> asignados = rolRepository.findByIdWithPermisos(administrador.getId())
             .orElseThrow()
             .getPermisos().stream()
             .map(permiso -> permiso.getCodigo())
-            .filter(codigo -> esperados.contains(codigo)
-                || esperadosComprobantes.contains(codigo))
+            .filter(todosEsperados::contains)
             .collect(Collectors.toSet());
-        assertThat(asignados).containsExactlyInAnyOrderElementsOf(
-            java.util.stream.Stream.concat(
-                esperados.stream(),
-                esperadosComprobantes.stream()
-            ).collect(Collectors.toSet())
+        assertThat(asignados)
+            .containsExactlyInAnyOrderElementsOf(todosEsperados);
+    }
+
+    @Test
+    void generaTicketTermicoDe58Y80Milimetros() throws Exception {
+        MvcResult ventaResult = crearVentaDirecta(
+            "CONTADO",
+            "\"idMetodoPago\": %d,".formatted(efectivo.getId()),
+            "",
+            PermisosVenta.VENTAS_CREAR
+        ).andExpect(status().isCreated()).andReturn();
+        long idComprobante = comprobanteRepository
+            .findByVentaId(idVenta(ventaResult))
+            .orElseThrow()
+            .getId();
+
+        MvcResult ticket58 = mockMvc.perform(get(
+                "/api/v1/impresiones/ticket/{idComprobante}",
+                idComprobante
+            )
+                .queryParam("formato", "MM58")
+                .header(HttpHeaders.AUTHORIZATION, bearer(
+                    PermisosImpresion.TICKETS_IMPRIMIR
+                )))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.formato").value("MM58"))
+            .andExpect(jsonPath("$.anchoCaracteres").value(32))
+            .andExpect(jsonPath("$.codificacion").value("UTF-8"))
+            .andExpect(jsonPath("$.incluyeComandosEscPos").value(false))
+            .andExpect(jsonPath("$.contenido").value(
+                org.hamcrest.Matchers.containsString("PROVEPERU")
+            ))
+            .andExpect(jsonPath("$.contenido").value(
+                org.hamcrest.Matchers.containsString(producto.getCodigoInterno())
+            ))
+            .andExpect(jsonPath("$.contenido").value(
+                org.hamcrest.Matchers.containsString("TOTAL PEN")
+            ))
+            .andReturn();
+        String contenido58 = JsonPath.read(
+            ticket58.getResponse().getContentAsString(),
+            "$.contenido"
         );
+        assertThat(contenido58.lines())
+            .allMatch(linea -> linea.length() <= 32);
+
+        mockMvc.perform(get(
+                "/api/v1/impresiones/ticket/{idComprobante}",
+                idComprobante
+            )
+                .header(HttpHeaders.AUTHORIZATION, bearer(
+                    PermisosImpresion.TICKETS_IMPRIMIR
+                )))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.formato").value("MM80"))
+            .andExpect(jsonPath("$.anchoCaracteres").value(48));
+
+        mockMvc.perform(get(
+                "/api/v1/impresiones/ticket/{idComprobante}",
+                idComprobante
+            )
+                .header(HttpHeaders.AUTHORIZATION, bearer(
+                    PermisosVenta.COMPROBANTES_VER
+                )))
+            .andExpect(status().isForbidden());
     }
 
     @Test
@@ -742,6 +820,28 @@ class VentasIntegrationTests {
             .andExpect(jsonPath("$.usuarioAnulacion")
                 .value(usuario.getUsuarioLogin()))
             .andExpect(jsonPath("$.venta.estado").value("ANULADA"));
+
+        MvcResult ticketAnulado = mockMvc.perform(get(
+                "/api/v1/impresiones/ticket/{idComprobante}",
+                idComprobante
+            )
+                .queryParam("formato", "MM58")
+                .header(HttpHeaders.AUTHORIZATION, bearer(
+                    PermisosImpresion.TICKETS_IMPRIMIR
+                )))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.estado").value("ANULADO"))
+            .andExpect(jsonPath("$.contenido").value(
+                org.hamcrest.Matchers.containsString("COMPROBANTE ANULADO")
+            ))
+            .andReturn();
+
+        String contenidoTicketAnulado = JsonPath.read(
+            ticketAnulado.getResponse().getContentAsString(),
+            "$.contenido"
+        );
+        assertThat(contenidoTicketAnulado.replaceAll("\\s+", " "))
+            .contains("Motivo: Comprobante emitido por error");
 
         assertThat(inventarioActual().getStockFisico())
             .isEqualByComparingTo("20.000");
