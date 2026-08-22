@@ -91,7 +91,7 @@ public class VentaController {
     @PreAuthorize("hasAuthority('" + PermisosVenta.VENTAS_CREAR + "')")
     @Operation(
         summary = "Registrar y confirmar una venta",
-        description = "Valida precios y stock; en la misma transacción descuenta inventario, registra Kardex y crea el saldo por cobrar"
+        description = "Valida precios, stock y caja abierta; en la misma transacción descuenta inventario, registra Kardex, pago, movimiento de caja y saldo por cobrar"
     )
     public ResponseEntity<VentaResponse> crear(
         @Valid @RequestBody VentaCrearRequest request,

@@ -13,6 +13,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import pe.com.proveperu.sgc.caja.application.service.CajaService;
 import pe.com.proveperu.sgc.configuracion.domain.model.MetodoPago;
 import pe.com.proveperu.sgc.configuracion.infrastructure.persistence.MetodoPagoRepository;
 import pe.com.proveperu.sgc.cuentacobrar.api.dto.CuentaCobrarDetalleResponse;
@@ -49,6 +50,7 @@ public class CuentaCobrarService {
     private final PagoClienteRepository pagoRepository;
     private final MetodoPagoRepository metodoPagoRepository;
     private final UsuarioRepository usuarioRepository;
+    private final CajaService cajaService;
 
     @Transactional
     public PaginaResponse<CuentaCobrarResumenResponse> listar(
@@ -137,7 +139,8 @@ public class CuentaCobrarService {
         pago.setUsuario(usuario);
         pago.setMonto(monto);
         pago.setReferencia(normalizarTexto(request.referencia()));
-        pagoRepository.saveAndFlush(pago);
+        pago = pagoRepository.saveAndFlush(pago);
+        cajaService.registrarIngresoCobranza(pago, usuario);
 
         cuenta.setImportePagado(cuenta.getImportePagado().add(monto));
         cuenta.setSaldoPendiente(cuenta.getSaldoPendiente().subtract(monto));

@@ -115,7 +115,7 @@ public class CuentaCobrarController {
     @PreAuthorize("hasAuthority('" + PermisosCuentaCobrar.PAGOS_CREAR + "')")
     @Operation(
         summary = "Registrar un cobro parcial o total",
-        description = "Bloquea la cuenta durante la operación, reduce el saldo y conserva los pagos anteriores y el usuario responsable"
+        description = "Requiere una caja abierta; bloquea la cuenta, reduce el saldo y registra el pago y su movimiento de caja en la misma transacción"
     )
     public ResponseEntity<CuentaCobrarDetalleResponse> registrarPago(
         @PathVariable @Positive Long id,

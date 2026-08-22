@@ -41,6 +41,14 @@ import pe.com.proveperu.sgc.catalogo.infrastructure.persistence.CategoriaReposit
 import pe.com.proveperu.sgc.catalogo.infrastructure.persistence.PrecioProductoRepository;
 import pe.com.proveperu.sgc.catalogo.infrastructure.persistence.ProductoRepository;
 import pe.com.proveperu.sgc.catalogo.infrastructure.persistence.UnidadMedidaRepository;
+import pe.com.proveperu.sgc.caja.domain.model.Caja;
+import pe.com.proveperu.sgc.caja.domain.model.ConceptoMovimientoCaja;
+import pe.com.proveperu.sgc.caja.domain.model.EstadoCaja;
+import pe.com.proveperu.sgc.caja.domain.model.EstadoSesionCaja;
+import pe.com.proveperu.sgc.caja.domain.model.SesionCaja;
+import pe.com.proveperu.sgc.caja.infrastructure.persistence.CajaRepository;
+import pe.com.proveperu.sgc.caja.infrastructure.persistence.MovimientoCajaRepository;
+import pe.com.proveperu.sgc.caja.infrastructure.persistence.SesionCajaRepository;
 import pe.com.proveperu.sgc.cliente.domain.model.Cliente;
 import pe.com.proveperu.sgc.cliente.domain.model.TipoDocumentoCliente;
 import pe.com.proveperu.sgc.cliente.domain.model.TipoPersona;
@@ -144,6 +152,15 @@ class VentasIntegrationTests {
     @Autowired
     private InventarioService inventarioService;
 
+    @Autowired
+    private CajaRepository cajaRepository;
+
+    @Autowired
+    private SesionCajaRepository sesionCajaRepository;
+
+    @Autowired
+    private MovimientoCajaRepository movimientoCajaRepository;
+
     private Usuario usuario;
     private Cliente cliente;
     private Producto producto;
@@ -151,6 +168,7 @@ class VentasIntegrationTests {
     private Sede sede;
     private Inventario inventario;
     private MetodoPago efectivo;
+    private SesionCaja sesionCaja;
     private LocalDate hoy;
 
     @BeforeEach
@@ -217,6 +235,18 @@ class VentasIntegrationTests {
 
         efectivo = metodoPagoRepository.findByCodigoIgnoreCase("EFECTIVO")
             .orElseThrow();
+
+        Caja caja = new Caja();
+        caja.setSede(sede);
+        caja.setNombre("Caja venta " + sufijo);
+        caja.setEstado(EstadoCaja.ACTIVO);
+        caja = cajaRepository.saveAndFlush(caja);
+        sesionCaja = new SesionCaja();
+        sesionCaja.setCaja(caja);
+        sesionCaja.setUsuarioApertura(usuario);
+        sesionCaja.setSaldoInicial(BigDecimal.ZERO.setScale(2));
+        sesionCaja.setEstado(EstadoSesionCaja.ABIERTA);
+        sesionCaja = sesionCajaRepository.saveAndFlush(sesionCaja);
     }
 
     @Test
@@ -250,7 +280,35 @@ class VentasIntegrationTests {
         assertThat(movimiento.getStockResultante()).isEqualByComparingTo("18.000");
         assertThat(pagoRepository.findAllByVentaIdOrderByFechaHoraDescIdDesc(idVenta))
             .hasSize(1);
+        var movimientosCaja = movimientoCajaRepository
+            .findAllBySesionIdOrderByFechaHoraAscIdAsc(sesionCaja.getId());
+        assertThat(movimientosCaja).hasSize(1);
+        assertThat(movimientosCaja.getFirst().getConcepto())
+            .isEqualTo(ConceptoMovimientoCaja.VENTA);
+        assertThat(movimientosCaja.getFirst().getImporte())
+            .isEqualByComparingTo("50.00");
         assertThat(cuentaRepository.findByVentaId(idVenta)).isEmpty();
+    }
+
+    @Test
+    void rechazaVentaConPagoCuandoElVendedorNoTieneCajaAbierta() throws Exception {
+        sesionCaja.setUsuarioCierre(usuario);
+        sesionCaja.setFechaHoraCierre(Instant.now());
+        sesionCaja.setSaldoEsperado(BigDecimal.ZERO.setScale(2));
+        sesionCaja.setSaldoReal(BigDecimal.ZERO.setScale(2));
+        sesionCaja.setDiferencia(BigDecimal.ZERO.setScale(2));
+        sesionCaja.setEstado(EstadoSesionCaja.CERRADA);
+        sesionCajaRepository.saveAndFlush(sesionCaja);
+        crearVentaDirecta(
+            "CONTADO",
+            "\"idMetodoPago\": %d,".formatted(efectivo.getId()),
+            "",
+            PermisosVenta.VENTAS_CREAR
+        )
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString(
+                "abrir una caja"
+            )));
     }
 
     @Test

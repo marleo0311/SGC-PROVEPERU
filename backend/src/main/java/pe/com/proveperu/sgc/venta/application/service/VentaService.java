@@ -27,6 +27,7 @@ import pe.com.proveperu.sgc.catalogo.infrastructure.persistence.PrecioProductoRe
 import pe.com.proveperu.sgc.catalogo.infrastructure.persistence.ProductoRepository;
 import pe.com.proveperu.sgc.catalogo.infrastructure.persistence.ProductoUnidadConversionRepository;
 import pe.com.proveperu.sgc.catalogo.infrastructure.persistence.UnidadMedidaRepository;
+import pe.com.proveperu.sgc.caja.application.service.CajaService;
 import pe.com.proveperu.sgc.cliente.domain.model.Cliente;
 import pe.com.proveperu.sgc.cliente.domain.model.ClientePrecioEspecial;
 import pe.com.proveperu.sgc.cliente.infrastructure.persistence.ClientePrecioEspecialRepository;
@@ -103,6 +104,7 @@ public class VentaService {
     private final UsuarioRepository usuarioRepository;
     private final SedeRepository sedeRepository;
     private final InventarioService inventarioService;
+    private final CajaService cajaService;
 
     @Transactional
     public PaginaResponse<VentaResumenResponse> listar(
@@ -531,7 +533,8 @@ public class VentaService {
             pago.setUsuario(usuario);
             pago.setMonto(importePagado);
             pago.setReferencia(normalizarTexto(request.referenciaPago()));
-            pagoRepository.saveAndFlush(pago);
+            pago = pagoRepository.saveAndFlush(pago);
+            cajaService.registrarIngresoVenta(venta, pago, usuario);
         }
     }
 

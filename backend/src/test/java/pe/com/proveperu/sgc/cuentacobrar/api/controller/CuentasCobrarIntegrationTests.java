@@ -32,6 +32,14 @@ import org.springframework.security.oauth2.jwt.JwsHeader;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 import pe.com.proveperu.sgc.catalogo.domain.model.EstadoCatalogo;
+import pe.com.proveperu.sgc.caja.domain.model.Caja;
+import pe.com.proveperu.sgc.caja.domain.model.ConceptoMovimientoCaja;
+import pe.com.proveperu.sgc.caja.domain.model.EstadoCaja;
+import pe.com.proveperu.sgc.caja.domain.model.EstadoSesionCaja;
+import pe.com.proveperu.sgc.caja.domain.model.SesionCaja;
+import pe.com.proveperu.sgc.caja.infrastructure.persistence.CajaRepository;
+import pe.com.proveperu.sgc.caja.infrastructure.persistence.MovimientoCajaRepository;
+import pe.com.proveperu.sgc.caja.infrastructure.persistence.SesionCajaRepository;
 import pe.com.proveperu.sgc.cliente.domain.model.Cliente;
 import pe.com.proveperu.sgc.cliente.domain.model.TipoDocumentoCliente;
 import pe.com.proveperu.sgc.cliente.domain.model.TipoPersona;
@@ -100,10 +108,20 @@ class CuentasCobrarIntegrationTests {
     @Autowired
     private PagoClienteRepository pagoRepository;
 
+    @Autowired
+    private CajaRepository cajaRepository;
+
+    @Autowired
+    private SesionCajaRepository sesionCajaRepository;
+
+    @Autowired
+    private MovimientoCajaRepository movimientoCajaRepository;
+
     private Usuario usuario;
     private Cliente cliente;
     private MetodoPago efectivo;
     private CuentaCobrar cuenta;
+    private SesionCaja sesionCaja;
     private LocalDate hoy;
 
     @BeforeEach
@@ -157,6 +175,18 @@ class CuentasCobrarIntegrationTests {
 
         efectivo = metodoPagoRepository.findByCodigoIgnoreCase("EFECTIVO")
             .orElseThrow();
+
+        Caja caja = new Caja();
+        caja.setSede(sede);
+        caja.setNombre("Caja cobranza " + sufijo);
+        caja.setEstado(EstadoCaja.ACTIVO);
+        caja = cajaRepository.saveAndFlush(caja);
+        sesionCaja = new SesionCaja();
+        sesionCaja.setCaja(caja);
+        sesionCaja.setUsuarioApertura(usuario);
+        sesionCaja.setSaldoInicial(BigDecimal.ZERO.setScale(2));
+        sesionCaja.setEstado(EstadoSesionCaja.ABIERTA);
+        sesionCaja = sesionCajaRepository.saveAndFlush(sesionCaja);
     }
 
     @Test
@@ -213,6 +243,19 @@ class CuentasCobrarIntegrationTests {
             .andExpect(jsonPath("$.detail").value(
                 "La cuenta PAGADO no admite nuevos pagos"
             ));
+
+        var movimientosCaja = movimientoCajaRepository
+            .findAllBySesionIdOrderByFechaHoraAscIdAsc(sesionCaja.getId());
+        assertThat(movimientosCaja).hasSize(2);
+        assertThat(movimientosCaja)
+            .allMatch(movimiento -> movimiento.getConcepto()
+                == ConceptoMovimientoCaja.PAGO_CLIENTE);
+        assertThat(movimientosCaja)
+            .extracting(movimiento -> movimiento.getImporte())
+            .containsExactlyInAnyOrder(
+                new BigDecimal("30.00"),
+                new BigDecimal("70.00")
+            );
     }
 
     @Test
