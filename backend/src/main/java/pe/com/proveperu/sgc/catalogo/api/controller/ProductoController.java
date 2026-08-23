@@ -32,7 +32,10 @@ import pe.com.proveperu.sgc.catalogo.application.service.PermisosCatalogo;
 import pe.com.proveperu.sgc.catalogo.application.service.ProductoService;
 import pe.com.proveperu.sgc.catalogo.domain.model.EstadoCatalogo;
 import pe.com.proveperu.sgc.config.OpenApiConfig;
+import pe.com.proveperu.sgc.cotizacion.application.service.PermisosCotizacion;
+import pe.com.proveperu.sgc.pedido.application.service.PermisosPedido;
 import pe.com.proveperu.sgc.shared.api.dto.PaginaResponse;
+import pe.com.proveperu.sgc.venta.application.service.PermisosVenta;
 
 @RestController
 @RequestMapping("/api/v1/productos")
@@ -45,7 +48,11 @@ public class ProductoController {
     private final ProductoService productoService;
 
     @GetMapping
-    @PreAuthorize("hasAuthority('" + PermisosCatalogo.PRODUCTOS_VER + "')")
+    @PreAuthorize("hasAnyAuthority('" + PermisosCatalogo.PRODUCTOS_VER + "', '"
+        + PermisosCotizacion.COTIZACIONES_CREAR + "', '"
+        + PermisosCotizacion.COTIZACIONES_EDITAR + "', '"
+        + PermisosPedido.PEDIDOS_CREAR + "', '"
+        + PermisosVenta.VENTAS_CREAR + "')")
     @Operation(summary = "Listar y buscar productos")
     public PaginaResponse<ProductoResponse> listar(
         @RequestParam(defaultValue = "")
@@ -61,7 +68,11 @@ public class ProductoController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('" + PermisosCatalogo.PRODUCTOS_VER + "')")
+    @PreAuthorize("hasAnyAuthority('" + PermisosCatalogo.PRODUCTOS_VER + "', '"
+        + PermisosCotizacion.COTIZACIONES_CREAR + "', '"
+        + PermisosCotizacion.COTIZACIONES_EDITAR + "', '"
+        + PermisosPedido.PEDIDOS_CREAR + "', '"
+        + PermisosVenta.VENTAS_CREAR + "')")
     @Operation(summary = "Consultar el detalle de un producto")
     public ProductoResponse obtener(@PathVariable Long id) {
         return productoService.obtener(id);

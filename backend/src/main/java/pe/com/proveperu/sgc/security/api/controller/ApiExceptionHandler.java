@@ -42,7 +42,7 @@ public class ApiExceptionHandler {
     @ExceptionHandler(ReglaNegocioException.class)
     ProblemDetail reglaNegocio(ReglaNegocioException exception) {
         return crearProblema(
-            HttpStatus.UNPROCESSABLE_ENTITY,
+            HttpStatus.UNPROCESSABLE_CONTENT,
             "Regla de negocio",
             exception.getMessage()
         );

@@ -20,6 +20,7 @@ import pe.com.proveperu.sgc.caja.api.dto.CajaResponse;
 import pe.com.proveperu.sgc.caja.api.dto.CierreCajaRequest;
 import pe.com.proveperu.sgc.caja.api.dto.MovimientoCajaRequest;
 import pe.com.proveperu.sgc.caja.api.dto.MovimientoCajaResponse;
+import pe.com.proveperu.sgc.caja.api.dto.MetodoPagoCajaResponse;
 import pe.com.proveperu.sgc.caja.api.dto.ResumenCajaResponse;
 import pe.com.proveperu.sgc.caja.api.dto.ResumenMetodoPagoResponse;
 import pe.com.proveperu.sgc.caja.api.dto.SesionCajaResponse;
@@ -64,6 +65,14 @@ public class CajaService {
         return cajaRepository.findAllByEstadoOrderBySedeNombreAscNombreAsc(
             EstadoCaja.ACTIVO
         ).stream().map(CajaResponse::from).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<MetodoPagoCajaResponse> listarMetodosPago() {
+        return metodoPagoRepository.findAllByEstadoIgnoreCaseOrderByNombreAsc("ACTIVO")
+            .stream()
+            .map(MetodoPagoCajaResponse::from)
+            .toList();
     }
 
     @Transactional

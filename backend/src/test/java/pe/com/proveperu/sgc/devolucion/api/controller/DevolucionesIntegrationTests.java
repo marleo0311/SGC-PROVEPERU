@@ -672,7 +672,7 @@ class DevolucionesIntegrationTests {
     @Test
     void validaCantidadesSolucionPermisosYReembolsoPendiente() throws Exception {
         registrarDevolucion("2.001", "APTO")
-            .andExpect(status().isUnprocessableEntity())
+            .andExpect(status().isUnprocessableContent())
             .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString(
                 "supera lo pendiente de devolver"
             )));
@@ -704,7 +704,7 @@ class DevolucionesIntegrationTests {
                 .content("""
                     {"idMetodoPago": %d, "importe": 24.00}
                     """.formatted(efectivo.getId())))
-            .andExpect(status().isUnprocessableEntity())
+            .andExpect(status().isUnprocessableContent())
             .andExpect(jsonPath("$.detail").value(
                 "El importe debe coincidir con el reembolso pendiente: 25.00"
             ));

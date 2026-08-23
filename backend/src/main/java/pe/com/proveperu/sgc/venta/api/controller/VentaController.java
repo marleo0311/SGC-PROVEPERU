@@ -52,7 +52,8 @@ public class VentaController {
     private final VentaService ventaService;
 
     @GetMapping
-    @PreAuthorize("hasAuthority('" + PermisosVenta.VENTAS_VER + "')")
+    @PreAuthorize("hasAnyAuthority('" + PermisosVenta.VENTAS_VER + "', '"
+        + PermisosVenta.COMPROBANTES_VER + "')")
     @Operation(summary = "Listar ventas con filtros comerciales")
     public PaginaResponse<VentaResumenResponse> listar(
         @RequestParam(required = false) @Positive Long idCliente,
@@ -80,7 +81,8 @@ public class VentaController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('" + PermisosVenta.VENTAS_VER + "')")
+    @PreAuthorize("hasAnyAuthority('" + PermisosVenta.VENTAS_VER + "', '"
+        + PermisosVenta.COMPROBANTES_VER + "')")
     @Operation(summary = "Consultar detalle, pago inicial y saldo de una venta")
     public VentaResponse obtener(@PathVariable @Positive Long id) {
         return ventaService.obtener(id);
@@ -107,7 +109,8 @@ public class VentaController {
     }
 
     @PostMapping("/{id}/anular")
-    @PreAuthorize("hasAuthority('" + PermisosVenta.VENTAS_ANULAR + "')")
+    @PreAuthorize("hasAnyAuthority('" + PermisosVenta.VENTAS_ANULAR + "', '"
+        + PermisosVenta.COMPROBANTES_ANULAR + "')")
     @Operation(
         summary = "Anular una venta y reponer su inventario",
         description = "Conserva los pagos como historial y deja sin saldo exigible la cuenta por cobrar"

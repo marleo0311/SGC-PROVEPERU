@@ -46,6 +46,7 @@ import pe.com.proveperu.sgc.catalogo.infrastructure.persistence.UnidadMedidaRepo
 import pe.com.proveperu.sgc.security.domain.model.Rol;
 import pe.com.proveperu.sgc.security.infrastructure.persistence.PermisoRepository;
 import pe.com.proveperu.sgc.security.infrastructure.persistence.RolRepository;
+import pe.com.proveperu.sgc.venta.application.service.PermisosVenta;
 
 @SpringBootTest(properties =
     "app.security.jwt.secret=MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=")
@@ -117,6 +118,10 @@ class ProductosIntegrationTests {
 
         mockMvc.perform(get("/api/v1/productos")
                 .header(HttpHeaders.AUTHORIZATION, bearer(PermisosCatalogo.PRODUCTOS_VER)))
+            .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/v1/productos")
+                .header(HttpHeaders.AUTHORIZATION, bearer(PermisosVenta.VENTAS_CREAR)))
             .andExpect(status().isOk());
     }
 
@@ -276,6 +281,10 @@ class ProductosIntegrationTests {
             .andExpect(jsonPath("$[0].vigenteHasta").isEmpty())
             .andExpect(jsonPath("$[1].monto").value(100.0))
             .andExpect(jsonPath("$[1].vigenteHasta").value("2026-01-31"));
+
+        mockMvc.perform(get("/api/v1/productos/{id}/precios", producto.getId())
+                .header(HttpHeaders.AUTHORIZATION, bearer(PermisosVenta.VENTAS_CREAR)))
+            .andExpect(status().isOk());
 
         assertThat(precioRepository
             .findAllByProductoIdOrderByTipoPrecioAscVigenteDesdeDesc(producto.getId()))

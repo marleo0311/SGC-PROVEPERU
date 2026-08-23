@@ -30,6 +30,7 @@ import pe.com.proveperu.sgc.caja.api.dto.CajaResponse;
 import pe.com.proveperu.sgc.caja.api.dto.CierreCajaRequest;
 import pe.com.proveperu.sgc.caja.api.dto.MovimientoCajaRequest;
 import pe.com.proveperu.sgc.caja.api.dto.MovimientoCajaResponse;
+import pe.com.proveperu.sgc.caja.api.dto.MetodoPagoCajaResponse;
 import pe.com.proveperu.sgc.caja.api.dto.ResumenCajaResponse;
 import pe.com.proveperu.sgc.caja.api.dto.SesionCajaResponse;
 import pe.com.proveperu.sgc.caja.application.service.CajaService;
@@ -55,6 +56,14 @@ public class CajaController {
     @Operation(summary = "Listar cajas activas por sede")
     public List<CajaResponse> listarCajas() {
         return cajaService.listarCajas();
+    }
+
+    @GetMapping("/api/v1/cajas/metodos-pago")
+    @PreAuthorize("hasAnyAuthority('" + PermisosCaja.CAJAS_VER + "','"
+        + PermisosCaja.MOVIMIENTOS_CREAR + "')")
+    @Operation(summary = "Listar métodos de pago activos para movimientos de caja")
+    public List<MetodoPagoCajaResponse> listarMetodosPago() {
+        return cajaService.listarMetodosPago();
     }
 
     @PostMapping("/api/v1/cajas/{id}/aperturas")

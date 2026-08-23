@@ -20,6 +20,9 @@ import pe.com.proveperu.sgc.catalogo.api.dto.PrecioResponse;
 import pe.com.proveperu.sgc.catalogo.application.service.PermisosCatalogo;
 import pe.com.proveperu.sgc.catalogo.application.service.PrecioProductoService;
 import pe.com.proveperu.sgc.config.OpenApiConfig;
+import pe.com.proveperu.sgc.cotizacion.application.service.PermisosCotizacion;
+import pe.com.proveperu.sgc.pedido.application.service.PermisosPedido;
+import pe.com.proveperu.sgc.venta.application.service.PermisosVenta;
 
 @RestController
 @RequestMapping("/api/v1/productos/{idProducto}/precios")
@@ -31,7 +34,11 @@ public class ProductoPrecioController {
     private final PrecioProductoService precioProductoService;
 
     @GetMapping
-    @PreAuthorize("hasAuthority('" + PermisosCatalogo.PRECIOS_VER + "')")
+    @PreAuthorize("hasAnyAuthority('" + PermisosCatalogo.PRECIOS_VER + "', '"
+        + PermisosCotizacion.COTIZACIONES_CREAR + "', '"
+        + PermisosCotizacion.COTIZACIONES_EDITAR + "', '"
+        + PermisosPedido.PEDIDOS_CREAR + "', '"
+        + PermisosVenta.VENTAS_CREAR + "')")
     @Operation(summary = "Consultar el historial de precios de un producto")
     public List<PrecioResponse> listar(@PathVariable Long idProducto) {
         return precioProductoService.listar(idProducto);

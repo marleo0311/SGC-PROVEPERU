@@ -42,6 +42,7 @@ import pe.com.proveperu.sgc.catalogo.infrastructure.persistence.UnidadMedidaRepo
 import pe.com.proveperu.sgc.cliente.application.service.PermisosCliente;
 import pe.com.proveperu.sgc.cliente.domain.model.ClientePrecioEspecial;
 import pe.com.proveperu.sgc.cliente.infrastructure.persistence.ClientePrecioEspecialRepository;
+import pe.com.proveperu.sgc.cotizacion.application.service.PermisosCotizacion;
 import pe.com.proveperu.sgc.security.domain.model.Rol;
 import pe.com.proveperu.sgc.security.infrastructure.persistence.PermisoRepository;
 import pe.com.proveperu.sgc.security.infrastructure.persistence.RolRepository;
@@ -115,6 +116,12 @@ class ClientesIntegrationTests {
 
         mockMvc.perform(get("/api/v1/clientes")
                 .header(HttpHeaders.AUTHORIZATION, bearer(PermisosCliente.CLIENTES_VER)))
+            .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/v1/clientes")
+                .header(HttpHeaders.AUTHORIZATION, bearer(
+                    PermisosCotizacion.COTIZACIONES_CREAR
+                )))
             .andExpect(status().isOk());
     }
 

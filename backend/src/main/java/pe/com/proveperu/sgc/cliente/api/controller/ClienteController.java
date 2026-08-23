@@ -33,7 +33,10 @@ import pe.com.proveperu.sgc.cliente.application.service.ClienteService;
 import pe.com.proveperu.sgc.cliente.application.service.PermisosCliente;
 import pe.com.proveperu.sgc.cliente.domain.model.TipoPersona;
 import pe.com.proveperu.sgc.config.OpenApiConfig;
+import pe.com.proveperu.sgc.cotizacion.application.service.PermisosCotizacion;
+import pe.com.proveperu.sgc.pedido.application.service.PermisosPedido;
 import pe.com.proveperu.sgc.shared.api.dto.PaginaResponse;
+import pe.com.proveperu.sgc.venta.application.service.PermisosVenta;
 
 @RestController
 @RequestMapping("/api/v1/clientes")
@@ -46,7 +49,10 @@ public class ClienteController {
     private final ClienteService clienteService;
 
     @GetMapping
-    @PreAuthorize("hasAuthority('" + PermisosCliente.CLIENTES_VER + "')")
+    @PreAuthorize("hasAnyAuthority('" + PermisosCliente.CLIENTES_VER + "', '"
+        + PermisosCotizacion.COTIZACIONES_CREAR + "', '"
+        + PermisosPedido.PEDIDOS_CREAR + "', '"
+        + PermisosVenta.VENTAS_CREAR + "')")
     @Operation(summary = "Listar y buscar clientes")
     public PaginaResponse<ClienteResponse> listar(
         @RequestParam(defaultValue = "")

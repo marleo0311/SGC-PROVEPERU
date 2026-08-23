@@ -261,7 +261,7 @@ class CuentasCobrarIntegrationTests {
     @Test
     void rechazaPagoMayorAlSaldoYMetodoInactivo() throws Exception {
         registrarPago("100.01", "EXCESO")
-            .andExpect(status().isUnprocessableEntity())
+            .andExpect(status().isUnprocessableContent())
             .andExpect(jsonPath("$.detail").value(
                 "El monto supera el saldo pendiente: 100.00"
             ));

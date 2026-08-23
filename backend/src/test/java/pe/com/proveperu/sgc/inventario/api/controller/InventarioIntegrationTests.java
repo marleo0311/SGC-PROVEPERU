@@ -42,12 +42,14 @@ import pe.com.proveperu.sgc.inventario.domain.model.Sede;
 import pe.com.proveperu.sgc.inventario.infrastructure.persistence.InventarioRepository;
 import pe.com.proveperu.sgc.inventario.infrastructure.persistence.MovimientoInventarioRepository;
 import pe.com.proveperu.sgc.inventario.infrastructure.persistence.SedeRepository;
+import pe.com.proveperu.sgc.pedido.application.service.PermisosPedido;
 import pe.com.proveperu.sgc.security.domain.model.EstadoUsuario;
 import pe.com.proveperu.sgc.security.domain.model.Rol;
 import pe.com.proveperu.sgc.security.domain.model.Usuario;
 import pe.com.proveperu.sgc.security.infrastructure.persistence.PermisoRepository;
 import pe.com.proveperu.sgc.security.infrastructure.persistence.RolRepository;
 import pe.com.proveperu.sgc.security.infrastructure.persistence.UsuarioRepository;
+import pe.com.proveperu.sgc.venta.application.service.PermisosVenta;
 
 @SpringBootTest(properties =
     "app.security.jwt.secret=MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=")
@@ -162,6 +164,18 @@ class InventarioIntegrationTests {
                     PermisosCompra.RECEPCIONES_CREAR
                 )))
             .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/v1/sedes")
+                .header(HttpHeaders.AUTHORIZATION, bearer(
+                    PermisosPedido.PEDIDOS_CONVERTIR
+                )))
+            .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/v1/sedes")
+                .header(HttpHeaders.AUTHORIZATION, bearer(
+                    PermisosVenta.VENTAS_CREAR
+                )))
+            .andExpect(status().isOk());
     }
 
     @Test
@@ -238,7 +252,7 @@ class InventarioIntegrationTests {
         inventarioRepository.save(inventario);
 
         ajustar("SALIDA", "3.000", unidadBase.getId(), "Salida no permitida")
-            .andExpect(status().isUnprocessableEntity())
+            .andExpect(status().isUnprocessableContent())
             .andExpect(jsonPath("$.title").value("Regla de negocio"))
             .andExpect(jsonPath("$.detail").value("Stock insuficiente. Disponible: 2.000"));
 

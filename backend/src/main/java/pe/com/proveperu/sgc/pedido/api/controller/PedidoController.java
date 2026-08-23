@@ -39,6 +39,7 @@ import pe.com.proveperu.sgc.pedido.application.service.PermisosPedido;
 import pe.com.proveperu.sgc.pedido.domain.model.CanalPedido;
 import pe.com.proveperu.sgc.pedido.domain.model.EstadoPedido;
 import pe.com.proveperu.sgc.shared.api.dto.PaginaResponse;
+import pe.com.proveperu.sgc.venta.application.service.PermisosVenta;
 
 @RestController
 @RequestMapping("/api/v1/pedidos")
@@ -54,7 +55,8 @@ public class PedidoController {
     private final PedidoService pedidoService;
 
     @GetMapping
-    @PreAuthorize("hasAuthority('" + PermisosPedido.PEDIDOS_VER + "')")
+    @PreAuthorize("hasAnyAuthority('" + PermisosPedido.PEDIDOS_VER + "', '"
+        + PermisosVenta.VENTAS_CREAR + "')")
     @Operation(summary = "Listar pedidos con filtros comerciales y operativos")
     public PaginaResponse<PedidoResumenResponse> listar(
         @RequestParam(required = false) @Positive Long idCliente,

@@ -330,7 +330,7 @@ class VentasIntegrationTests {
             "",
             PermisosVenta.VENTAS_CREAR
         )
-            .andExpect(status().isUnprocessableEntity())
+            .andExpect(status().isUnprocessableContent())
             .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString(
                 "Disponible: 1.000"
             )));
@@ -573,6 +573,11 @@ class VentasIntegrationTests {
         mockMvc.perform(get("/api/v1/ventas")
                 .header(HttpHeaders.AUTHORIZATION, bearer("INV_STOCK_VER")))
             .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/v1/ventas")
+                .header(HttpHeaders.AUTHORIZATION, bearer(
+                    PermisosVenta.COMPROBANTES_VER
+                )))
+            .andExpect(status().isOk());
         mockMvc.perform(get("/api/v1/ventas/metodos-pago")
                 .header(HttpHeaders.AUTHORIZATION, bearer(PermisosVenta.VENTAS_VER)))
             .andExpect(status().isOk())

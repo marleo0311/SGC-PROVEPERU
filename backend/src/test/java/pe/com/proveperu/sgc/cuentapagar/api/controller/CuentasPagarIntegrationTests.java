@@ -247,7 +247,7 @@ class CuentasPagarIntegrationTests {
         CuentaPagar cuenta = crearCuentaCredito();
 
         pagar(cuenta.getId(), "1000.01", "SOBREPAGO")
-            .andExpect(status().isUnprocessableEntity())
+            .andExpect(status().isUnprocessableContent())
             .andExpect(jsonPath("$.detail").value(
                 "El monto supera el saldo pendiente: 1000.00"
             ));

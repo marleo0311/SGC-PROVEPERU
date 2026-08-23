@@ -1,11 +1,15 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
+import { PayablesPage, ReceivablesPage } from './pages/AccountsPages'
 import { AppShell } from './layout/AppShell'
 import { CatalogsPage } from './pages/CatalogsPage'
+import { CashPage } from './pages/CashPage'
 import { ClientsPage } from './pages/ClientsPage'
+import { OrdersPage, QuotesPage, ReceiptsPage, SalesPage } from './pages/CommercialPages'
 import { DashboardPage } from './pages/DashboardPage'
 import { InventoryPage } from './pages/InventoryPage'
 import { KardexPage } from './pages/KardexPage'
 import { LoginPage } from './pages/LoginPage'
+import { CarriersPage, ExpensesPage } from './pages/LogisticsPages'
 import { ModulePage } from './pages/ModulePage'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { ProductsPage } from './pages/ProductsPage'
@@ -31,6 +35,15 @@ export default function App() {
           <Route path="permisos" element={<PermissionsPage />} />
           <Route path="proveedores" element={<SuppliersPage />} />
           <Route path="compras" element={<PurchasesPage />} />
+          <Route path="transportistas" element={<CarriersPage />} />
+          <Route path="gastos" element={<ExpensesPage />} />
+          <Route path="cuentas-pagar" element={<PayablesPage />} />
+          <Route path="cuentas-cobrar" element={<ReceivablesPage />} />
+          <Route path="cotizaciones" element={<QuotesPage />} />
+          <Route path="pedidos" element={<OrdersPage />} />
+          <Route path="ventas" element={<SalesPage />} />
+          <Route path="comprobantes" element={<ReceiptsPage />} />
+          <Route path="caja" element={<CashPage />} />
           <Route path=":module" element={<ModulePage />} />
         </Route>
       </Route>

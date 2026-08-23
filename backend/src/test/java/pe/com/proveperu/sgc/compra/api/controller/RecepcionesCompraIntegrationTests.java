@@ -215,7 +215,7 @@ class RecepcionesCompraIntegrationTests {
         long recepcionesAntes = recepcionRepository.count();
         long movimientosAntes = movimientoRepository.count();
         recibir(idCompra, producto.getId(), "7.000", true, null)
-            .andExpect(status().isUnprocessableEntity())
+            .andExpect(status().isUnprocessableContent())
             .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString(
                 "supera la cantidad pendiente: 6.000"
             )));

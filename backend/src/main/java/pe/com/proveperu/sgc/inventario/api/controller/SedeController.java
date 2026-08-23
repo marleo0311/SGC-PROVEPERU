@@ -14,6 +14,8 @@ import pe.com.proveperu.sgc.compra.application.service.PermisosCompra;
 import pe.com.proveperu.sgc.inventario.api.dto.SedeResponse;
 import pe.com.proveperu.sgc.inventario.application.service.PermisosInventario;
 import pe.com.proveperu.sgc.inventario.application.service.SedeService;
+import pe.com.proveperu.sgc.pedido.application.service.PermisosPedido;
+import pe.com.proveperu.sgc.venta.application.service.PermisosVenta;
 
 @RestController
 @RequestMapping("/api/v1/sedes")
@@ -28,7 +30,10 @@ public class SedeController {
     @PreAuthorize(
         "hasAnyAuthority('" + PermisosInventario.STOCK_VER
             + "', '" + PermisosInventario.KARDEX_VER
-            + "', '" + PermisosCompra.RECEPCIONES_CREAR + "')"
+            + "', '" + PermisosCompra.RECEPCIONES_CREAR
+            + "', '" + PermisosPedido.PEDIDOS_CREAR
+            + "', '" + PermisosPedido.PEDIDOS_CONVERTIR
+            + "', '" + PermisosVenta.VENTAS_CREAR + "')"
     )
     @Operation(summary = "Listar sedes activas")
     public List<SedeResponse> listar() {

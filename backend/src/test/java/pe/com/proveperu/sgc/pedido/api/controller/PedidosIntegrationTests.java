@@ -70,6 +70,7 @@ import pe.com.proveperu.sgc.security.domain.model.Usuario;
 import pe.com.proveperu.sgc.security.infrastructure.persistence.PermisoRepository;
 import pe.com.proveperu.sgc.security.infrastructure.persistence.RolRepository;
 import pe.com.proveperu.sgc.security.infrastructure.persistence.UsuarioRepository;
+import pe.com.proveperu.sgc.venta.application.service.PermisosVenta;
 
 @SpringBootTest(properties =
     "app.security.jwt.secret=MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=")
@@ -340,7 +341,7 @@ class PedidosIntegrationTests {
                 .header(HttpHeaders.AUTHORIZATION, bearer(
                     PermisosPedido.PEDIDOS_CONFIRMAR
                 )))
-            .andExpect(status().isUnprocessableEntity())
+            .andExpect(status().isUnprocessableContent())
             .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString(
                 "Stock insuficiente"
             )));
@@ -413,6 +414,10 @@ class PedidosIntegrationTests {
         mockMvc.perform(get("/api/v1/pedidos")
                 .header(HttpHeaders.AUTHORIZATION, bearer(PermisosCompra.COMPRAS_VER)))
             .andExpect(status().isForbidden());
+
+        mockMvc.perform(get("/api/v1/pedidos")
+                .header(HttpHeaders.AUTHORIZATION, bearer(PermisosVenta.VENTAS_CREAR)))
+            .andExpect(status().isOk());
 
         Set<String> esperados = Set.of(
             PermisosPedido.PEDIDOS_VER,

@@ -239,6 +239,11 @@ class CajaIntegrationTests {
         mockMvc.perform(get("/api/v1/cajas")
                 .header(HttpHeaders.AUTHORIZATION, bearer("VEN_VENTAS_VER")))
             .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/v1/cajas/metodos-pago")
+                .header(HttpHeaders.AUTHORIZATION, bearer(PermisosCaja.CAJAS_VER)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[?(@.codigo == 'EFECTIVO')]").exists())
+            .andExpect(jsonPath("$[?(@.codigo == 'TRANSFERENCIA')]").exists());
 
         long idSesion = abrirCaja();
         registrarMovimiento(
