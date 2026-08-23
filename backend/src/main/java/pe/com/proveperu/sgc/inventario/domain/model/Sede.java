@@ -31,6 +31,9 @@ public class Sede {
     @Column(name = "direccion", length = 250)
     private String direccion;
 
+    @Column(name = "codigo_establecimiento_sunat", nullable = false, length = 4)
+    private String codigoEstablecimientoSunat = "0000";
+
     @Column(name = "estado", nullable = false, length = 20)
     private String estado;
 }

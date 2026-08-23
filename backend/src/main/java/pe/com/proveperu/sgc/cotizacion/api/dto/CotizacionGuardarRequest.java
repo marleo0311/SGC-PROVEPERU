@@ -2,13 +2,10 @@ package pe.com.proveperu.sgc.cotizacion.api.dto;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.AssertTrue;
-import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -21,10 +18,8 @@ public record CotizacionGuardarRequest(
 
     LocalDate fechaVencimiento,
 
-    @NotNull(message = "El IGV es obligatorio")
-    @DecimalMin(value = "0.00", message = "El IGV no puede ser negativo")
-    @Digits(integer = 12, fraction = 2, message = "El IGV admite hasta 12 enteros y 2 decimales")
-    BigDecimal igv,
+    @NotNull(message = "Debe indicar si el precio incluye IGV")
+    Boolean aplicarIgv,
 
     @NotEmpty(message = "La cotización debe contener al menos un producto")
     @Size(max = 200, message = "La cotización no puede superar 200 productos")

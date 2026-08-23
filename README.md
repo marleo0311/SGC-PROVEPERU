@@ -4,41 +4,25 @@ Sistema web modular para la gestión integral de INVERSIONES PROVEPERU S.R.L.
 
 ## Tecnologías
 
-### Frontend
-- React
-- Vite
-- Bootstrap
-- Axios
+- Frontend: React 19, TypeScript, Vite, Axios, Bootstrap y CSS propio.
+- Backend: Java 21, Spring Boot 4, Spring Security, JWT, JPA y OpenAPI.
+- Base de datos: PostgreSQL 17 con 24 migraciones Flyway.
+- Infraestructura local: Docker y Docker Compose.
 
-### Backend
-- Java 21
-- Spring Boot
-- Spring Security
-- JWT
-- Spring Data JPA
-- OpenAPI / Swagger UI
+## Módulos
 
-### Base de datos
-- PostgreSQL
+- Usuarios, roles y permisos.
+- Catálogos, productos, precios y conversiones.
+- Clientes, proveedores, transportistas y gastos.
+- Inventario, movimientos y Kardex.
+- Compras, recepciones y cuentas por pagar.
+- Cotizaciones, pedidos, reservas, ventas, comprobantes y base de facturación electrónica SUNAT.
+- Caja, cuentas por cobrar y dashboard.
+- Backend de devoluciones, tickets y reportes detallados.
 
-### Infraestructura
-- Docker
-- Docker Compose
+## Documentación
 
-## Módulos iniciales
-
-- Seguridad
-- Usuarios
-- Roles
-- Permisos
-- Productos
-- Inventario
-- Clientes
-- Proveedores
-- Compras
-- Ventas
-- Caja
-- Reportes
+La documentación completa se encuentra en [docs/README.md](docs/README.md): instalación, arquitectura, módulos, flujos, API, permisos, base de datos, frontend, pruebas y roadmap.
 
 ## Documentación de la API
 

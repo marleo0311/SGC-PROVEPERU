@@ -7,6 +7,9 @@ export type EstadoVenta = 'REGISTRADA' | 'ANULADA' | 'DEVUELTA_PARCIAL' | 'DEVUE
 export type TipoVenta = 'MINORISTA' | 'MAYORISTA'
 export type CondicionPagoVenta = 'CONTADO' | 'CREDITO' | 'PARCIAL'
 export type TipoComprobanteVenta = 'NOTA_VENTA' | 'BOLETA' | 'FACTURA'
+export type EstadoComprobante = 'EMITIDO' | 'ANULADO' | 'PENDIENTE_ENVIO'
+export type AmbienteSunat = 'BETA' | 'PRODUCCION'
+export type EstadoEnvioSunat = 'GENERADO' | 'ENVIANDO' | 'ACEPTADO' | 'ACEPTADO_CON_OBSERVACIONES' | 'RECHAZADO' | 'ERROR_COMUNICACION'
 
 export interface CotizacionResumen {
   id: number
@@ -55,7 +58,7 @@ export interface CotizacionGuardarRequest {
   idCliente: number | null
   fecha: string
   fechaVencimiento: string | null
-  igv: number
+  aplicarIgv: boolean
   detalles: Array<{ idProducto: number; idUnidadMedida: number; cantidad: number; tipoPrecio: string; descuento: number }>
 }
 
@@ -119,7 +122,7 @@ export interface PedidoGuardarRequest {
   idCliente: number | null
   idSede: number | null
   canal: CanalPedido
-  igv: number
+  aplicarIgv: boolean
   observacion: string | null
   detalles: Array<{ idProducto: number; idUnidadMedida: number; cantidad: number; tipoPrecio: string; descuento: number }>
 }
@@ -172,6 +175,52 @@ export interface Venta {
   pagos: Array<{ id: number; metodoPago: string; metodoPagoCodigo: string; usuarioLogin: string; monto: number; referencia: string | null; fechaHora: string }>
 }
 
+export interface EnvioSunat {
+  id: number
+  ambiente: AmbienteSunat
+  estado: EstadoEnvioSunat
+  nombreArchivo: string
+  hashXml: string
+  ticket: string | null
+  codigoRespuesta: string | null
+  descripcionRespuesta: string | null
+  observaciones: string[]
+  errorUltimo: string | null
+  intentos: number
+  fechaGeneracion: string
+  fechaUltimoIntento: string | null
+  fechaRespuesta: string | null
+  xmlDisponible: boolean
+  cdrDisponible: boolean
+}
+
+export interface Comprobante {
+  id: number
+  idVenta: number
+  tipo: TipoComprobanteVenta
+  serie: string
+  numero: string
+  numeroCompleto: string
+  fechaEmision: string
+  subtotal: number
+  igv: number
+  total: number
+  estado: EstadoComprobante
+  fechaAnulacion: string | null
+  motivoAnulacion: string | null
+  envioSunat: EnvioSunat | null
+}
+
+export interface ConfiguracionSunat {
+  habilitado: boolean
+  ambiente: AmbienteSunat
+  produccionHabilitada: boolean
+  certificadoConfigurado: boolean
+  credencialesConfiguradas: boolean
+  endpoint: string
+  advertencia: string
+}
+
 export interface VentaCrearRequest {
   idCliente: number | null
   idPedido: number | null
@@ -180,7 +229,7 @@ export interface VentaCrearRequest {
   condicionPago: CondicionPagoVenta
   idMetodoPago: number | null
   tipoComprobante: TipoComprobanteVenta
-  igv: number | null
+  aplicarIgv: boolean | null
   montoPagado: number | null
   fechaVencimiento: string | null
   referenciaPago: string | null

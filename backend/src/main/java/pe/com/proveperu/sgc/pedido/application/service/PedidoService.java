@@ -60,6 +60,7 @@ import pe.com.proveperu.sgc.security.domain.model.Usuario;
 import pe.com.proveperu.sgc.security.infrastructure.persistence.UsuarioRepository;
 import pe.com.proveperu.sgc.shared.api.dto.PaginaResponse;
 import pe.com.proveperu.sgc.shared.application.exception.SolicitudInvalidaException;
+import pe.com.proveperu.sgc.shared.application.service.CalculoTributario;
 
 @Service
 @RequiredArgsConstructor
@@ -319,9 +320,8 @@ public class PedidoService {
         PedidoGuardarRequest request,
         boolean puedeAplicarDescuento
     ) {
-        pedido.setIgv(validarDinero(request.igv(), "El IGV"));
         Set<Long> productosUnicos = new HashSet<>();
-        BigDecimal subtotal = dinero(BigDecimal.ZERO);
+        BigDecimal importeFinal = dinero(BigDecimal.ZERO);
         for (PedidoDetalleRequest item : request.detalles()) {
             if (!productosUnicos.add(item.idProducto())) {
                 throw new SolicitudInvalidaException(
@@ -334,14 +334,16 @@ public class PedidoService {
                 puedeAplicarDescuento
             );
             pedido.agregarDetalle(detalle);
-            subtotal = subtotal.add(detalle.getSubtotal());
+            importeFinal = importeFinal.add(detalle.getSubtotal());
         }
-        subtotal = validarDinero(subtotal, "El subtotal");
-        pedido.setSubtotal(subtotal);
-        pedido.setTotal(validarDinero(
-            subtotal.add(pedido.getIgv()),
-            "El total"
-        ));
+        importeFinal = validarDinero(importeFinal, "El total");
+        CalculoTributario.Totales totales = CalculoTributario.desdePrecioFinal(
+            importeFinal,
+            request.aplicarIgv()
+        );
+        pedido.setSubtotal(totales.subtotal());
+        pedido.setIgv(totales.igv());
+        pedido.setTotal(totales.total());
     }
 
     private DetallePedido crearDetalleDirecto(

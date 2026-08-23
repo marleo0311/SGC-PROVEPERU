@@ -26,6 +26,12 @@ Thumbs.db
 *.log
 .run/
 
+# Certificados y llaves privadas
+*.p12
+*.pfx
+*.pem
+*.key
+
 # Base de datos local
 *.sql.backup
 *.dump

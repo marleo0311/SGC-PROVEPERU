@@ -30,6 +30,9 @@ public class UnidadMedida {
     @Column(name = "nombre", nullable = false, length = 80)
     private String nombre;
 
+    @Column(name = "codigo_sunat", nullable = false, length = 3)
+    private String codigoSunat = "NIU";
+
     @Column(name = "permite_decimales", nullable = false)
     private boolean permiteDecimales;
 

@@ -203,7 +203,7 @@ class PedidosIntegrationTests {
             unidadBase.getId(),
             "2.000",
             "5.00",
-            "8.10",
+            "true",
             "WHATSAPP",
             PermisosPedido.PEDIDOS_CREAR,
             PermisosCotizacion.DESCUENTOS_APLICAR
@@ -212,9 +212,9 @@ class PedidosIntegrationTests {
             .andExpect(header().exists(HttpHeaders.LOCATION))
             .andExpect(jsonPath("$.pedido.canal").value("WHATSAPP"))
             .andExpect(jsonPath("$.pedido.estado").value("RECIBIDO"))
-            .andExpect(jsonPath("$.pedido.subtotal").value(45.0))
-            .andExpect(jsonPath("$.pedido.igv").value(8.1))
-            .andExpect(jsonPath("$.pedido.total").value(53.1))
+            .andExpect(jsonPath("$.pedido.subtotal").value(38.14))
+            .andExpect(jsonPath("$.pedido.igv").value(6.86))
+            .andExpect(jsonPath("$.pedido.total").value(45.0))
             .andExpect(jsonPath("$.detalles[0].cantidadBase").value(2.0))
             .andExpect(jsonPath("$.reservas.length()").value(0))
             .andReturn();
@@ -314,7 +314,7 @@ class PedidosIntegrationTests {
             caja.getId(),
             "2.000",
             "0.00",
-            "0.00",
+            "false",
             "PRESENCIAL",
             PermisosPedido.PEDIDOS_CREAR
         ).andExpect(status().isCreated()).andReturn());
@@ -451,7 +451,7 @@ class PedidosIntegrationTests {
             unidadBase.getId(),
             cantidad,
             "0.00",
-            "0.00",
+            "false",
             "PRESENCIAL",
             PermisosPedido.PEDIDOS_CREAR
         ).andExpect(status().isCreated()).andReturn());
@@ -461,7 +461,7 @@ class PedidosIntegrationTests {
         Long idUnidad,
         String cantidad,
         String descuento,
-        String igv,
+        String aplicarIgv,
         String canal,
         String... authorities
     ) throws Exception {
@@ -473,7 +473,7 @@ class PedidosIntegrationTests {
                   "idCliente": %d,
                   "idSede": %d,
                   "canal": "%s",
-                  "igv": %s,
+                  "aplicarIgv": %s,
                   "observacion": "Pedido de prueba",
                   "detalles": [
                     {
@@ -489,7 +489,7 @@ class PedidosIntegrationTests {
                     cliente.getId(),
                     sede.getId(),
                     canal,
-                    igv,
+                    aplicarIgv,
                     producto.getId(),
                     idUnidad,
                     cantidad,
@@ -508,7 +508,7 @@ class PedidosIntegrationTests {
                       "idCliente": %d,
                       "fecha": "%s",
                       "fechaVencimiento": "%s",
-                      "igv": 0.00,
+                      "aplicarIgv": false,
                       "detalles": [
                         {
                           "idProducto": %d,

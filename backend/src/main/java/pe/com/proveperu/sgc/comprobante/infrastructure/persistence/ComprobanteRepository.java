@@ -22,7 +22,8 @@ public interface ComprobanteRepository extends JpaRepository<Comprobante, Long> 
         "venta.detalles.producto.unidadBase",
         "venta.detalles.unidadMedida",
         "venta.cuentaCobrar",
-        "usuarioAnulacion"
+        "usuarioAnulacion",
+        "envioSunat"
     })
     @Query("select distinct c from Comprobante c where c.id = :id")
     Optional<Comprobante> findDetalleById(@Param("id") Long id);
@@ -38,7 +39,8 @@ public interface ComprobanteRepository extends JpaRepository<Comprobante, Long> 
         "venta.detalles.producto.unidadBase",
         "venta.detalles.unidadMedida",
         "venta.cuentaCobrar",
-        "usuarioAnulacion"
+        "usuarioAnulacion",
+        "envioSunat"
     })
     @Query("select distinct c from Comprobante c where c.venta.id = :idVenta")
     Optional<Comprobante> findDetalleByVentaId(@Param("idVenta") Long idVenta);

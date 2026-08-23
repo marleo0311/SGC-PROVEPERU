@@ -303,6 +303,7 @@ class InventarioIntegrationTests {
             .andExpect(jsonPath("$.contenido[0].stockResultante").value(3.0));
 
         mockMvc.perform(get("/api/v1/inventario/movimientos")
+                .param("idProducto", producto.getId().toString())
                 .header(HttpHeaders.AUTHORIZATION, bearer(PermisosInventario.MOVIMIENTOS_VER)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.totalElementos").value(2));

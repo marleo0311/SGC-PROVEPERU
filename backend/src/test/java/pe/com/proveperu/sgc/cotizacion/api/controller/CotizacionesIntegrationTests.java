@@ -200,7 +200,7 @@ class CotizacionesIntegrationTests {
             unidadBase.getId(),
             "2.000",
             "10.00",
-            "34.20",
+            "true",
             PermisosCotizacion.COTIZACIONES_CREAR,
             PermisosCotizacion.DESCUENTOS_APLICAR
         )
@@ -210,9 +210,9 @@ class CotizacionesIntegrationTests {
             .andExpect(jsonPath("$.cotizacion.usuarioLogin").value(
                 usuario.getUsuarioLogin()
             ))
-            .andExpect(jsonPath("$.cotizacion.subtotal").value(190.0))
-            .andExpect(jsonPath("$.cotizacion.igv").value(34.2))
-            .andExpect(jsonPath("$.cotizacion.total").value(224.2))
+            .andExpect(jsonPath("$.cotizacion.subtotal").value(161.02))
+            .andExpect(jsonPath("$.cotizacion.igv").value(28.98))
+            .andExpect(jsonPath("$.cotizacion.total").value(190.0))
             .andExpect(jsonPath("$.cotizacion.estado").value("PENDIENTE"))
             .andExpect(jsonPath("$.todosDisponibles").value(true))
             .andExpect(jsonPath("$.detalles[0].precioUnitario").value(100.0))
@@ -264,7 +264,7 @@ class CotizacionesIntegrationTests {
             caja.getId(),
             "2.000",
             "0.00",
-            "0.00",
+            "false",
             PermisosCotizacion.COTIZACIONES_CREAR
         )
             .andExpect(status().isCreated())
@@ -283,7 +283,7 @@ class CotizacionesIntegrationTests {
             unidadBase.getId(),
             "11.000",
             "0.00",
-            "0.00",
+            "false",
             PermisosCotizacion.COTIZACIONES_CREAR
         )
             .andExpect(status().isCreated())
@@ -302,7 +302,7 @@ class CotizacionesIntegrationTests {
             unidadBase.getId(),
             "2.000",
             "10.00",
-            "0.00",
+            "false",
             PermisosCotizacion.COTIZACIONES_CREAR
         )
             .andExpect(status().isConflict())
@@ -322,7 +322,7 @@ class CotizacionesIntegrationTests {
                     PermisosCotizacion.COTIZACIONES_EDITAR
                 ))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(bodyCotizacion(unidadBase.getId(), "3.000", "0.00", "0.00")))
+                .content(bodyCotizacion(unidadBase.getId(), "3.000", "0.00", "false")))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.cotizacion.subtotal").value(300.0))
             .andExpect(jsonPath("$.detalles.length()").value(1));
@@ -341,7 +341,7 @@ class CotizacionesIntegrationTests {
                     PermisosCotizacion.COTIZACIONES_EDITAR
                 ))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(bodyCotizacion(unidadBase.getId(), "4.000", "0.00", "0.00")))
+                .content(bodyCotizacion(unidadBase.getId(), "4.000", "0.00", "false")))
             .andExpect(status().isConflict())
             .andExpect(jsonPath("$.detail").value(
                 "Solo se puede editar una cotización PENDIENTE y vigente"
@@ -407,7 +407,7 @@ class CotizacionesIntegrationTests {
             unidadBase.getId(),
             "2.000",
             "0.00",
-            "0.00",
+            "false",
             PermisosCotizacion.COTIZACIONES_CREAR
         )
             .andExpect(status().isCreated())
@@ -419,27 +419,27 @@ class CotizacionesIntegrationTests {
         Long idUnidad,
         String cantidad,
         String descuento,
-        String igv,
+        String aplicarIgv,
         String... authorities
     ) throws Exception {
         return mockMvc.perform(post("/api/v1/cotizaciones")
             .header(HttpHeaders.AUTHORIZATION, bearer(authorities))
             .contentType(MediaType.APPLICATION_JSON)
-            .content(bodyCotizacion(idUnidad, cantidad, descuento, igv)));
+            .content(bodyCotizacion(idUnidad, cantidad, descuento, aplicarIgv)));
     }
 
     private String bodyCotizacion(
         Long idUnidad,
         String cantidad,
         String descuento,
-        String igv
+        String aplicarIgv
     ) {
         return """
             {
               "idCliente": %d,
               "fecha": "%s",
               "fechaVencimiento": "%s",
-              "igv": %s,
+              "aplicarIgv": %s,
               "detalles": [
                 {
                   "idProducto": %d,
@@ -454,7 +454,7 @@ class CotizacionesIntegrationTests {
                 cliente.getId(),
                 hoy,
                 hoy.plusDays(7),
-                igv,
+                aplicarIgv,
                 producto.getId(),
                 idUnidad,
                 cantidad,

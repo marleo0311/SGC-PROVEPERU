@@ -19,6 +19,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import pe.com.proveperu.sgc.security.domain.model.Usuario;
+import pe.com.proveperu.sgc.facturacionelectronica.domain.model.EnvioSunat;
 import pe.com.proveperu.sgc.venta.domain.model.TipoComprobanteVenta;
 import pe.com.proveperu.sgc.venta.domain.model.Venta;
 
@@ -73,6 +74,9 @@ public class Comprobante {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_usuario_anulacion")
     private Usuario usuarioAnulacion;
+
+    @OneToOne(mappedBy = "comprobante", fetch = FetchType.LAZY)
+    private EnvioSunat envioSunat;
 
     public String getNumeroCompleto() {
         return serie + "-" + numero;

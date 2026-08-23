@@ -52,6 +52,7 @@ import pe.com.proveperu.sgc.security.domain.model.Usuario;
 import pe.com.proveperu.sgc.security.infrastructure.persistence.UsuarioRepository;
 import pe.com.proveperu.sgc.shared.api.dto.PaginaResponse;
 import pe.com.proveperu.sgc.shared.application.exception.SolicitudInvalidaException;
+import pe.com.proveperu.sgc.shared.application.service.CalculoTributario;
 import pe.com.proveperu.sgc.venta.api.dto.CuentaCobrarVentaResponse;
 import pe.com.proveperu.sgc.venta.api.dto.MetodoPagoVentaResponse;
 import pe.com.proveperu.sgc.venta.api.dto.PagoClienteResponse;
@@ -79,7 +80,6 @@ public class VentaService {
     private static final int ESCALA_DINERO = 2;
     private static final int ESCALA_CANTIDAD = 3;
     private static final int MAX_ENTEROS_DINERO = 12;
-    private static final BigDecimal TASA_IGV = new BigDecimal("0.18");
     private static final ZoneId ZONA_NEGOCIO = ZoneId.of("America/Lima");
     private static final Set<EstadoPedido> ESTADOS_PEDIDO_VENDIBLES = EnumSet.of(
         EstadoPedido.CONFIRMADO,
@@ -250,8 +250,8 @@ public class VentaService {
                 "La sede enviada no corresponde a la sede del pedido"
             );
         }
-        if (request.igv() != null
-            && dinero(request.igv()).compareTo(pedido.getIgv()) != 0) {
+        if (request.aplicarIgv() != null
+            && request.aplicarIgv() != (pedido.getIgv().compareTo(BigDecimal.ZERO) > 0)) {
             throw new SolicitudInvalidaException(
                 "El IGV de una venta desde pedido no puede modificarse"
             );
@@ -298,7 +298,7 @@ public class VentaService {
         venta.setSede(resolverSede(request.idSede()));
 
         Set<Long> productosUnicos = new HashSet<>();
-        BigDecimal subtotal = dinero(BigDecimal.ZERO);
+        BigDecimal importeFinal = dinero(BigDecimal.ZERO);
         BigDecimal descuentoTotal = dinero(BigDecimal.ZERO);
         for (VentaItemRequest item : request.items()) {
             if (!productosUnicos.add(item.idProducto())) {
@@ -313,20 +313,22 @@ public class VentaService {
                 puedeAplicarDescuento
             );
             venta.agregarDetalle(detalle);
-            subtotal = subtotal.add(detalle.getSubtotal());
+            importeFinal = importeFinal.add(detalle.getSubtotal());
             descuentoTotal = descuentoTotal.add(detalle.getDescuento());
         }
-        subtotal = validarDinero(subtotal, "El subtotal");
-        BigDecimal igv = request.igv() == null
-            ? subtotal.multiply(TASA_IGV).setScale(ESCALA_DINERO, RoundingMode.HALF_UP)
-            : validarDinero(request.igv(), "El IGV");
-        venta.setSubtotal(subtotal);
-        venta.setIgv(igv);
+        importeFinal = validarDinero(importeFinal, "El total");
+        boolean aplicarIgv = request.aplicarIgv() == null || request.aplicarIgv();
+        CalculoTributario.Totales totales = CalculoTributario.desdePrecioFinal(
+            importeFinal,
+            aplicarIgv
+        );
+        venta.setSubtotal(totales.subtotal());
+        venta.setIgv(totales.igv());
         venta.setDescuentoTotal(validarDinero(
             descuentoTotal,
             "El descuento total"
         ));
-        venta.setTotal(validarDinero(subtotal.add(igv), "El total"));
+        venta.setTotal(totales.total());
         if (venta.getTotal().compareTo(BigDecimal.ZERO) <= 0) {
             throw new SolicitudInvalidaException(
                 "El total de la venta debe ser mayor que cero"

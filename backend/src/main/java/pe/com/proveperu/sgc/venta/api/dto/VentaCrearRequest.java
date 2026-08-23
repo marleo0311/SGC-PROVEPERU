@@ -39,10 +39,8 @@ public record VentaCrearRequest(
     @NotNull(message = "El tipo de comprobante es obligatorio")
     TipoComprobanteVenta tipoComprobante,
 
-    @DecimalMin(value = "0.00", message = "El IGV no puede ser negativo")
-    @Digits(integer = 12, fraction = 2, message = "El IGV admite hasta 12 enteros y 2 decimales")
-    @Schema(description = "IGV de venta directa; si se omite se calcula al 18 %. En pedidos se conserva su IGV")
-    BigDecimal igv,
+    @Schema(description = "Indica si el precio final incluye IGV. Si se omite en una venta directa, se considera verdadero; en pedidos se conserva su configuración")
+    Boolean aplicarIgv,
 
     @DecimalMin(value = "0.01", message = "El pago inicial debe ser mayor que cero")
     @Digits(integer = 12, fraction = 2, message = "El pago inicial admite hasta 12 enteros y 2 decimales")

@@ -87,8 +87,10 @@ import pe.com.proveperu.sgc.venta.infrastructure.persistence.CuentaCobrarReposit
 import pe.com.proveperu.sgc.venta.infrastructure.persistence.PagoClienteRepository;
 import pe.com.proveperu.sgc.venta.infrastructure.persistence.VentaRepository;
 
-@SpringBootTest(properties =
-    "app.security.jwt.secret=MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=")
+@SpringBootTest(properties = {
+    "app.security.jwt.secret=MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=",
+    "app.sunat.enabled=false"
+})
 @AutoConfigureMockMvc
 @Transactional
 class VentasIntegrationTests {
@@ -176,6 +178,7 @@ class VentasIntegrationTests {
     private MetodoPago efectivo;
     private SesionCaja sesionCaja;
     private LocalDate hoy;
+    private PrecioProducto precioVigente;
 
     @BeforeEach
     void prepararDatos() {
@@ -209,7 +212,7 @@ class VentasIntegrationTests {
         precio.setMonto(new BigDecimal("25.00"));
         precio.setVigenteDesde(hoy.minusDays(10));
         precio.setEstado(EstadoCatalogo.ACTIVO);
-        precioRepository.save(precio);
+        precioVigente = precioRepository.save(precio);
 
         cliente = new Cliente();
         cliente.setTipoPersona(TipoPersona.NATURAL);
@@ -294,6 +297,61 @@ class VentasIntegrationTests {
         assertThat(movimientosCaja.getFirst().getImporte())
             .isEqualByComparingTo("50.00");
         assertThat(cuentaRepository.findByVentaId(idVenta)).isEmpty();
+    }
+
+    @Test
+    void boletaMantieneElPrecioFinalYDesglosaElIgvIncluido() throws Exception {
+        precioVigente.setMonto(new BigDecimal("14.00"));
+        precioRepository.saveAndFlush(precioVigente);
+
+        MvcResult resultado = mockMvc.perform(post("/api/v1/ventas")
+                .header(HttpHeaders.AUTHORIZATION, bearer(
+                    PermisosVenta.VENTAS_CREAR
+                ))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "idCliente": %d,
+                      "idSede": %d,
+                      "tipoVenta": "MINORISTA",
+                      "condicionPago": "CONTADO",
+                      "idMetodoPago": %d,
+                      "tipoComprobante": "BOLETA",
+                      "aplicarIgv": true,
+                      "items": [
+                        {
+                          "idProducto": %d,
+                          "idUnidadMedida": %d,
+                          "cantidad": 10.000,
+                          "precioUnitario": 14.00,
+                          "descuento": 0.00
+                        }
+                      ]
+                    }
+                    """.formatted(
+                        cliente.getId(),
+                        sede.getId(),
+                        efectivo.getId(),
+                        producto.getId(),
+                        unidadBase.getId()
+                    )))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.venta.tipoComprobante").value("BOLETA"))
+            .andExpect(jsonPath("$.venta.subtotal").value(118.64))
+            .andExpect(jsonPath("$.venta.igv").value(21.36))
+            .andExpect(jsonPath("$.venta.total").value(140.0))
+            .andExpect(jsonPath("$.venta.importePagado").value(140.0))
+            .andExpect(jsonPath("$.detalles[0].precioUnitario").value(14.0))
+            .andExpect(jsonPath("$.detalles[0].subtotal").value(140.0))
+            .andReturn();
+
+        long idVenta = idVenta(resultado);
+        assertThat(movimientoCajaRepository
+            .findAllBySesionIdOrderByFechaHoraAscIdAsc(sesionCaja.getId())
+            .getFirst()
+            .getImporte()).isEqualByComparingTo("140.00");
+        assertThat(comprobanteRepository.findByVentaId(idVenta).orElseThrow()
+            .getTotal()).isEqualByComparingTo("140.00");
     }
 
     @Test
@@ -582,6 +640,15 @@ class VentasIntegrationTests {
                 .header(HttpHeaders.AUTHORIZATION, bearer(PermisosVenta.VENTAS_VER)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$[?(@.codigo == 'EFECTIVO')]").exists());
+        mockMvc.perform(get("/api/v1/sunat/configuracion")
+                .header(HttpHeaders.AUTHORIZATION, bearer(
+                    PermisosVenta.COMPROBANTES_VER
+                )))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.habilitado").value(false))
+            .andExpect(jsonPath("$.ambiente").value("BETA"))
+            .andExpect(jsonPath("$.claveSol").doesNotExist())
+            .andExpect(jsonPath("$.certificadoClave").doesNotExist());
 
         Set<String> esperados = Set.of(
             PermisosVenta.VENTAS_VER,
@@ -598,7 +665,8 @@ class VentasIntegrationTests {
 
         Set<String> esperadosComprobantes = Set.of(
             PermisosVenta.COMPROBANTES_VER,
-            PermisosVenta.COMPROBANTES_ANULAR
+            PermisosVenta.COMPROBANTES_ANULAR,
+            PermisosVenta.SUNAT_ENVIAR
         );
         Set<String> registradosComprobantes = permisoRepository
             .findAllByModuloOrderByCodigoAsc("Comprobantes")
@@ -887,7 +955,7 @@ class VentasIntegrationTests {
               "condicionPago": "%s",
               %s
               "tipoComprobante": "NOTA_VENTA",
-              "igv": 0.00,
+              "aplicarIgv": false,
               %s
               "items": [
                 {

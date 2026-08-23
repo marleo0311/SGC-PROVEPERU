@@ -8,10 +8,12 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Entity
 @Table(name = "empresa")
 @Getter
+@Setter
 @NoArgsConstructor
 public class Empresa {
 
@@ -34,6 +36,21 @@ public class Empresa {
 
     @Column(name = "telefono", length = 30)
     private String telefono;
+
+    @Column(name = "ubigeo", length = 6)
+    private String ubigeo;
+
+    @Column(name = "departamento", length = 80)
+    private String departamento;
+
+    @Column(name = "provincia", length = 80)
+    private String provincia;
+
+    @Column(name = "distrito", length = 80)
+    private String distrito;
+
+    @Column(name = "codigo_pais", nullable = false, length = 2)
+    private String codigoPais = "PE";
 
     @Column(name = "estado", nullable = false, length = 20)
     private String estado;

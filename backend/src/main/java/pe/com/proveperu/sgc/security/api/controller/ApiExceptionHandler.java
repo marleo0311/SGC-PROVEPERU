@@ -16,6 +16,8 @@ import pe.com.proveperu.sgc.security.application.exception.OperacionNoPermitidaE
 import pe.com.proveperu.sgc.security.application.exception.RecursoNoEncontradoException;
 import pe.com.proveperu.sgc.shared.application.exception.ReglaNegocioException;
 import pe.com.proveperu.sgc.shared.application.exception.SolicitudInvalidaException;
+import pe.com.proveperu.sgc.facturacionelectronica.infrastructure.sunat.IntegracionSunatException;
+import pe.com.proveperu.sgc.facturacionelectronica.infrastructure.sunat.RechazoSunatException;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
@@ -51,6 +53,26 @@ public class ApiExceptionHandler {
     @ExceptionHandler(SolicitudInvalidaException.class)
     ProblemDetail solicitudInvalida(SolicitudInvalidaException exception) {
         return crearProblema(HttpStatus.BAD_REQUEST, "Solicitud inválida", exception.getMessage());
+    }
+
+    @ExceptionHandler(IntegracionSunatException.class)
+    ProblemDetail integracionSunat(IntegracionSunatException exception) {
+        return crearProblema(
+            HttpStatus.BAD_GATEWAY,
+            "Error de integración con SUNAT",
+            exception.getMessage()
+        );
+    }
+
+    @ExceptionHandler(RechazoSunatException.class)
+    ProblemDetail rechazoSunat(RechazoSunatException exception) {
+        ProblemDetail problem = crearProblema(
+            HttpStatus.UNPROCESSABLE_CONTENT,
+            "Comprobante rechazado por SUNAT",
+            exception.getMessage()
+        );
+        problem.setProperty("codigoSunat", exception.getCodigo());
+        return problem;
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

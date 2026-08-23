@@ -52,6 +52,7 @@ import pe.com.proveperu.sgc.security.domain.model.Usuario;
 import pe.com.proveperu.sgc.security.infrastructure.persistence.UsuarioRepository;
 import pe.com.proveperu.sgc.shared.api.dto.PaginaResponse;
 import pe.com.proveperu.sgc.shared.application.exception.SolicitudInvalidaException;
+import pe.com.proveperu.sgc.shared.application.service.CalculoTributario;
 
 @Service
 @RequiredArgsConstructor
@@ -167,10 +168,8 @@ public class CotizacionService {
     ) {
         cotizacion.setFecha(request.fecha());
         cotizacion.setFechaVencimiento(request.fechaVencimiento());
-        cotizacion.setIgv(validarDinero(request.igv(), "El IGV"));
-
         Set<Long> productosUnicos = new HashSet<>();
-        BigDecimal subtotal = dinero(BigDecimal.ZERO);
+        BigDecimal importeFinal = dinero(BigDecimal.ZERO);
         for (CotizacionDetalleRequest item : request.detalles()) {
             if (!productosUnicos.add(item.idProducto())) {
                 throw new SolicitudInvalidaException(
@@ -184,14 +183,16 @@ public class CotizacionService {
                 puedeAplicarDescuento
             );
             cotizacion.agregarDetalle(detalle);
-            subtotal = subtotal.add(detalle.getSubtotal());
+            importeFinal = importeFinal.add(detalle.getSubtotal());
         }
-        subtotal = validarDinero(subtotal, "El subtotal");
-        cotizacion.setSubtotal(subtotal);
-        cotizacion.setTotal(validarDinero(
-            subtotal.add(cotizacion.getIgv()),
-            "El total"
-        ));
+        importeFinal = validarDinero(importeFinal, "El total");
+        CalculoTributario.Totales totales = CalculoTributario.desdePrecioFinal(
+            importeFinal,
+            request.aplicarIgv()
+        );
+        cotizacion.setSubtotal(totales.subtotal());
+        cotizacion.setIgv(totales.igv());
+        cotizacion.setTotal(totales.total());
     }
 
     private DetalleCotizacion crearDetalle(

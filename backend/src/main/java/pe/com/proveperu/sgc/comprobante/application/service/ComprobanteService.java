@@ -47,7 +47,9 @@ public class ComprobanteService {
         comprobante.setSubtotal(venta.getSubtotal());
         comprobante.setIgv(venta.getIgv());
         comprobante.setTotal(venta.getTotal());
-        comprobante.setEstado(EstadoComprobante.EMITIDO);
+        comprobante.setEstado(venta.getTipoComprobante() == TipoComprobanteVenta.NOTA_VENTA
+            ? EstadoComprobante.EMITIDO
+            : EstadoComprobante.PENDIENTE_ENVIO);
         comprobante = comprobanteRepository.saveAndFlush(comprobante);
         venta.setComprobante(comprobante);
         return comprobante;
@@ -111,6 +113,12 @@ public class ComprobanteService {
             ));
         if (comprobante.getEstado() == EstadoComprobante.ANULADO) {
             return;
+        }
+        if (comprobante.getEnvioSunat() != null
+            && comprobante.getEnvioSunat().getEstado().aceptado()) {
+            throw new OperacionNoPermitidaException(
+                "Un comprobante aceptado por SUNAT no puede anularse únicamente de forma local"
+            );
         }
         comprobante.setEstado(EstadoComprobante.ANULADO);
         comprobante.setFechaAnulacion(Instant.now());
