@@ -62,7 +62,8 @@ Los permisos no se crean desde la interfaz; forman parte del modelo versionado p
 - Categoría, marca y unidad base.
 - Stock mínimo.
 - Estado activo/inactivo.
-- Precios minorista y mayorista con vigencia histórica.
+- Precios minorista y mayorista editables desde el formulario del producto, con
+  carga de los importes vigentes y conservación automática del historial.
 - Conversiones entre unidad alterna y unidad base.
 
 Las operaciones comerciales consultan los precios vigentes; el backend conserva la autoridad final sobre importes y reglas.

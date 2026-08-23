@@ -2173,6 +2173,19 @@
   box-shadow: none;
 }
 
+.product-price-history-note {
+  display: flex;
+  margin: 12px 0 0;
+  align-items: center;
+  gap: 7px;
+  color: var(--ink-500);
+  font-size: 11px;
+}
+
+.product-price-history-note i {
+  color: var(--blue-600);
+}
+
 .form-modal__footer {
   display: flex;
   min-height: 71px;

@@ -80,6 +80,16 @@ export interface ProductoGuardarRequest {
   precioMayorista?: number | null
 }
 
+export interface PrecioProducto {
+  id: number
+  idProducto: number
+  tipoPrecio: string
+  monto: number
+  vigenteDesde: string
+  vigenteHasta: string | null
+  estado: string
+}
+
 export interface CatalogoOpciones {
   categorias: Categoria[]
   marcas: Marca[]

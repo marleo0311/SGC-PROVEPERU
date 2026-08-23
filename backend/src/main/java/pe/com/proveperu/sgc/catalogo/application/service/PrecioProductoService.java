@@ -1,5 +1,6 @@
 package pe.com.proveperu.sgc.catalogo.application.service;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Locale;
@@ -52,6 +53,46 @@ public class PrecioProductoService {
         precio.setVigenteHasta(request.vigenteHasta());
         precio.setEstado(EstadoCatalogo.ACTIVO);
         return PrecioResponse.from(precioRepository.save(precio));
+    }
+
+    @Transactional
+    public void actualizarPrecioVigente(
+        Producto producto,
+        String tipoPrecio,
+        BigDecimal nuevoMonto,
+        LocalDate fecha
+    ) {
+        if (nuevoMonto == null) {
+            return;
+        }
+
+        List<PrecioProducto> vigentes = precioRepository.buscarVigentes(
+            producto.getId(),
+            tipoPrecio,
+            fecha,
+            EstadoCatalogo.ACTIVO
+        );
+        PrecioProducto precioActual = vigentes.isEmpty() ? null : vigentes.getFirst();
+        if (precioActual != null && precioActual.getMonto().compareTo(nuevoMonto) == 0) {
+            return;
+        }
+        if (producto.getEstado() != EstadoCatalogo.ACTIVO) {
+            throw new OperacionNoPermitidaException("No se pueden modificar precios de un producto inactivo");
+        }
+
+        if (precioActual != null && precioActual.getVigenteDesde().isEqual(fecha)) {
+            precioActual.setMonto(nuevoMonto);
+            return;
+        }
+
+        cerrarPrecioAbiertoAnterior(producto.getId(), tipoPrecio, fecha, null);
+        PrecioProducto nuevoPrecio = new PrecioProducto();
+        nuevoPrecio.setProducto(producto);
+        nuevoPrecio.setTipoPrecio(tipoPrecio);
+        nuevoPrecio.setMonto(nuevoMonto);
+        nuevoPrecio.setVigenteDesde(fecha);
+        nuevoPrecio.setEstado(EstadoCatalogo.ACTIVO);
+        precioRepository.save(nuevoPrecio);
     }
 
     private void cerrarPrecioAbiertoAnterior(

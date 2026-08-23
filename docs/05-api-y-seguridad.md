@@ -110,6 +110,11 @@ Una página normalmente contiene:
 | GET, PUT | `/api/v1/productos/{id}` | Consultar y editar producto. |
 | PATCH | `/api/v1/productos/{id}/estado` | Cambiar estado. |
 | GET, POST | `/api/v1/productos/{idProducto}/precios` | Historial y alta de precios. |
+
+`PUT /api/v1/productos/{id}` admite opcionalmente `precioMinorista` y
+`precioMayorista`. Si un importe cambia, el backend cierra la vigencia anterior
+y crea la nueva desde la fecha actual; si el precio comenzó el mismo día,
+actualiza esa vigencia para evitar duplicados diarios.
 | GET, POST | `/api/v1/productos/{idProducto}/conversiones` | Consultar y crear conversiones. |
 
 ### Clientes

@@ -6,6 +6,7 @@ import type {
   Marca,
   MarcaGuardarRequest,
   Pagina,
+  PrecioProducto,
   Producto,
   ProductoFiltros,
   ProductoGuardarRequest,
@@ -29,6 +30,11 @@ export async function listProducts(filters: ProductoFiltros): Promise<Pagina<Pro
 
 export async function getProduct(id: number): Promise<Producto> {
   const { data } = await api.get<Producto>(`/v1/productos/${id}`)
+  return data
+}
+
+export async function listProductPrices(id: number): Promise<PrecioProducto[]> {
+  const { data } = await api.get<PrecioProducto[]>(`/v1/productos/${id}/precios`)
   return data
 }
 
@@ -134,17 +140,7 @@ export async function createProduct(request: ProductoGuardarRequest): Promise<Pr
 }
 
 export async function updateProduct(id: number, request: ProductoGuardarRequest): Promise<Producto> {
-  const updateRequest = {
-    codigoInterno: request.codigoInterno,
-    codigoBarras: request.codigoBarras,
-    nombre: request.nombre,
-    descripcion: request.descripcion,
-    idCategoria: request.idCategoria,
-    idMarca: request.idMarca,
-    idUnidadBase: request.idUnidadBase,
-    stockMinimo: request.stockMinimo,
-  }
-  const { data } = await api.put<Producto>(`/v1/productos/${id}`, updateRequest)
+  const { data } = await api.put<Producto>(`/v1/productos/${id}`, request)
   return data
 }
 

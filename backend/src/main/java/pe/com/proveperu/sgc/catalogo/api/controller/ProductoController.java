@@ -88,7 +88,10 @@ public class ProductoController {
 
     @PutMapping("/{id}")
     @PreAuthorize("hasAuthority('" + PermisosCatalogo.PRODUCTOS_EDITAR + "')")
-    @Operation(summary = "Actualizar un producto")
+    @Operation(
+        summary = "Actualizar un producto",
+        description = "Puede actualizar sus precios vigentes conservando el historial anterior"
+    )
     public ProductoResponse actualizar(
         @PathVariable Long id,
         @Valid @RequestBody ProductoActualizarRequest request

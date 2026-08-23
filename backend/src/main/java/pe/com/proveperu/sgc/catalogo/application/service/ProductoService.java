@@ -36,6 +36,7 @@ public class ProductoService {
     private final MarcaRepository marcaRepository;
     private final UnidadMedidaRepository unidadMedidaRepository;
     private final PrecioProductoRepository precioProductoRepository;
+    private final PrecioProductoService precioProductoService;
 
     @Transactional(readOnly = true)
     public PaginaResponse<ProductoResponse> listar(
@@ -94,6 +95,19 @@ public class ProductoService {
         producto.setMarca(buscarMarcaActiva(request.idMarca()));
         producto.setUnidadBase(buscarUnidadActiva(request.idUnidadBase()));
         producto.setStockMinimo(request.stockMinimo());
+        LocalDate hoy = LocalDate.now();
+        precioProductoService.actualizarPrecioVigente(
+            producto,
+            "MINORISTA",
+            request.precioMinorista(),
+            hoy
+        );
+        precioProductoService.actualizarPrecioVigente(
+            producto,
+            "MAYORISTA",
+            request.precioMayorista(),
+            hoy
+        );
         return ProductoResponse.from(producto);
     }
 

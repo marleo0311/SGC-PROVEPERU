@@ -35,6 +35,7 @@ public class ProductoPrecioController {
 
     @GetMapping
     @PreAuthorize("hasAnyAuthority('" + PermisosCatalogo.PRECIOS_VER + "', '"
+        + PermisosCatalogo.PRODUCTOS_EDITAR + "', '"
         + PermisosCotizacion.COTIZACIONES_CREAR + "', '"
         + PermisosCotizacion.COTIZACIONES_EDITAR + "', '"
         + PermisosPedido.PEDIDOS_CREAR + "', '"

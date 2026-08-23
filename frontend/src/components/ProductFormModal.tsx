@@ -1,6 +1,6 @@
 import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
-import { createProduct, updateProduct } from '../services/catalog.service'
+import { createProduct, listProductPrices, updateProduct } from '../services/catalog.service'
 import { getApiErrorDetails } from '../services/api'
 import type { CatalogoOpciones, Producto, ProductoGuardarRequest } from '../types/catalog'
 
@@ -44,7 +44,7 @@ function initialValues(product?: Producto): ProductFormValues {
   }
 }
 
-function validateForm(values: ProductFormValues, mode: 'create' | 'edit'): ProductFormErrors {
+function validateForm(values: ProductFormValues): ProductFormErrors {
   const errors: ProductFormErrors = {}
   if (!values.codigoInterno.trim()) errors.codigoInterno = 'Ingresa el código interno.'
   if (!values.nombre.trim()) errors.nombre = 'Ingresa el nombre del producto.'
@@ -55,9 +55,20 @@ function validateForm(values: ProductFormValues, mode: 'create' | 'edit'): Produ
   if (values.codigoBarras.length > 80) errors.codigoBarras = 'Admite hasta 80 caracteres.'
   if (values.nombre.length > 180) errors.nombre = 'Admite hasta 180 caracteres.'
   if (values.descripcion.length > 300) errors.descripcion = 'Admite hasta 300 caracteres.'
-  if (mode === 'create' && values.precioMinorista && Number(values.precioMinorista) <= 0) errors.precioMinorista = 'El precio debe ser mayor que cero.'
-  if (mode === 'create' && values.precioMayorista && Number(values.precioMayorista) <= 0) errors.precioMayorista = 'El precio debe ser mayor que cero.'
+  if (values.precioMinorista && Number(values.precioMinorista) <= 0) errors.precioMinorista = 'El precio debe ser mayor que cero.'
+  if (values.precioMayorista && Number(values.precioMayorista) <= 0) errors.precioMayorista = 'El precio debe ser mayor que cero.'
   return errors
+}
+
+function currentPrice(prices: Awaited<ReturnType<typeof listProductPrices>>, type: string) {
+  const now = new Date()
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+  return prices
+    .filter((price) => price.tipoPrecio.toUpperCase() === type
+      && price.estado === 'ACTIVO'
+      && price.vigenteDesde <= today
+      && (!price.vigenteHasta || price.vigenteHasta >= today))
+    .sort((left, right) => right.vigenteDesde.localeCompare(left.vigenteDesde) || right.id - left.id)[0]?.monto
 }
 
 function toRequest(values: ProductFormValues): ProductoGuardarRequest {
@@ -88,6 +99,34 @@ export function ProductFormModal({
   const [errors, setErrors] = useState<ProductFormErrors>({})
   const [submitError, setSubmitError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [pricesLoading, setPricesLoading] = useState(mode === 'edit')
+  const [pricesError, setPricesError] = useState('')
+
+  useEffect(() => {
+    if (mode !== 'edit' || !product) return
+    let active = true
+    listProductPrices(product.id)
+      .then((prices) => {
+        if (!active) return
+        const retail = currentPrice(prices, 'MINORISTA')
+        const wholesale = currentPrice(prices, 'MAYORISTA')
+        setValues((current) => ({
+          ...current,
+          precioMinorista: retail == null ? '' : String(retail),
+          precioMayorista: wholesale == null ? '' : String(wholesale),
+        }))
+        setPricesError('')
+      })
+      .catch((requestError: unknown) => {
+        if (active) setPricesError(getApiErrorDetails(requestError).message)
+      })
+      .finally(() => {
+        if (active) setPricesLoading(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [mode, product])
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow
@@ -112,7 +151,7 @@ export function ProductFormModal({
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const validationErrors = validateForm(values, mode)
+    const validationErrors = validateForm(values)
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors)
       return
@@ -169,6 +208,7 @@ export function ProductFormModal({
           <form onSubmit={handleSubmit} noValidate>
             <div className="form-modal__body">
               {submitError && <div className="alert-message alert-message--danger" role="alert"><i className="bi bi-exclamation-circle-fill" /><span>{submitError}</span></div>}
+              {pricesError && <div className="alert-message alert-message--danger" role="alert"><i className="bi bi-exclamation-circle-fill" /><span>No se pudieron cargar los precios vigentes: {pricesError}</span></div>}
 
               {missingRequiredCatalog && (
                 <div className="catalog-requirements-warning" role="alert">
@@ -235,17 +275,14 @@ export function ProductFormModal({
                   <FormField label="Stock mínimo" name="stockMinimo" error={errors.stockMinimo} required hint="Alerta de reposición">
                     <input id="stockMinimo" name="stockMinimo" type="number" value={values.stockMinimo} onChange={handleChange} min="0" step="0.001" />
                   </FormField>
-                  {mode === 'create' && (
-                    <>
-                      <FormField label="Precio minorista" name="precioMinorista" error={errors.precioMinorista} hint="Opcional">
-                        <div className="money-input"><span>S/</span><input id="precioMinorista" name="precioMinorista" type="number" value={values.precioMinorista} onChange={handleChange} min="0.01" step="0.01" placeholder="0.00" /></div>
-                      </FormField>
-                      <FormField label="Precio mayorista" name="precioMayorista" error={errors.precioMayorista} hint="Opcional">
-                        <div className="money-input"><span>S/</span><input id="precioMayorista" name="precioMayorista" type="number" value={values.precioMayorista} onChange={handleChange} min="0.01" step="0.01" placeholder="0.00" /></div>
-                      </FormField>
-                    </>
-                  )}
+                  <FormField label="Precio minorista" name="precioMinorista" error={errors.precioMinorista} hint={pricesLoading ? 'Cargando…' : 'IGV incluido'}>
+                    <div className="money-input"><span>S/</span><input id="precioMinorista" name="precioMinorista" type="number" value={values.precioMinorista} onChange={handleChange} min="0.01" step="0.01" placeholder="0.00" disabled={pricesLoading} /></div>
+                  </FormField>
+                  <FormField label="Precio mayorista" name="precioMayorista" error={errors.precioMayorista} hint={pricesLoading ? 'Cargando…' : 'IGV incluido'}>
+                    <div className="money-input"><span>S/</span><input id="precioMayorista" name="precioMayorista" type="number" value={values.precioMayorista} onChange={handleChange} min="0.01" step="0.01" placeholder="0.00" disabled={pricesLoading} /></div>
+                  </FormField>
                 </div>
+                {mode === 'edit' && <p className="product-price-history-note"><i className="bi bi-clock-history" /> Al cambiar un precio se conservará la vigencia anterior en el historial.</p>}
               </fieldset>
             </div>
 
@@ -253,7 +290,7 @@ export function ProductFormModal({
               <span><i className="bi bi-shield-check" /> Los campos marcados con * son obligatorios.</span>
               <div>
                 <button className="secondary-button" type="button" onClick={onClose} disabled={isSubmitting}>Cancelar</button>
-                <button className="primary-button primary-button--inline" type="submit" disabled={isSubmitting || missingRequiredCatalog}>
+                <button className="primary-button primary-button--inline" type="submit" disabled={isSubmitting || pricesLoading || missingRequiredCatalog}>
                   {isSubmitting ? <><span className="spinner-border spinner-border-sm" /> Guardando…</> : <><i className="bi bi-check2" /> {mode === 'create' ? 'Registrar producto' : 'Guardar cambios'}</>}
                 </button>
               </div>

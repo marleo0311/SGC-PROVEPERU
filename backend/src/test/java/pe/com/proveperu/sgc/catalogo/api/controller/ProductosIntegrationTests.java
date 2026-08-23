@@ -35,6 +35,7 @@ import pe.com.proveperu.sgc.catalogo.application.service.PermisosCatalogo;
 import pe.com.proveperu.sgc.catalogo.domain.model.Categoria;
 import pe.com.proveperu.sgc.catalogo.domain.model.EstadoCatalogo;
 import pe.com.proveperu.sgc.catalogo.domain.model.Marca;
+import pe.com.proveperu.sgc.catalogo.domain.model.PrecioProducto;
 import pe.com.proveperu.sgc.catalogo.domain.model.Producto;
 import pe.com.proveperu.sgc.catalogo.domain.model.UnidadMedida;
 import pe.com.proveperu.sgc.catalogo.infrastructure.persistence.CategoriaRepository;
@@ -221,6 +222,70 @@ class ProductosIntegrationTests {
     }
 
     @Test
+    void actualizaPreciosDelProductoConservandoElHistorial() throws Exception {
+        Producto producto = crearProducto("EDIT-PREC-" + UUID.randomUUID().toString().substring(0, 8));
+        LocalDate hoy = LocalDate.now();
+        PrecioProducto anterior = new PrecioProducto();
+        anterior.setProducto(producto);
+        anterior.setTipoPrecio("MINORISTA");
+        anterior.setMonto(new BigDecimal("100.00"));
+        anterior.setVigenteDesde(hoy.minusDays(30));
+        anterior.setEstado(EstadoCatalogo.ACTIVO);
+        precioRepository.save(anterior);
+
+        mockMvc.perform(put("/api/v1/productos/{id}", producto.getId())
+                .header(HttpHeaders.AUTHORIZATION, bearer(PermisosCatalogo.PRODUCTOS_EDITAR))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(bodyActualizacionConPrecios(
+                    producto.getCodigoInterno(),
+                    "Producto con precio actualizado",
+                    "125.00",
+                    "110.00"
+                )))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.nombre").value("Producto con precio actualizado"));
+
+        List<PrecioProducto> precios = precioRepository
+            .findAllByProductoIdOrderByTipoPrecioAscVigenteDesdeDesc(producto.getId());
+        assertThat(precios).hasSize(3);
+        assertThat(precios)
+            .filteredOn(precio -> precio.getTipoPrecio().equals("MINORISTA"))
+            .extracting(PrecioProducto::getMonto, PrecioProducto::getVigenteDesde, PrecioProducto::getVigenteHasta)
+            .containsExactly(
+                org.assertj.core.groups.Tuple.tuple(new BigDecimal("125.00"), hoy, null),
+                org.assertj.core.groups.Tuple.tuple(new BigDecimal("100.00"), hoy.minusDays(30), hoy.minusDays(1))
+            );
+
+        mockMvc.perform(get("/api/v1/productos/{id}/precios", producto.getId())
+                .header(HttpHeaders.AUTHORIZATION, bearer(PermisosCatalogo.PRODUCTOS_EDITAR)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].tipoPrecio").value("MAYORISTA"))
+            .andExpect(jsonPath("$[0].monto").value(110.0))
+            .andExpect(jsonPath("$[1].tipoPrecio").value("MINORISTA"))
+            .andExpect(jsonPath("$[1].monto").value(125.0));
+
+        mockMvc.perform(put("/api/v1/productos/{id}", producto.getId())
+                .header(HttpHeaders.AUTHORIZATION, bearer(PermisosCatalogo.PRODUCTOS_EDITAR))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(bodyActualizacionConPrecios(
+                    producto.getCodigoInterno(),
+                    "Producto con precio del día corregido",
+                    "130.00",
+                    "110.00"
+                )))
+            .andExpect(status().isOk());
+
+        assertThat(precioRepository
+            .findAllByProductoIdOrderByTipoPrecioAscVigenteDesdeDesc(producto.getId()))
+            .hasSize(3)
+            .filteredOn(precio -> precio.getTipoPrecio().equals("MINORISTA")
+                && precio.getVigenteDesde().isEqual(hoy))
+            .singleElement()
+            .extracting(PrecioProducto::getMonto)
+            .isEqualTo(new BigDecimal("130.00"));
+    }
+
+    @Test
     void creaConversionYRechazaDuplicadoInverso() throws Exception {
         Producto producto = crearProducto("CONV-" + UUID.randomUUID().toString().substring(0, 8));
         String body = """
@@ -403,6 +468,36 @@ class ProductosIntegrationTests {
               "stockMinimo": 2.000
             }
             """.formatted(codigo, nombre, categoria.getId(), marca.getId(), unidad.getId());
+    }
+
+    private String bodyActualizacionConPrecios(
+        String codigo,
+        String nombre,
+        String precioMinorista,
+        String precioMayorista
+    ) {
+        return """
+            {
+              "codigoInterno": "%s",
+              "codigoBarras": null,
+              "nombre": "%s",
+              "descripcion": null,
+              "idCategoria": %d,
+              "idMarca": %d,
+              "idUnidadBase": %d,
+              "stockMinimo": 2.000,
+              "precioMinorista": %s,
+              "precioMayorista": %s
+            }
+            """.formatted(
+                codigo,
+                nombre,
+                categoria.getId(),
+                marca.getId(),
+                unidad.getId(),
+                precioMinorista,
+                precioMayorista
+            );
     }
 
     private org.springframework.test.web.servlet.ResultActions registrarPrecio(

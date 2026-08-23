@@ -1,5 +1,7 @@
 import type { Pagina } from './catalog'
 
+export type { PrecioProducto } from './catalog'
+
 export type EstadoCotizacion = 'PENDIENTE' | 'ACEPTADA' | 'RECHAZADA' | 'VENCIDA' | 'CONVERTIDA'
 export type CanalPedido = 'PRESENCIAL' | 'WHATSAPP'
 export type EstadoPedido = 'RECIBIDO' | 'COTIZADO' | 'CONFIRMADO' | 'PAGADO' | 'EN_PREPARACION' | 'LISTO' | 'ENTREGADO' | 'CANCELADO'
@@ -243,16 +245,6 @@ export interface FiltrosComerciales {
   hasta: string
   page: number
   size: number
-}
-
-export interface PrecioProducto {
-  id: number
-  idProducto: number
-  tipoPrecio: string
-  monto: number
-  vigenteDesde: string
-  vigenteHasta: string | null
-  estado: string
 }
 
 export type PaginaCotizaciones = Pagina<CotizacionResumen>

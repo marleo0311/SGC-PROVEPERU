@@ -37,6 +37,14 @@ public record ProductoActualizarRequest(
     @NotNull(message = "El stock mínimo es obligatorio")
     @DecimalMin(value = "0.000", message = "El stock mínimo no puede ser negativo")
     @Digits(integer = 11, fraction = 3, message = "El stock mínimo debe tener hasta 11 enteros y 3 decimales")
-    BigDecimal stockMinimo
+    BigDecimal stockMinimo,
+
+    @DecimalMin(value = "0.01", message = "El precio minorista debe ser mayor que cero")
+    @Digits(integer = 12, fraction = 2, message = "El precio minorista debe tener hasta 12 enteros y 2 decimales")
+    BigDecimal precioMinorista,
+
+    @DecimalMin(value = "0.01", message = "El precio mayorista debe ser mayor que cero")
+    @Digits(integer = 12, fraction = 2, message = "El precio mayorista debe tener hasta 12 enteros y 2 decimales")
+    BigDecimal precioMayorista
 ) {
 }
