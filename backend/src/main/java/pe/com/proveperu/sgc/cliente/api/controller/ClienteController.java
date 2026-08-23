@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.net.URI;
 import lombok.RequiredArgsConstructor;
@@ -13,6 +14,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -28,9 +31,12 @@ import pe.com.proveperu.sgc.cliente.api.dto.ClienteEstadoRequest;
 import pe.com.proveperu.sgc.cliente.api.dto.ClienteGuardarRequest;
 import pe.com.proveperu.sgc.cliente.api.dto.ClienteHistorialResponse;
 import pe.com.proveperu.sgc.cliente.api.dto.ClienteResponse;
+import pe.com.proveperu.sgc.cliente.api.dto.ConsultaDocumentoResponse;
 import pe.com.proveperu.sgc.cliente.application.service.ClienteCreacionResultado;
 import pe.com.proveperu.sgc.cliente.application.service.ClienteService;
+import pe.com.proveperu.sgc.cliente.application.service.ConsultaDocumentoService;
 import pe.com.proveperu.sgc.cliente.application.service.PermisosCliente;
+import pe.com.proveperu.sgc.cliente.domain.model.TipoDocumentoCliente;
 import pe.com.proveperu.sgc.cliente.domain.model.TipoPersona;
 import pe.com.proveperu.sgc.config.OpenApiConfig;
 import pe.com.proveperu.sgc.cotizacion.application.service.PermisosCotizacion;
@@ -47,6 +53,30 @@ import pe.com.proveperu.sgc.venta.application.service.PermisosVenta;
 public class ClienteController {
 
     private final ClienteService clienteService;
+    private final ConsultaDocumentoService consultaDocumentoService;
+
+    @GetMapping("/consulta-documento")
+    @PreAuthorize("hasAnyAuthority('" + PermisosCliente.CLIENTES_VER + "', '"
+        + PermisosCliente.CLIENTES_CREAR + "', '"
+        + PermisosCotizacion.COTIZACIONES_CREAR + "', '"
+        + PermisosPedido.PEDIDOS_CREAR + "', '"
+        + PermisosVenta.VENTAS_CREAR + "')")
+    @Operation(
+        summary = "Consultar un DNI o RUC",
+        description = "Busca primero en clientes locales y usa el proveedor externo configurado si no existe"
+    )
+    public ConsultaDocumentoResponse consultarDocumento(
+        @RequestParam TipoDocumentoCliente tipo,
+        @RequestParam
+        @Pattern(
+            regexp = "^[0-9]{8}$|^[0-9]{11}$",
+            message = "El documento debe tener 8 u 11 dígitos"
+        )
+        String numero,
+        @AuthenticationPrincipal Jwt jwt
+    ) {
+        return consultaDocumentoService.consultar(tipo, numero, jwt.getSubject());
+    }
 
     @GetMapping
     @PreAuthorize("hasAnyAuthority('" + PermisosCliente.CLIENTES_VER + "', '"

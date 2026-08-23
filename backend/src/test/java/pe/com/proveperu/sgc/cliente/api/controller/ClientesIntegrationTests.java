@@ -44,6 +44,7 @@ import pe.com.proveperu.sgc.cliente.domain.model.ClientePrecioEspecial;
 import pe.com.proveperu.sgc.cliente.infrastructure.persistence.ClientePrecioEspecialRepository;
 import pe.com.proveperu.sgc.cotizacion.application.service.PermisosCotizacion;
 import pe.com.proveperu.sgc.security.domain.model.Rol;
+import pe.com.proveperu.sgc.security.application.service.PermisosSeguridad;
 import pe.com.proveperu.sgc.security.infrastructure.persistence.PermisoRepository;
 import pe.com.proveperu.sgc.security.infrastructure.persistence.RolRepository;
 
@@ -122,6 +123,44 @@ class ClientesIntegrationTests {
                 .header(HttpHeaders.AUTHORIZATION, bearer(
                     PermisosCotizacion.COTIZACIONES_CREAR
                 )))
+            .andExpect(status().isOk());
+    }
+
+    @Test
+    void consultaDocumentoLocalYRechazaDigitoRucInvalido() throws Exception {
+        String ruc = nuevoRuc();
+        crearCliente(personaJuridica(ruc, "Cliente consultado S.A.C."))
+            .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/api/v1/clientes/consulta-documento")
+                .param("tipo", "RUC")
+                .param("numero", ruc)
+                .header(HttpHeaders.AUTHORIZATION, bearer(PermisosCliente.CLIENTES_VER)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.origen").value("LOCAL"))
+            .andExpect(jsonPath("$.nombreMostrar").value("Cliente consultado S.A.C."));
+
+        String rucInvalido = ruc.substring(0, 10)
+            + ((Character.digit(ruc.charAt(10), 10) + 1) % 10);
+        mockMvc.perform(get("/api/v1/clientes/consulta-documento")
+                .param("tipo", "RUC")
+                .param("numero", rucInvalido)
+                .header(HttpHeaders.AUTHORIZATION, bearer(PermisosCliente.CLIENTES_VER)))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.detail").value("El RUC no tiene un dígito verificador válido"));
+    }
+
+    @Test
+    void metricasOperativasRequierenPermisoAdministrativo() throws Exception {
+        mockMvc.perform(get("/actuator/metrics"))
+            .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(get("/actuator/metrics")
+                .header(HttpHeaders.AUTHORIZATION, bearer(PermisosCliente.CLIENTES_VER)))
+            .andExpect(status().isForbidden());
+
+        mockMvc.perform(get("/actuator/metrics")
+                .header(HttpHeaders.AUTHORIZATION, bearer(PermisosSeguridad.PERMISOS_VER)))
             .andExpect(status().isOk());
     }
 
@@ -387,7 +426,20 @@ class ClientesIntegrationTests {
     }
 
     private String nuevoRuc() {
-        return "20" + ThreadLocalRandom.current().nextInt(100_000_000, 1_000_000_000);
+        String base = "20" + String.format(
+            "%08d",
+            ThreadLocalRandom.current().nextInt(0, 100_000_000)
+        );
+        int[] factores = {5, 4, 3, 2, 7, 6, 5, 4, 3, 2};
+        int suma = 0;
+        for (int indice = 0; indice < factores.length; indice++) {
+            suma += Character.digit(base.charAt(indice), 10) * factores[indice];
+        }
+        int digito = 11 - (suma % 11);
+        if (digito >= 10) {
+            digito -= 10;
+        }
+        return base + digito;
     }
 
     private String bearer(String... authorities) {

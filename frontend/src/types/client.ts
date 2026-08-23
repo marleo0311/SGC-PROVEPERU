@@ -47,6 +47,26 @@ export interface ClienteGuardarRequest {
   permiteCredito: boolean
 }
 
+export interface ConsultaDocumentoCliente {
+  encontrado: boolean
+  origen: 'LOCAL' | 'EXTERNO' | 'NO_ENCONTRADO' | 'NO_CONFIGURADO'
+  consultaExternaHabilitada: boolean
+  idCliente: number | null
+  estadoCliente: EstadoCatalogo | null
+  tipoPersona: TipoPersona
+  tipoDocumento: TipoDocumentoCliente
+  numeroDocumento: string
+  nombres: string | null
+  apellidos: string | null
+  razonSocial: string | null
+  nombreComercial: string | null
+  nombreMostrar: string | null
+  direccion: string | null
+  estadoContribuyente: string | null
+  condicionDomicilio: string | null
+  mensaje: string
+}
+
 export interface ClienteOperacion {
   tipoOperacion: string
   idOperacion: number

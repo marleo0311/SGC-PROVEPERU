@@ -48,7 +48,17 @@ function Stop-RecordedProcess {
         return
     }
 
-    $recordedStart = [DateTime]::Parse($State.startedAt).ToUniversalTime()
+    $recordedStart = if ($State.startedAt -is [DateTime]) {
+        $State.startedAt.ToUniversalTime()
+    }
+    else {
+        [DateTime]::ParseExact(
+            [string]$State.startedAt,
+            "o",
+            [Globalization.CultureInfo]::InvariantCulture,
+            [Globalization.DateTimeStyles]::RoundtripKind
+        ).ToUniversalTime()
+    }
     $actualStart = $process.StartTime.ToUniversalTime()
     if ([Math]::Abs(($actualStart - $recordedStart).TotalSeconds) -gt 2) {
         Write-Host "    No se detuvo $Name porque el PID fue reutilizado por otro proceso." -ForegroundColor Yellow

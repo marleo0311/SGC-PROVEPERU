@@ -18,6 +18,8 @@ import pe.com.proveperu.sgc.shared.application.exception.ReglaNegocioException;
 import pe.com.proveperu.sgc.shared.application.exception.SolicitudInvalidaException;
 import pe.com.proveperu.sgc.facturacionelectronica.infrastructure.sunat.IntegracionSunatException;
 import pe.com.proveperu.sgc.facturacionelectronica.infrastructure.sunat.RechazoSunatException;
+import pe.com.proveperu.sgc.cliente.infrastructure.documento.IntegracionDocumentoException;
+import pe.com.proveperu.sgc.cliente.application.exception.LimiteConsultaDocumentoException;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
@@ -60,6 +62,24 @@ public class ApiExceptionHandler {
         return crearProblema(
             HttpStatus.BAD_GATEWAY,
             "Error de integración con SUNAT",
+            exception.getMessage()
+        );
+    }
+
+    @ExceptionHandler(IntegracionDocumentoException.class)
+    ProblemDetail integracionDocumento(IntegracionDocumentoException exception) {
+        return crearProblema(
+            HttpStatus.BAD_GATEWAY,
+            "Error al consultar documento",
+            exception.getMessage()
+        );
+    }
+
+    @ExceptionHandler(LimiteConsultaDocumentoException.class)
+    ProblemDetail limiteConsultaDocumento(LimiteConsultaDocumentoException exception) {
+        return crearProblema(
+            HttpStatus.TOO_MANY_REQUESTS,
+            "Límite de consultas alcanzado",
             exception.getMessage()
         );
     }

@@ -5,7 +5,9 @@ import type {
   ClienteHistorial,
   ClientePrecioEspecial,
   ClientePrecioEspecialRequest,
+  ConsultaDocumentoCliente,
   PaginaClientes,
+  TipoDocumentoCliente,
 } from '../types/client'
 import type { EstadoCatalogo } from '../types/catalog'
 import { api } from './api'
@@ -26,6 +28,16 @@ export async function listClients(filters: ClienteFiltros): Promise<PaginaClient
 
 export async function createClient(request: ClienteGuardarRequest): Promise<Cliente> {
   const { data } = await api.post<Cliente>('/v1/clientes', request)
+  return data
+}
+
+export async function lookupClientDocument(
+  tipo: TipoDocumentoCliente,
+  numero: string,
+): Promise<ConsultaDocumentoCliente> {
+  const { data } = await api.get<ConsultaDocumentoCliente>('/v1/clientes/consulta-documento', {
+    params: { tipo, numero },
+  })
   return data
 }
 

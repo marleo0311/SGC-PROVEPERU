@@ -99,6 +99,22 @@ Antes de una entrega importante probar con roles representativos:
 ### Comercial
 
 - Crear cliente y productos con precios.
+- En una venta directa, escribir el DNI/RUC de un cliente existente y comprobar
+  que sea seleccionado automáticamente.
+- Con la integración habilitada, consultar un RUC nuevo, revisar los datos
+  devueltos y usar `Registrar y usar` con un usuario que tenga
+  `CLI_CLIENTES_CREAR`.
+- Cambiar el comprobante a factura y verificar que solo admita RUC.
+- Probar sin token: la aplicación debe explicar que la consulta externa no está
+  configurada y permitir seleccionar o registrar el cliente manualmente.
+- Consultar dos veces el mismo RUC y confirmar en Actuator que la segunda
+  petición sea atendida por caché.
+- Introducir un RUC con dígito verificador incorrecto y esperar HTTP 400 sin
+  consumo de la cuota externa.
+- Probar un RUC inexistente, uno inactivo y uno con condición `NO HABIDO`.
+- Superar en pruebas el límite configurado y comprobar HTTP 429.
+- Simular respuestas HTTP 500 o desconexión para comprobar reintentos, apertura
+  del circuito y continuidad del registro manual.
 - Crear cotización y aceptarla.
 - Convertir en pedido.
 - Confirmar y revisar reserva.
@@ -219,6 +235,18 @@ Posibles causas:
 ### HTTP 403
 
 El usuario inició sesión, pero su rol no tiene el permiso requerido. Revisar Usuarios → Roles → Permisos.
+
+### HTTP 429 al consultar DNI/RUC
+
+El usuario superó `DOCUMENT_LOOKUP_RATE_LIMIT_REQUESTS` dentro de
+`DOCUMENT_LOOKUP_RATE_LIMIT_WINDOW`. Esperar a que termine la ventana; no se debe
+aumentar el límite para ocultar automatizaciones o llamadas duplicadas.
+
+### Error temporal del proveedor de documentos
+
+Revisar `backend-output.log` y las métricas `sgc.documento.proveedor`,
+`sgc.documento.reintentos` y `sgc.documento.circuito.abierto`. La aplicación
+debe conservar disponible la selección o creación manual del cliente.
 
 ### Candados de Swagger
 

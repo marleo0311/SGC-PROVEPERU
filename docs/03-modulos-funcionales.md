@@ -80,6 +80,12 @@ ese importe final, sin añadir 18 % al momento de cobrar.
 - Límite de crédito y días de crédito cuando corresponda.
 - Historial comercial.
 - Precios especiales por cliente y producto.
+- Consulta por DNI o RUC durante la venta, con prioridad para los clientes ya
+  registrados y consulta externa opcional desde el backend.
+- Prellenado de nombres, razón social y dirección; los datos externos se
+  muestran para confirmación antes de crear el cliente.
+- Para factura se exige RUC. Si el proveedor informa estado o condición, un RUC
+  distinto de `ACTIVO` y `HABIDO` no puede registrarse desde el formulario.
 
 Estados de registro: `ACTIVO`, `INACTIVO`.
 
@@ -178,6 +184,8 @@ Reservas: `ACTIVA`, `LIBERADA`, `CONSUMIDA`.
 - Condiciones `CONTADO`, `CREDITO` y `PARCIAL`.
 - Comprobantes internos `NOTA_VENTA`, `BOLETA` y `FACTURA`.
 - Vista previa de valor de venta, IGV incluido y total a pagar antes de guardar.
+- Identificación del cliente por DNI o RUC, selección automática si ya está
+  registrado y alta confirmada cuando proviene del proveedor externo.
 - Precio unitario final con IGV incluido cuando la operación está afecta.
 - Descuento sujeto a permiso.
 - Descuento de inventario y consumo de reservas.

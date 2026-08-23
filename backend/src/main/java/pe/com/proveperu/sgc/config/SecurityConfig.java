@@ -12,6 +12,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.web.SecurityFilterChain;
+import pe.com.proveperu.sgc.security.application.service.PermisosSeguridad;
 
 @Configuration
 @EnableMethodSecurity
@@ -38,6 +39,8 @@ public class SecurityConfig {
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             )
             .authorizeHttpRequests(authorize -> authorize
+                .requestMatchers("/actuator/metrics", "/actuator/metrics/**")
+                .hasAuthority(PermisosSeguridad.PERMISOS_VER)
                 .requestMatchers(
                     "/actuator/health",
                     "/error",

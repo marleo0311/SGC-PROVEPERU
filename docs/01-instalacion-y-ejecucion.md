@@ -36,6 +36,24 @@ ADMIN_INITIAL_NAME=Administrador del sistema
 JWT_SECRET=SECRETO_BASE64_DE_AL_MENOS_32_BYTES
 JWT_ISSUER=sgc-proveperu
 JWT_EXPIRATION=PT2H
+
+# Consulta opcional de DNI/RUC. El token pertenece al backend, nunca al frontend.
+DOCUMENT_LOOKUP_ENABLED=false
+DOCUMENT_LOOKUP_DNI_ENABLED=false
+DOCUMENT_LOOKUP_BASE_URL=https://api.decolecta.com/v1
+DOCUMENT_LOOKUP_TOKEN=TOKEN_PRIVADO_DEL_PROVEEDOR
+DOCUMENT_LOOKUP_CONNECT_TIMEOUT=PT5S
+DOCUMENT_LOOKUP_READ_TIMEOUT=PT10S
+DOCUMENT_LOOKUP_CACHE_TTL=PT24H
+DOCUMENT_LOOKUP_NEGATIVE_CACHE_TTL=PT5M
+DOCUMENT_LOOKUP_CACHE_MAX_ENTRIES=5000
+DOCUMENT_LOOKUP_RATE_LIMIT_REQUESTS=10
+DOCUMENT_LOOKUP_RATE_LIMIT_WINDOW=PT1M
+DOCUMENT_LOOKUP_RATE_LIMIT_MAX_USERS=10000
+DOCUMENT_LOOKUP_RETRY_MAX_ATTEMPTS=3
+DOCUMENT_LOOKUP_RETRY_DELAY=PT0.25S
+DOCUMENT_LOOKUP_CIRCUIT_FAILURES=5
+DOCUMENT_LOOKUP_CIRCUIT_OPEN_DURATION=PT30S
 ```
 
 Reglas:
@@ -43,7 +61,32 @@ Reglas:
 - `.env` está ignorado por Git y nunca debe añadirse al repositorio.
 - `.env.example` solo contiene marcadores de posición.
 - `POSTGRES_PASSWORD`, `ADMIN_INITIAL_PASSWORD` y `JWT_SECRET` deben ser diferentes y privados.
+- `DOCUMENT_LOOKUP_TOKEN` es opcional y privado; no debe aparecer en el código, navegador, logs ni Git.
 - `JWT_EXPIRATION` usa el formato ISO-8601 de duración; `PT2H` equivale a dos horas.
+
+### Consulta automática de DNI/RUC
+
+La venta siempre consulta primero los clientes registrados en PostgreSQL. Para
+completar un RUC que aún no existe mediante el proveedor externo, configurar:
+
+```properties
+DOCUMENT_LOOKUP_ENABLED=true
+DOCUMENT_LOOKUP_TOKEN=TOKEN_REAL_DEL_PROVEEDOR
+DOCUMENT_LOOKUP_DNI_ENABLED=false
+```
+
+Después se debe reiniciar el backend. La consulta de DNI permanece desactivada
+por defecto: solo debe habilitarse con acceso autorizado y una base legal válida
+para tratar datos personales. Si no se configura el proveedor, el registro
+manual y la búsqueda local continúan funcionando normalmente.
+
+La configuración predeterminada protege la cuota del proveedor mediante caché
+en memoria, diez consultas externas por usuario cada minuto, tres intentos ante
+fallos transitorios y un circuito que pausa nuevas llamadas durante 30 segundos
+después de cinco operaciones fallidas. Los valores son adecuados para una sola
+instancia del backend. En un despliegue con varias instancias se debe sustituir
+la caché y el limitador local por un almacenamiento compartido, por ejemplo
+Redis.
 
 Para generar un secreto JWT sin mostrarlo en el chat:
 

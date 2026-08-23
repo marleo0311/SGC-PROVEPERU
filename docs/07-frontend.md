@@ -99,6 +99,13 @@ No colocar secretos en variables `VITE_*`: Vite las incorpora al JavaScript visi
 - Tipografía reforzada para lectura cómoda en pantallas de escritorio.
 - Resumen previo de valor de venta, IGV incluido y total a pagar en el formulario
   comercial; el total no aumenta al activar el desglose de IGV.
+- En venta directa, consulta automática al completar 8 dígitos de DNI o 11 de
+  RUC, además de un botón de consulta manual.
+- Selección inmediata cuando el documento ya pertenece a un cliente activo. Si
+  los datos son externos, se muestran antes de habilitar `Registrar y usar`;
+  esta acción respeta el permiso `CLI_CLIENTES_CREAR`.
+- La factura fija el tipo de documento en RUC y conserva como alternativa el
+  selector de clientes registrados.
 - Panel SUNAT en el detalle de una venta con ambiente, estado, respuesta, intentos,
   preparación, envío/reintento y descarga de XML/CDR.
 - Los controles de transmisión solo aparecen con `VEN_SUNAT_ENVIAR`; la lectura

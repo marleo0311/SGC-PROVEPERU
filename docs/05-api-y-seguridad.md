@@ -122,10 +122,51 @@ actualiza esa vigencia para evitar duplicados diarios.
 | Método | Ruta | Función |
 | --- | --- | --- |
 | GET, POST | `/api/v1/clientes` | Buscar y crear clientes. |
+| GET | `/api/v1/clientes/consulta-documento?tipo=DNI|RUC&numero=...` | Buscar primero el cliente local y, si está configurado, consultar un proveedor externo. |
 | GET, PUT | `/api/v1/clientes/{id}` | Consultar y editar cliente. |
 | PATCH | `/api/v1/clientes/{id}/estado` | Cambiar estado. |
 | GET | `/api/v1/clientes/{id}/historial` | Consultar historial comercial. |
 | GET, POST | `/api/v1/clientes/{idCliente}/precios-especiales` | Gestionar precios especiales. |
+
+La respuesta de `consulta-documento` indica `origen` (`LOCAL`, `EXTERNO`,
+`NO_ENCONTRADO` o `NO_CONFIGURADO`) y nunca devuelve el token del proveedor.
+El endpoint acepta DNI de 8 dígitos y RUC de 11 dígitos. Requiere autenticación y
+alguno de los permisos de lectura/creación de clientes o creación de
+cotizaciones, pedidos o ventas.
+
+Para RUC también se valida el dígito verificador antes de consumir la cuota del
+proveedor. Las búsquedas locales no consumen el limitador externo. Las consultas
+externas quedan limitadas por usuario y sus resultados se guardan en una caché
+positiva de 24 horas; los documentos no encontrados se conservan 5 minutos para
+evitar peticiones repetitivas.
+
+La llamada al proveedor se ejecuta exclusivamente en el backend. El token se
+lee de `DOCUMENT_LOOKUP_TOKEN`; no debe enviarse al frontend ni almacenarse en
+el repositorio. Los rechazos de credenciales, límites y fallos de comunicación
+se convierten en una respuesta controlada HTTP 502.
+
+Estados adicionales:
+
+- HTTP 400 cuando el formato o dígito verificador del RUC es inválido.
+- HTTP 429 cuando el usuario supera la cuota temporal configurada.
+- HTTP 502 cuando fallan credenciales, cuota o comunicación del proveedor.
+
+Los errores de red, HTTP 408 y HTTP 5xx se reintentan de forma acotada. Después
+de varios fallos consecutivos se abre temporalmente el circuito de protección;
+la selección y el registro manual de clientes continúan disponibles.
+
+### Métricas de consulta de documentos
+
+Actuator expone las métricas únicamente a usuarios autenticados con
+`SEG_PERMISOS_VER`:
+
+| Ruta | Información |
+| --- | --- |
+| `/actuator/metrics/sgc.documento.cache` | Aciertos, negativos y fallos de caché. |
+| `/actuator/metrics/sgc.documento.proveedor` | Tiempo y resultado HTTP del proveedor. |
+| `/actuator/metrics/sgc.documento.reintentos` | Reintentos por red o HTTP transitorio. |
+| `/actuator/metrics/sgc.documento.circuito.abierto` | Solicitudes bloqueadas por el circuito. |
+| `/actuator/metrics/sgc.documento.limite.excedido` | Límites por usuario alcanzados. |
 
 ### Inventario
 
