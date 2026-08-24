@@ -19,6 +19,7 @@ import { ReportsPage } from './pages/ReportsPage'
 import { PermissionsPage, RolesPage, UsersPage } from './pages/SecurityPages'
 import { SuppliersPage } from './pages/SuppliersPage'
 import { SunatDailySummariesPage } from './pages/SunatDailySummariesPage'
+import { SunatDiagnosticsPage } from './pages/SunatDiagnosticsPage'
 import { ProtectedRoute } from './router/ProtectedRoute'
 
 export default function App() {
@@ -48,6 +49,7 @@ export default function App() {
           <Route path="devoluciones" element={<ReturnsPage />} />
           <Route path="comprobantes" element={<ReceiptsPage />} />
           <Route path="resumenes-sunat" element={<SunatDailySummariesPage />} />
+          <Route path="diagnostico-sunat" element={<SunatDiagnosticsPage />} />
           <Route path="caja" element={<CashPage />} />
           <Route path="reportes" element={<ReportsPage />} />
           <Route path=":module" element={<ModulePage />} />

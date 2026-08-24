@@ -56,6 +56,7 @@ export const navigationGroups: NavigationGroup[] = [
     items: [
       { label: 'Comprobantes', path: '/app/comprobantes', icon: 'bi-file-earmark-check', authorities: ['VEN_COMPROBANTES_VER'] },
       { label: 'Resúmenes SUNAT', path: '/app/resumenes-sunat', icon: 'bi-cloud-check', authorities: ['VEN_COMPROBANTES_VER'] },
+      { label: 'Diagnóstico SUNAT', path: '/app/diagnostico-sunat', icon: 'bi-shield-check', authorities: ['VEN_SUNAT_ENVIAR'] },
       { label: 'Reportes', path: '/app/reportes', icon: 'bi-bar-chart-line', authorities: ['REP_REPORTES_VER'] },
     ],
   },

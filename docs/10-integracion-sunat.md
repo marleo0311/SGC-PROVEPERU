@@ -172,9 +172,28 @@ posterior del ticket continúa disponible en la pantalla.
 
 ## 5. API y permisos
 
+### Diagnóstico de producción
+
+Antes de habilitar correlativos reales, abrir **Control → Diagnóstico SUNAT**. La
+pantalla ejecuta exclusivamente comprobaciones de lectura sobre configuración,
+datos fiscales, certificado PKCS#12, PostgreSQL, series, documentos pendientes y
+conectividad HTTPS con el receptor oficial. No genera XML, no transmite
+credenciales, no firma documentos y no incrementa `serie_comprobante`.
+
+El resultado utiliza tres niveles:
+
+- `APROBADO`: control satisfecho.
+- `ADVERTENCIA`: permite el piloto, pero requiere revisión operativa.
+- `BLOQUEO`: impide considerar el sistema listo para producción.
+
+Que el diagnóstico indique **Listo para un piloto supervisado** no activa la
+emisión real. `SUNAT_PRODUCTION_ENABLED` debe permanecer en `false` hasta que
+exista una venta verdadera que vaya a utilizarse como primer comprobante.
+
 | Método | Ruta | Permiso | Resultado |
 | --- | --- | --- | --- |
 | GET | `/api/v1/sunat/configuracion` | `VEN_COMPROBANTES_VER` | Configuración no sensible. |
+| GET | `/api/v1/sunat/diagnostico-produccion` | `VEN_SUNAT_ENVIAR` | Validaciones de solo lectura, certificado y siguientes correlativos. |
 | GET | `/api/v1/comprobantes/{id}/sunat` | `VEN_COMPROBANTES_VER` | Estado; HTTP 204 si aún no fue preparado. |
 | POST | `/api/v1/comprobantes/{id}/sunat/preparar` | `VEN_SUNAT_ENVIAR` | XML firmado y ZIP almacenados. |
 | POST | `/api/v1/comprobantes/{id}/sunat/enviar` | `VEN_SUNAT_ENVIAR` | CDR y estado actualizado. |

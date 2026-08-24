@@ -23,6 +23,7 @@ import type {
   NotaElectronica,
   TipoNotaElectronica,
   ComunicacionBajaSunat,
+  DiagnosticoSunat,
 } from '../types/commercial'
 import { api } from './api'
 
@@ -48,6 +49,7 @@ export async function listSaleMethods(): Promise<MetodoPago[]> { const { data } 
 export async function listProductPrices(id: number): Promise<PrecioProducto[]> { const { data } = await api.get<PrecioProducto[]>(`/v1/productos/${id}/precios`); return data }
 export async function getReceiptBySale(idVenta: number): Promise<Comprobante> { const { data } = await api.get<Comprobante>(`/v1/ventas/${idVenta}/comprobante`); return data }
 export async function getSunatConfiguration(): Promise<ConfiguracionSunat> { const { data } = await api.get<ConfiguracionSunat>('/v1/sunat/configuracion'); return data }
+export async function getSunatProductionDiagnostics(): Promise<DiagnosticoSunat> { const { data } = await api.get<DiagnosticoSunat>('/v1/sunat/diagnostico-produccion'); return data }
 export async function prepareReceiptForSunat(id: number): Promise<EnvioSunat> { const { data } = await api.post<EnvioSunat>(`/v1/comprobantes/${id}/sunat/preparar`); return data }
 export async function sendReceiptToSunat(id: number): Promise<EnvioSunat> { const { data } = await api.post<EnvioSunat>(`/v1/comprobantes/${id}/sunat/enviar`); return data }
 export async function downloadSunatFile(id: number, kind: 'xml' | 'cdr'): Promise<Blob> { const { data } = await api.get<Blob>(`/v1/comprobantes/${id}/sunat/${kind}`, { responseType: 'blob' }); return data }

@@ -244,6 +244,48 @@ export interface ConfiguracionSunat {
   advertencia: string
 }
 
+export type EstadoVerificacionSunat = 'APROBADO' | 'ADVERTENCIA' | 'BLOQUEO'
+
+export interface VerificacionSunat {
+  codigo: string
+  nombre: string
+  estado: EstadoVerificacionSunat
+  detalle: string
+  accion: string | null
+}
+
+export interface CertificadoDiagnosticoSunat {
+  configurado: boolean
+  valido: boolean
+  contieneClavePrivada: boolean
+  rucCoincide: boolean
+  titular: string | null
+  emisor: string | null
+  validoDesde: string | null
+  validoHasta: string | null
+}
+
+export interface SerieDiagnosticoSunat {
+  tipoDocumento: string
+  serie: string
+  ultimoCorrelativo: number
+  siguienteNumero: string
+  activa: boolean
+}
+
+export interface DiagnosticoSunat {
+  generadoEn: string
+  ambiente: AmbienteSunat
+  listoParaPiloto: boolean
+  emisionRealHabilitada: boolean
+  aprobados: number
+  advertencias: number
+  bloqueos: number
+  verificaciones: VerificacionSunat[]
+  certificado: CertificadoDiagnosticoSunat
+  series: SerieDiagnosticoSunat[]
+}
+
 export interface BoletaResumenSunat {
   id: number
   numero: string
