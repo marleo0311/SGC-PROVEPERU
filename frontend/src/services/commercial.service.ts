@@ -18,6 +18,11 @@ import type {
   VentaCrearRequest,
   EnvioSunat,
   ResumenDiarioSunat,
+  FormatoTicket,
+  TicketComprobante,
+  NotaElectronica,
+  TipoNotaElectronica,
+  ComunicacionBajaSunat,
 } from '../types/commercial'
 import { api } from './api'
 
@@ -51,6 +56,16 @@ export async function prepareDailySummaries(fechaEmision: string): Promise<Resum
 export async function sendDailySummary(id: number): Promise<ResumenDiarioSunat> { const { data } = await api.post<ResumenDiarioSunat>(`/v1/sunat/resumenes-diarios/${id}/enviar`); return data }
 export async function checkDailySummary(id: number): Promise<ResumenDiarioSunat> { const { data } = await api.post<ResumenDiarioSunat>(`/v1/sunat/resumenes-diarios/${id}/consultar`); return data }
 export async function downloadDailySummaryFile(id: number, kind: 'xml' | 'cdr'): Promise<Blob> { const { data } = await api.get<Blob>(`/v1/sunat/resumenes-diarios/${id}/${kind}`, { responseType: 'blob' }); return data }
+export async function getTicket(idComprobante: number, formato: FormatoTicket): Promise<TicketComprobante> { const { data } = await api.get<TicketComprobante>(`/v1/impresiones/ticket/${idComprobante}`, { params: { formato } }); return data }
+export async function listElectronicNotes(idComprobante: number): Promise<NotaElectronica[]> { const { data } = await api.get<NotaElectronica[]>(`/v1/comprobantes/${idComprobante}/notas-electronicas`); return data }
+export async function createElectronicNote(idComprobante: number, request: { tipo: TipoNotaElectronica; codigoMotivo: string; descripcionMotivo: string; total: number }): Promise<NotaElectronica> { const { data } = await api.post<NotaElectronica>(`/v1/comprobantes/${idComprobante}/notas-electronicas`, request); return data }
+export async function sendElectronicNote(id: number): Promise<NotaElectronica> { const { data } = await api.post<NotaElectronica>(`/v1/notas-electronicas/${id}/enviar`); return data }
+export async function downloadElectronicNoteFile(id: number, kind: 'xml' | 'cdr'): Promise<Blob> { const { data } = await api.get<Blob>(`/v1/notas-electronicas/${id}/${kind}`, { responseType: 'blob' }); return data }
+export async function requestReceiptVoid(idComprobante: number, motivo: string): Promise<ComunicacionBajaSunat> { const { data } = await api.post<ComunicacionBajaSunat>(`/v1/comprobantes/${idComprobante}/sunat/baja`, { motivo }); return data }
+export async function listReceiptVoids(): Promise<ComunicacionBajaSunat[]> { const { data } = await api.get<ComunicacionBajaSunat[]>('/v1/sunat/comunicaciones-baja'); return data }
+export async function sendReceiptVoid(id: number): Promise<ComunicacionBajaSunat> { const { data } = await api.post<ComunicacionBajaSunat>(`/v1/sunat/comunicaciones-baja/${id}/enviar`); return data }
+export async function checkReceiptVoid(id: number): Promise<ComunicacionBajaSunat> { const { data } = await api.post<ComunicacionBajaSunat>(`/v1/sunat/comunicaciones-baja/${id}/consultar`); return data }
+export async function downloadReceiptVoidFile(id: number, kind: 'xml' | 'cdr'): Promise<Blob> { const { data } = await api.get<Blob>(`/v1/sunat/comunicaciones-baja/${id}/${kind}`, { responseType: 'blob' }); return data }
 
 function commercialParams(filters: FiltrosComerciales) {
   return { idCliente: filters.idCliente || undefined, estado: filters.estado || undefined, desde: filters.desde || undefined, hasta: filters.hasta || undefined, page: filters.page, size: filters.size }

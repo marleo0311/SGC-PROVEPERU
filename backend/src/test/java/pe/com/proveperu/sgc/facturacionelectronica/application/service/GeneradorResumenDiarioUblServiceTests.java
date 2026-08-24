@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import pe.com.proveperu.sgc.cliente.domain.model.Cliente;
 import pe.com.proveperu.sgc.cliente.domain.model.TipoDocumentoCliente;
 import pe.com.proveperu.sgc.comprobante.domain.model.Comprobante;
+import pe.com.proveperu.sgc.comprobante.domain.model.EstadoComprobante;
 import pe.com.proveperu.sgc.configuracion.domain.model.Empresa;
 import pe.com.proveperu.sgc.inventario.domain.model.Sede;
 import pe.com.proveperu.sgc.shared.application.exception.ReglaNegocioException;
@@ -85,6 +86,19 @@ class GeneradorResumenDiarioUblServiceTests {
         ))
             .isInstanceOf(ReglaNegocioException.class)
             .hasMessageContaining("solo admite boletas");
+    }
+
+    @Test
+    void usaCondicionTresParaAnularUnaBoletaEnElResumen() {
+        Comprobante comprobante = boleta("00000047");
+        comprobante.setEstado(EstadoComprobante.BAJA_PENDIENTE);
+
+        String xml = new String(service.generar(
+            List.of(comprobante), empresa(), LocalDate.of(2026, 8, 22),
+            LocalDate.of(2026, 8, 23), 3
+        ).xml(), StandardCharsets.UTF_8);
+
+        assertThat(xml).contains("<cbc:ConditionCode>3</cbc:ConditionCode>");
     }
 
     private Comprobante boleta(String numero) {

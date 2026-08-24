@@ -178,7 +178,15 @@ public class GeneradorResumenDiarioUblService {
         cliente(document, line, comprobante.getVenta().getCliente());
 
         Element status = agregar(document, line, CAC_NS, "cac:Status");
-        texto(document, status, CBC_NS, "cbc:ConditionCode", "1");
+        texto(
+            document,
+            status,
+            CBC_NS,
+            "cbc:ConditionCode",
+            comprobante.getEstado() == pe.com.proveperu.sgc.comprobante.domain.model.EstadoComprobante.BAJA_PENDIENTE
+                ? "3"
+                : "1"
+        );
         importe(document, line, SAC_NS, "sac:TotalAmount", comprobante.getTotal());
 
         Element payment = agregar(document, line, SAC_NS, "sac:BillingPayment");

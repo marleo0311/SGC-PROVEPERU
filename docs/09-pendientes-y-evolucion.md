@@ -1,35 +1,14 @@
 # Pendientes y evolución
 
-## 1. Alcance pendiente inmediato
+## 1. Alcance completado en la iteración actual
 
-### Frontend de devoluciones
+- Frontend de devoluciones con reembolso, cambio y descuento.
+- Reportes de ventas, inventario, finanzas y caja con exportación XLSX/PDF.
+- Vista previa e impresión de tickets 58/80 mm con código QR.
+- Notas de crédito/débito, comunicación de baja y anulación de boletas en Resumen Diario.
 
-El backend ya permite registrar devoluciones y resolverlas mediante:
-
-- Reembolso.
-- Cambio de productos.
-- Descuento.
-
-Falta construir la pantalla, formularios, selección de artículos, resolución y consulta histórica.
-
-### Reportes detallados
-
-El dashboard y los endpoints existen. Falta la interfaz especializada para:
-
-- Ventas.
-- Inventario.
-- Finanzas.
-- Caja.
-- Exportación a Excel/PDF, si se aprueba como requisito.
-
-### Tickets
-
-El backend representa tickets de 58 mm y 80 mm. Falta:
-
-- Vista previa.
-- Selección de formato.
-- Integración con impresión del navegador o servicio local.
-- Pruebas con impresoras térmicas reales.
+Permanece pendiente validar la impresión con modelos térmicos reales y ejecutar
+pruebas funcionales de aceptación con los usuarios de cada rol.
 
 ## 2. Integración SUNAT
 
@@ -41,12 +20,11 @@ de considerarla apta para producción todavía se requiere:
 1. Completar y verificar los datos tributarios del emisor y sus series autorizadas.
 2. Ejecutar casos reales controlados contra BETA y ajustar el XML a las reglas SUNAT
    vigentes.
-3. Generar el código QR y la representación impresa tributaria.
-4. Implementar comunicación de baja y notas de crédito/débito.
-5. Ampliar la recuperación ante respuestas inciertas y automatizar consultas de ticket.
-6. Añadir cola transaccional, reintentos programados e idempotencia distribuida.
-7. Custodiar certificado y Clave SOL en un gestor de secretos para despliegue.
-8. Realizar revisión contable/tributaria y pruebas de aceptación antes de habilitar
+3. Validar notas, bajas, QR y Resumen Diario con casos BETA representativos.
+4. Ampliar la recuperación ante respuestas inciertas y automatizar consultas de ticket.
+5. Añadir cola transaccional, reintentos programados e idempotencia distribuida.
+6. Custodiar certificado y Clave SOL en un gestor de secretos para despliegue.
+7. Realizar revisión contable/tributaria y pruebas de aceptación antes de habilitar
    `SUNAT_PRODUCTION_ENABLED`.
 
 El backend dirige expresamente las boletas de producción al Resumen Diario y evita
@@ -103,13 +81,12 @@ Cada integración debe aislarse detrás de un servicio, manejar indisponibilidad
 
 ## 8. Orden recomendado
 
-1. Prueba funcional completa de los módulos ya construidos.
-2. Frontend de devoluciones.
-3. Reportes detallados y exportaciones.
-4. Tickets e impresión térmica.
-5. División del frontend y pruebas end-to-end.
-6. Preparación de ambientes, backups y CI/CD.
-7. Validación SUNAT BETA y desarrollo de los flujos tributarios productivos pendientes.
+1. Pruebas de aceptación manual por rol y flujos críticos.
+2. Validación BETA de notas, bajas y Resumen Diario con el certificado del titular.
+3. División del frontend y pruebas end-to-end.
+4. Pruebas con impresoras térmicas reales.
+5. Preparación de ambientes, HTTPS, backups y CI/CD.
+6. Revisión contable y habilitación controlada de SUNAT producción.
 
 ## 9. Criterio de finalización para nuevas funciones
 

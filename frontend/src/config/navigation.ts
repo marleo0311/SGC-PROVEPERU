@@ -19,6 +19,7 @@ export const navigationGroups: NavigationGroup[] = [
     label: 'Comercial',
     items: [
       { label: 'Ventas', path: '/app/ventas', icon: 'bi-receipt', authorities: ['VEN_VENTAS_VER'] },
+      { label: 'Devoluciones', path: '/app/devoluciones', icon: 'bi-arrow-counterclockwise', authorities: ['DEV_DEVOLUCIONES_VER'] },
       { label: 'Cotizaciones', path: '/app/cotizaciones', icon: 'bi-file-earmark-text', authorities: ['COT_COTIZACIONES_VER'] },
       { label: 'Pedidos', path: '/app/pedidos', icon: 'bi-bag-check', authorities: ['PED_PEDIDOS_VER'] },
       { label: 'Clientes', path: '/app/clientes', icon: 'bi-people', authorities: ['CLI_CLIENTES_VER'] },

@@ -9,6 +9,8 @@ public record ConfiguracionSunatResponse(
     boolean produccionHabilitada,
     boolean certificadoConfigurado,
     boolean credencialesConfiguradas,
+    boolean resumenDiarioAutomatico,
+    boolean resumenDiarioAutoEnviar,
     String endpoint,
     String advertencia
 ) {
@@ -30,6 +32,8 @@ public record ConfiguracionSunatResponse(
             properties.isProductionEnabled(),
             certificate,
             credentials,
+            properties.isResumenDiarioAutomaticoEnabled(),
+            properties.isResumenDiarioAutoEnviar(),
             properties.endpoint().toString(),
             warning
         );

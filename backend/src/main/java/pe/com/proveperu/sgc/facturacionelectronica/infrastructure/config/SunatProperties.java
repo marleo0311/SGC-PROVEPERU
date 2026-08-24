@@ -29,6 +29,9 @@ public class SunatProperties {
     );
     private Duration connectTimeout = Duration.ofSeconds(15);
     private Duration readTimeout = Duration.ofSeconds(45);
+    private boolean resumenDiarioAutomaticoEnabled;
+    private boolean resumenDiarioAutoEnviar;
+    private String resumenDiarioCron = "0 15 2 * * *";
 
     public URI endpoint() {
         return ambiente == AmbienteSunat.PRODUCCION

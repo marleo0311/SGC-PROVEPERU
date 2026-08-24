@@ -50,7 +50,8 @@
 | `/app/usuarios` | Usuarios | `SEG_USUARIOS_VER` |
 | `/app/roles` | Roles | `SEG_ROLES_VER` |
 | `/app/permisos` | Permisos | `SEG_PERMISOS_VER` |
-| `/app/reportes` | Interfaz pendiente | `REP_REPORTES_VER` |
+| `/app/devoluciones` | Devoluciones, cambios y reembolsos | `DEV_DEVOLUCIONES_VER` |
+| `/app/reportes` | Reportes y exportaciones | `REP_REPORTES_VER` |
 
 El menú se genera desde `frontend/src/config/navigation.ts`. Una ruta sin pantalla explícita cae en `ModulePage`, que informa que la interfaz está pendiente.
 
@@ -116,6 +117,16 @@ No colocar secretos en variables `VITE_*`: Vite las incorpora al JavaScript visi
   `VEN_SUNAT_RESUMENES_GESTIONAR`.
 - En PRODUCCIÓN, el detalle de una boleta dirige al Resumen Diario y no ofrece el
   envío individual mediante `sendBill`.
+- Los formularios de cotización, pedido y venta solicitan el descuento por
+  unidad, muestran el precio neto y actualizan inmediatamente el importe final
+  con `(precio unitario - descuento unitario) × cantidad`.
+- La pantalla de devoluciones permite seleccionar cantidades devueltas y resolver
+  con reembolso, cambio o descuento.
+- Reportes ofrece ventas, inventario, finanzas y caja, filtros y descargas XLSX/PDF.
+- El detalle del comprobante genera vista previa térmica de 58/80 mm, QR y diálogo
+  de impresión nativo.
+- El detalle fiscal permite generar, enviar y descargar notas electrónicas; las
+  comunicaciones de baja se administran junto a los Resúmenes SUNAT.
 
 ## 7. Añadir una nueva pantalla
 
@@ -139,9 +150,8 @@ pnpm build
 
 El build actual es correcto. Vite informa que el paquete principal supera 500 kB minificado; es una recomendación de rendimiento. La mejora prevista es cargar páginas mediante `lazy()` y división por rutas.
 
-## 9. Pantallas pendientes
+## 9. Mejoras posteriores
 
-- Devoluciones, cambios, descuentos y reembolsos.
-- Reportes detallados de ventas, inventario, finanzas y caja.
-- Impresión/configuración visual de tickets.
-- Representación tributaria con código QR oficial y flujos complementarios SUNAT.
+- División del paquete principal mediante carga diferida por ruta.
+- Pruebas E2E con navegador y periféricos térmicos reales.
+- Accesibilidad auditada con lector de pantalla.

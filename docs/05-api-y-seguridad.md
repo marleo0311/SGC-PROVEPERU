@@ -231,6 +231,11 @@ Los endpoints comerciales consideran que los precios de venta son finales. Con
 `aplicarIgv: true`, el backend conserva el total y calcula `subtotal = total /
 1.18` e `igv = total - subtotal`, con redondeo monetario a dos decimales.
 
+En los contratos de cotizaciones, pedidos y ventas, el atributo `descuento` de
+cada detalle representa el descuento total de la línea. La interfaz solicita un
+descuento unitario y lo convierte mediante `cantidad × descuento unitario`; el
+importe final queda como `(precio unitario - descuento unitario) × cantidad`.
+
 | Método | Ruta | Función |
 | --- | --- | --- |
 | GET, POST | `/api/v1/ventas` | Listar y crear ventas. |
@@ -253,6 +258,14 @@ Los endpoints comerciales consideran que los precios de venta son finales. Con
 | POST | `/api/v1/sunat/resumenes-diarios/{id}/consultar` | Consultar ticket mediante `getStatus` y procesar CDR. |
 | GET | `/api/v1/sunat/resumenes-diarios/{id}/xml` | Descargar XML firmado del resumen. |
 | GET | `/api/v1/sunat/resumenes-diarios/{id}/cdr` | Descargar CDR del resumen. |
+| GET, POST | `/api/v1/comprobantes/{id}/notas-electronicas` | Listar o generar notas de crédito/débito. |
+| POST | `/api/v1/notas-electronicas/{id}/enviar` | Enviar nota electrónica y procesar CDR. |
+| GET | `/api/v1/notas-electronicas/{id}/xml` | Descargar XML firmado de la nota. |
+| GET | `/api/v1/notas-electronicas/{id}/cdr` | Descargar CDR de la nota. |
+| POST | `/api/v1/comprobantes/{id}/sunat/baja` | Solicitar baja; factura por RA y boleta por Resumen Diario. |
+| GET | `/api/v1/sunat/comunicaciones-baja` | Listar comunicaciones de baja. |
+| POST | `/api/v1/sunat/comunicaciones-baja/{id}/enviar` | Enviar RA y obtener ticket. |
+| POST | `/api/v1/sunat/comunicaciones-baja/{id}/consultar` | Consultar ticket y procesar CDR. |
 | GET | `/api/v1/cuentas-cobrar` | Consultar cuentas. |
 | GET | `/api/v1/cuentas-cobrar/vencidas` | Consultar vencidas. |
 | GET | `/api/v1/cuentas-cobrar/metodos-pago` | Listar métodos de pago. |
@@ -262,7 +275,9 @@ Los endpoints comerciales consideran que los precios de venta son finales. Con
 
 La lectura usa `VEN_COMPROBANTES_VER`. Preparar y enviar exige
 `VEN_SUNAT_ENVIAR`; generar, enviar o consultar resúmenes exige
-`VEN_SUNAT_RESUMENES_GESTIONAR`. El endpoint de configuración nunca expone Clave SOL ni la
+`VEN_SUNAT_RESUMENES_GESTIONAR`; las notas usan
+`VEN_SUNAT_NOTAS_GESTIONAR` y las bajas `VEN_SUNAT_BAJAS_GESTIONAR`.
+El endpoint de configuración nunca expone Clave SOL ni la
 contraseña del certificado. Un fallo HTTP o SOAP del receptor se informa como
 `502 Bad Gateway`; una regla tributaria local incumplida devuelve `422`.
 
@@ -287,12 +302,13 @@ contraseña del certificado. Un fallo HTTP o SOAP del receptor se informa como
 | POST | `/api/v1/devoluciones/{id}/reembolso` | Resolver con reembolso. |
 | POST | `/api/v1/devoluciones/{id}/cambio` | Resolver con cambio. |
 | POST | `/api/v1/devoluciones/{id}/descuento` | Resolver con descuento. |
-| GET | `/api/v1/impresiones/ticket/{idComprobante}` | Representar ticket. |
+| GET | `/api/v1/impresiones/ticket/{idComprobante}?formato=MM58\|MM80` | Ticket con texto y QR PNG. |
 | GET | `/api/v1/reportes/dashboard` | Indicadores del dashboard. |
 | GET | `/api/v1/reportes/ventas` | Reporte de ventas. |
 | GET | `/api/v1/reportes/inventario` | Reporte de inventario. |
 | GET | `/api/v1/reportes/finanzas` | Reporte financiero. |
 | GET | `/api/v1/reportes/caja` | Reporte de caja. |
+| GET | `/api/v1/reportes/exportar/{tipo}?formato=XLSX\|PDF` | Descargar ventas, inventario, finanzas o caja. |
 
 ## 5. Catálogo de permisos
 
@@ -318,7 +334,7 @@ contraseña del certificado. Un fallo HTTP o SOAP del receptor se informa como
 
 ### Comercial
 
-`COT_COTIZACIONES_VER`, `COT_COTIZACIONES_CREAR`, `COT_COTIZACIONES_EDITAR`, `COT_COTIZACIONES_ESTADO`, `COT_DESCUENTOS_APLICAR`, `PED_PEDIDOS_VER`, `PED_PEDIDOS_CREAR`, `PED_PEDIDOS_CONVERTIR`, `PED_PEDIDOS_CONFIRMAR`, `PED_PEDIDOS_ESTADO`, `PED_PEDIDOS_CANCELAR`, `PED_RESERVAS_VER`, `VEN_VENTAS_VER`, `VEN_VENTAS_CREAR`, `VEN_VENTAS_ANULAR`, `VEN_COMPROBANTES_VER`, `VEN_COMPROBANTES_ANULAR`, `VEN_DESCUENTOS_APLICAR`, `VEN_TICKETS_IMPRIMIR`.
+`COT_COTIZACIONES_VER`, `COT_COTIZACIONES_CREAR`, `COT_COTIZACIONES_EDITAR`, `COT_COTIZACIONES_ESTADO`, `COT_DESCUENTOS_APLICAR`, `PED_PEDIDOS_VER`, `PED_PEDIDOS_CREAR`, `PED_PEDIDOS_CONVERTIR`, `PED_PEDIDOS_CONFIRMAR`, `PED_PEDIDOS_ESTADO`, `PED_PEDIDOS_CANCELAR`, `PED_RESERVAS_VER`, `VEN_VENTAS_VER`, `VEN_VENTAS_CREAR`, `VEN_VENTAS_ANULAR`, `VEN_COMPROBANTES_VER`, `VEN_COMPROBANTES_ANULAR`, `VEN_DESCUENTOS_APLICAR`, `VEN_TICKETS_IMPRIMIR`, `VEN_SUNAT_ENVIAR`, `VEN_SUNAT_RESUMENES_GESTIONAR`, `VEN_SUNAT_NOTAS_GESTIONAR`, `VEN_SUNAT_BAJAS_GESTIONAR`.
 
 ### Posventa y reportes
 

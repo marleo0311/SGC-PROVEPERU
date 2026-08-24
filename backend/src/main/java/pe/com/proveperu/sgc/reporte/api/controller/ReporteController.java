@@ -10,6 +10,10 @@ import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -23,6 +27,7 @@ import pe.com.proveperu.sgc.reporte.api.dto.ReporteInventarioResponse;
 import pe.com.proveperu.sgc.reporte.api.dto.ReporteVentasResponse;
 import pe.com.proveperu.sgc.reporte.application.service.PermisosReporte;
 import pe.com.proveperu.sgc.reporte.application.service.ReporteService;
+import pe.com.proveperu.sgc.reporte.application.service.ReporteExportService;
 
 @RestController
 @RequestMapping("/api/v1/reportes")
@@ -37,6 +42,7 @@ import pe.com.proveperu.sgc.reporte.application.service.ReporteService;
 public class ReporteController {
 
     private final ReporteService reporteService;
+    private final ReporteExportService reporteExportService;
 
     @GetMapping("/dashboard")
     @Operation(summary = "Consultar los indicadores principales del dashboard")
@@ -91,5 +97,27 @@ public class ReporteController {
         @RequestParam(required = false) @Positive Long idSede
     ) {
         return reporteService.obtenerCaja(desde, hasta, idSede);
+    }
+
+    @GetMapping("/exportar/{tipo}")
+    @Operation(summary = "Exportar un reporte detallado en Excel o PDF")
+    public ResponseEntity<byte[]> exportar(
+        @org.springframework.web.bind.annotation.PathVariable String tipo,
+        @RequestParam(defaultValue = "XLSX") String formato,
+        @RequestParam(required = false)
+        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
+        @RequestParam(required = false)
+        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta,
+        @RequestParam(required = false) @Positive Long idSede,
+        @RequestParam(defaultValue = "50") @Min(1) @Max(50) int limite
+    ) {
+        var archivo = reporteExportService.exportar(tipo, formato, desde, hasta, idSede, limite);
+        return ResponseEntity.ok()
+            .contentType(MediaType.parseMediaType(archivo.mediaType()))
+            .header(
+                HttpHeaders.CONTENT_DISPOSITION,
+                ContentDisposition.attachment().filename(archivo.nombre()).build().toString()
+            )
+            .body(archivo.contenido());
     }
 }

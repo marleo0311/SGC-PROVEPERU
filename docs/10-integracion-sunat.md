@@ -62,6 +62,9 @@ SUNAT_CERTIFICATE_PATH=D:/ruta/privada/certificado-pruebas.p12
 SUNAT_CERTIFICATE_PASSWORD=CLAVE_PRIVADA_DEL_CERTIFICADO
 SUNAT_CONNECT_TIMEOUT=PT15S
 SUNAT_READ_TIMEOUT=PT45S
+SUNAT_DAILY_SUMMARY_AUTO_ENABLED=false
+SUNAT_DAILY_SUMMARY_AUTO_SEND=false
+SUNAT_DAILY_SUMMARY_CRON=0 15 2 * * *
 ```
 
 En BETA el nombre de autenticación se forma como `<RUC>MODDATOS`. El sistema añade
@@ -115,6 +118,22 @@ Para cliente ocasional se informan guiones en los campos de identificación seg�
 el formato SUNAT. Si una boleta supera S/ 700.00, el sistema exige que el cliente
 tenga documento antes de generar el resumen.
 
+La tarea automática es optativa. Al activar `SUNAT_DAILY_SUMMARY_AUTO_ENABLED`,
+el cron prepara las boletas del día anterior en zona `America/Lima`; con
+`SUNAT_DAILY_SUMMARY_AUTO_SEND=true` también ejecuta `sendSummary`. La consulta
+posterior del ticket continúa disponible en la pantalla.
+
+### Notas electrónicas y bajas
+
+- Desde el detalle de una boleta o factura emitida se puede generar una nota de
+  crédito o débito, firmar el UBL 2.1, enviarla y descargar XML/CDR.
+- Una factura se da de baja mediante `VoidedDocuments` con identificador RA,
+  `sendSummary`, ticket y `getStatus`.
+- Una boleta se marca `BAJA_PENDIENTE` y se incorpora al Resumen Diario con
+  `ConditionCode=3`; queda anulada solo si SUNAT acepta el CDR.
+- La baja no revierte automáticamente inventario ni caja: esa corrección comercial
+  se gestiona mediante devolución, reembolso o el flujo de anulación que corresponda.
+
 ## 5. API y permisos
 
 | Método | Ruta | Permiso | Resultado |
@@ -131,9 +150,15 @@ tenga documento antes de generar el resumen.
 | POST | `/api/v1/sunat/resumenes-diarios/{id}/consultar` | `VEN_SUNAT_RESUMENES_GESTIONAR` | Ejecuta `getStatus` y procesa el CDR. |
 | GET | `/api/v1/sunat/resumenes-diarios/{id}/xml` | `VEN_COMPROBANTES_VER` | Descarga XML firmado. |
 | GET | `/api/v1/sunat/resumenes-diarios/{id}/cdr` | `VEN_COMPROBANTES_VER` | Descarga CDR del resumen. |
+| GET, POST | `/api/v1/comprobantes/{id}/notas-electronicas` | lectura / `VEN_SUNAT_NOTAS_GESTIONAR` | Lista o genera una nota. |
+| POST | `/api/v1/notas-electronicas/{id}/enviar` | `VEN_SUNAT_NOTAS_GESTIONAR` | Envía y procesa CDR. |
+| POST | `/api/v1/comprobantes/{id}/sunat/baja` | `VEN_SUNAT_BAJAS_GESTIONAR` | Solicita baja de factura o boleta. |
+| GET | `/api/v1/sunat/comunicaciones-baja` | `VEN_COMPROBANTES_VER` | Lista archivos RA. |
+| POST | `/api/v1/sunat/comunicaciones-baja/{id}/enviar` | `VEN_SUNAT_BAJAS_GESTIONAR` | Envía RA y guarda ticket. |
+| POST | `/api/v1/sunat/comunicaciones-baja/{id}/consultar` | `VEN_SUNAT_BAJAS_GESTIONAR` | Consulta ticket y procesa CDR. |
 
 El rol Administrador recibe `VEN_SUNAT_ENVIAR` por V23 y
-`VEN_SUNAT_RESUMENES_GESTIONAR` por V25. Los demás roles deben recibirlos
+`VEN_SUNAT_RESUMENES_GESTIONAR` por V25, notas por V26 y bajas por V27. Los demás roles deben recibirlos
 expresamente desde la administración de roles. Se recomienda reservar ambos al
 rol de Facturación SUNAT y al Administrador.
 
@@ -158,6 +183,11 @@ envío agrupado. `resumen_diario_sunat_item` relaciona cada resumen con sus bole
 y `correlativo_resumen_diario_sunat` reserva el correlativo por fecha y ambiente.
 Sus estados adicionales son `TICKET_RECIBIDO` y `PROCESANDO`.
 
+`nota_electronica` conserva la referencia al comprobante, motivo, importes,
+XML/ZIP/CDR y respuesta. `comunicacion_baja_sunat` conserva la factura, motivo,
+archivo RA, ticket, consultas y CDR. Las secuencias separan correlativos de notas
+de crédito, débito y comunicaciones de baja.
+
 ## 7. Protección de producción
 
 Para evitar una activación accidental se requieren simultáneamente:
@@ -174,8 +204,8 @@ las reglas SUNAT vigentes y aprobar formalmente la salida con el responsable
 contable. La implementación técnica no sustituye la homologación operativa ni la
 verificación tributaria del titular.
 
-Un comprobante aceptado no puede anularse con la anulación local; deberá usarse la
-comunicación tributaria aplicable cuando ese flujo se implemente.
+Un comprobante aceptado no se anula con la anulación local: debe utilizar nota de
+crédito o baja electrónica según el motivo, plazo y criterio contable aplicable.
 
 ## 8. Diagnóstico
 
@@ -191,6 +221,6 @@ comunicación tributaria aplicable cuando ese flujo se implemente.
 - **Sin CDR:** solo existe después de una respuesta final válida del receptor.
 - **Error de comunicación:** conservar el mismo comprobante y usar reintento.
 
-Las pruebas automatizadas validan cálculo con IGV incluido, UBL básico, firma,
-empaquetado, lectura de CDR, SOAP y seguridad del endpoint de configuración. No
+Las pruebas automatizadas validan cálculo con IGV incluido, UBL básico, notas,
+bajas, condición 3, QR, empaquetado, lectura de CDR, SOAP y seguridad. No
 sustituyen una prueba funcional con credenciales y certificado del titular.

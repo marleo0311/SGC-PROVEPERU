@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -304,6 +306,31 @@ class ReporteIntegrationTests {
             .map(permiso -> permiso.getCodigo())
             .collect(Collectors.toSet());
         assertThat(asignados).contains(PermisosReporte.REPORTES_VER);
+    }
+
+    @Test
+    void exportaReportesRealesEnExcelYPdf() throws Exception {
+        String autorizacion = bearer(PermisosReporte.REPORTES_VER);
+        byte[] xlsx = mockMvc.perform(get("/api/v1/reportes/exportar/ventas")
+                .param("formato", "XLSX")
+                .param("desde", FECHA_REPORTE.toString())
+                .param("hasta", FECHA_REPORTE.toString())
+                .param("idSede", sede.getId().toString())
+                .header(HttpHeaders.AUTHORIZATION, autorizacion))
+            .andExpect(status().isOk())
+            .andExpect(content().contentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+            .andExpect(header().string(HttpHeaders.CONTENT_DISPOSITION, org.hamcrest.Matchers.containsString("reporte-ventas-")))
+            .andReturn().getResponse().getContentAsByteArray();
+        assertThat(xlsx).startsWith(new byte[] {'P', 'K'});
+
+        byte[] pdf = mockMvc.perform(get("/api/v1/reportes/exportar/inventario")
+                .param("formato", "PDF")
+                .param("idSede", sede.getId().toString())
+                .header(HttpHeaders.AUTHORIZATION, autorizacion))
+            .andExpect(status().isOk())
+            .andExpect(content().contentType("application/pdf"))
+            .andReturn().getResponse().getContentAsByteArray();
+        assertThat(new String(pdf, 0, 5, java.nio.charset.StandardCharsets.US_ASCII)).isEqualTo("%PDF-");
     }
 
     private Venta crearVenta(UnidadMedida unidad) {

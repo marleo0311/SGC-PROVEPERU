@@ -1,6 +1,6 @@
 # Documentación de SGC PROVEPERU
 
-Esta carpeta contiene la documentación técnica, funcional y operativa del Sistema de Gestión Comercial de INVERSIONES PROVEPERU S.R.L. Su contenido describe el estado real del repositorio al 23 de agosto de 2026.
+Esta carpeta contiene la documentación técnica, funcional y operativa del Sistema de Gestión Comercial de INVERSIONES PROVEPERU S.R.L. Su contenido describe el estado real del repositorio al 24 de agosto de 2026.
 
 ## Mapa de documentos
 
@@ -24,23 +24,23 @@ Esta carpeta contiene la documentación técnica, funcional y operativa del Sist
 | --- | --- |
 | PostgreSQL 17 y Docker Compose | Operativo |
 | Spring Boot, seguridad JWT y API REST | Operativo |
-| Migraciones Flyway V1–V25 | Operativas |
+| Migraciones Flyway V1–V27 | Operativas |
 | React, Vite y navegación por permisos | Operativo |
 | Catálogos, productos, clientes e inventario | Operativo en backend y frontend |
 | Proveedores, compras, transportistas y gastos | Operativo en backend y frontend |
 | Cotizaciones, pedidos, ventas y comprobantes internos | Operativo en backend y frontend |
 | Cuentas por pagar, caja y cuentas por cobrar | Operativo en backend y frontend |
-| Devoluciones, cambios, descuentos y reembolsos | Backend operativo; frontend pendiente |
+| Devoluciones, cambios, descuentos y reembolsos | Operativo en backend y frontend |
 | Dashboard | Operativo |
-| Reportes detallados y tickets | Backend operativo; frontend pendiente |
-| Facturación electrónica SUNAT | UBL 2.1, Resumen Diario UBL 2.0, firma, BETA, tickets y CDR implementados; falta validación productiva y flujos complementarios |
+| Reportes detallados y tickets | Excel/PDF, vista previa 58/80 mm y QR operativos |
+| Facturación electrónica SUNAT | UBL 2.1, notas, bajas, Resumen Diario automático, firma, BETA, tickets y CDR implementados; falta habilitación y validación formal en producción |
 
 ## Inicio rápido
 
 Con Docker Desktop abierto y el archivo `.env` configurado, ejecutar desde la raíz:
 
 ```powershell
-.\iniciar-sistema.cmd
+.\iniciar-sistema.ps1
 ```
 
 Direcciones locales:
@@ -53,7 +53,7 @@ Direcciones locales:
 Para detener todos los componentes:
 
 ```powershell
-.\detener-sistema.cmd
+.\detener-sistema.ps1
 ```
 
 ## Fuente de verdad

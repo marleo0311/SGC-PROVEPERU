@@ -54,8 +54,24 @@ export interface ReporteVentas {
   periodo: PeriodoReporte
   resumen: ResumenVentas
   ventasDiarias: VentaDiaria[]
-  ventasPorVendedor: unknown[]
-  productosMasVendidos: unknown[]
+  ventasPorVendedor: VentaVendedor[]
+  productosMasVendidos: ProductoVendido[]
+}
+
+export interface VentaVendedor {
+  idVendedor: number
+  usuarioLogin: string
+  nombreCompleto: string
+  cantidadVentas: number
+  totalVentas: number
+}
+
+export interface ProductoVendido {
+  idProducto: number
+  codigoInterno: string
+  nombreProducto: string
+  cantidadBaseVendida: number
+  subtotalVendido: number
 }
 
 export interface ProductoStockBajo {
@@ -76,6 +92,30 @@ export interface ReporteInventario {
   resumen: ResumenInventario
   productosStockBajo: ProductoStockBajo[]
 }
+
+export interface ReporteFinanzas {
+  cuentasCobrar: SaldoPendiente
+  cuentasPagar: SaldoPendiente
+  balancePendiente: number
+}
+
+export interface CajaMetodoPago {
+  idMetodoPago: number
+  codigo: string
+  nombre: string
+  ingresos: number
+  egresos: number
+  neto: number
+}
+
+export interface ReporteCaja {
+  periodo: PeriodoReporte
+  resumen: ResumenCaja
+  metodosPago: CajaMetodoPago[]
+}
+
+export type TipoReporte = 'VENTAS' | 'INVENTARIO' | 'FINANZAS' | 'CAJA'
+export type FormatoReporte = 'XLSX' | 'PDF'
 
 export interface DashboardData {
   dashboard: ReporteDashboard

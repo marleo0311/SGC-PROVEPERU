@@ -3,13 +3,17 @@ import { useAuth } from '../hooks/useAuth'
 import { getApiErrorMessage } from '../services/api'
 import {
   checkDailySummary,
+  checkReceiptVoid,
   downloadDailySummaryFile,
+  downloadReceiptVoidFile,
   getSunatConfiguration,
   listDailySummaries,
+  listReceiptVoids,
   prepareDailySummaries,
   sendDailySummary,
+  sendReceiptVoid,
 } from '../services/commercial.service'
-import type { ConfiguracionSunat, EstadoResumenDiarioSunat, ResumenDiarioSunat } from '../types/commercial'
+import type { ComunicacionBajaSunat, ConfiguracionSunat, EstadoResumenDiarioSunat, ResumenDiarioSunat } from '../types/commercial'
 
 const currency = new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' })
 const dateTime = new Intl.DateTimeFormat('es-PE', { dateStyle: 'medium', timeStyle: 'short' })
@@ -17,6 +21,7 @@ const dateTime = new Intl.DateTimeFormat('es-PE', { dateStyle: 'medium', timeSty
 export function SunatDailySummariesPage() {
   const [fecha, setFecha] = useState(todayInLima())
   const [summaries, setSummaries] = useState<ResumenDiarioSunat[]>([])
+  const [voids, setVoids] = useState<ComunicacionBajaSunat[]>([])
   const [config, setConfig] = useState<ConfiguracionSunat | null>(null)
   const [loading, setLoading] = useState(true)
   const [working, setWorking] = useState<string | null>(null)
@@ -24,17 +29,20 @@ export function SunatDailySummariesPage() {
   const [notice, setNotice] = useState('')
   const { hasAnyAuthority } = useAuth()
   const canManage = hasAnyAuthority('VEN_SUNAT_RESUMENES_GESTIONAR')
+  const canManageVoids = hasAnyAuthority('VEN_SUNAT_BAJAS_GESTIONAR')
 
   const load = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
-      const [items, configuration] = await Promise.all([
+      const [items, configuration, voidItems] = await Promise.all([
         listDailySummaries(fecha),
         getSunatConfiguration(),
+        listReceiptVoids(),
       ])
       setSummaries(items)
       setConfig(configuration)
+      setVoids(voidItems)
     } catch (requestError) {
       setError(getApiErrorMessage(requestError))
     } finally {
@@ -44,11 +52,12 @@ export function SunatDailySummariesPage() {
 
   useEffect(() => {
     let active = true
-    Promise.all([listDailySummaries(fecha), getSunatConfiguration()])
-      .then(([items, configuration]) => {
+    Promise.all([listDailySummaries(fecha), getSunatConfiguration(), listReceiptVoids()])
+      .then(([items, configuration, voidItems]) => {
         if (!active) return
         setSummaries(items)
         setConfig(configuration)
+        setVoids(voidItems)
       })
       .catch((requestError: unknown) => {
         if (active) setError(getApiErrorMessage(requestError))
@@ -114,6 +123,28 @@ export function SunatDailySummariesPage() {
     }
   }
 
+  async function actVoid(item: ComunicacionBajaSunat, action: 'send' | 'check') {
+    if (!item.id) return
+    setWorking(`void-${action}-${item.id}`)
+    setError('')
+    setNotice('')
+    try {
+      const updated = action === 'send' ? await sendReceiptVoid(item.id) : await checkReceiptVoid(item.id)
+      setVoids((current) => current.map((value) => value.id === updated.id ? updated : value))
+      setNotice(action === 'send' ? `SUNAT recibió la baja y asignó el ticket ${updated.ticket}.` : `La baja quedó en estado ${friendly(updated.estado)}.`)
+    } catch (requestError) { setError(getApiErrorMessage(requestError)); await load() } finally { setWorking(null) }
+  }
+
+  async function downloadVoid(item: ComunicacionBajaSunat, kind: 'xml' | 'cdr') {
+    if (!item.id) return
+    setWorking(`void-${kind}-${item.id}`)
+    setError('')
+    try {
+      const blob = await downloadReceiptVoidFile(item.id, kind)
+      saveBlob(blob, kind === 'xml' ? `${item.nombreArchivo}.xml` : `R-${item.nombreArchivo}.zip`)
+    } catch (requestError) { setError(getApiErrorMessage(requestError)) } finally { setWorking(null) }
+  }
+
   const ready = Boolean(config?.habilitado && config.certificadoConfigurado && config.credencialesConfiguradas)
   return (
     <section className="daily-summary-page">
@@ -173,8 +204,22 @@ export function SunatDailySummariesPage() {
           />
         ))}
       </section>
+
+      <header className="daily-summary-section-title">
+        <div><span><i className="bi bi-cloud-slash" /></span><span><h2>Comunicaciones de baja</h2><p>Facturas anuladas mediante archivo RA, ticket y CDR de SUNAT.</p></span></div>
+        <strong>{voids.length}</strong>
+      </header>
+      <section className="daily-summary-list">
+        {loading && voids.length === 0 ? <SummarySkeleton /> : voids.length === 0 ? <div className="daily-summary-empty"><span><i className="bi bi-file-earmark-x" /></span><h2>No hay comunicaciones de baja</h2><p>Se generan desde el detalle de una factura aceptada.</p></div> : voids.map((item) => <VoidCard key={item.id} item={item} canManage={canManageVoids} ready={ready} working={working} onSend={() => void actVoid(item, 'send')} onCheck={() => void actVoid(item, 'check')} onDownload={(kind) => void downloadVoid(item, kind)} />)}
+      </section>
     </section>
   )
+}
+
+function VoidCard({ item, canManage, ready, working, onSend, onCheck, onDownload }: { item: ComunicacionBajaSunat; canManage: boolean; ready: boolean; working: string | null; onSend: () => void; onCheck: () => void; onDownload: (kind: 'xml' | 'cdr') => void }) {
+  const canSend = !item.ticket && ['GENERADO', 'RECHAZADO', 'ERROR_COMUNICACION'].includes(item.estado)
+  const canCheck = Boolean(item.ticket) && !isAccepted(item.estado) && item.estado !== 'RECHAZADO'
+  return <article className={`daily-summary-card ${isAccepted(item.estado) ? 'accepted' : ''}`}><header><div><span><i className="bi bi-file-earmark-x" /></span><span><small>{item.ambiente} · {item.fechaDocumento}</small><h2>{item.nombreArchivo ?? item.comprobante}</h2></span></div><StatusBadge status={item.estado} /></header><div className="daily-summary-card__facts"><span><small>Comprobante</small><strong>{item.comprobante}</strong></span><span><small>Motivo</small><strong>{item.motivo}</strong></span><span><small>Ticket</small><strong>{item.ticket ?? 'Pendiente'}</strong></span><span><small>Consultas</small><strong>{item.consultasEstado}</strong></span></div>{(item.descripcionRespuesta || item.errorUltimo) && <div className={`daily-summary-result ${item.errorUltimo ? 'error' : ''}`}><small>{item.errorUltimo ? 'Último error' : 'Respuesta SUNAT'}</small><strong>{item.errorUltimo ?? item.descripcionRespuesta}</strong></div>}<footer><span>{item.fechaGeneracion ? `Generada ${item.fechaGeneracion}` : 'Pendiente'}</span><div>{canManage && canSend && <button className="primary" type="button" disabled={Boolean(working) || !ready} onClick={onSend}><i className="bi bi-send-check" /> Enviar baja</button>}{canManage && canCheck && <button className="primary" type="button" disabled={Boolean(working) || !ready} onClick={onCheck}><i className="bi bi-arrow-repeat" /> Consultar ticket</button>}{item.xmlDisponible && <button type="button" disabled={Boolean(working)} onClick={() => onDownload('xml')}><i className="bi bi-download" /> XML</button>}{item.cdrDisponible && <button type="button" disabled={Boolean(working)} onClick={() => onDownload('cdr')}><i className="bi bi-file-earmark-check" /> CDR</button>}</div></footer></article>
 }
 
 function SummaryCard({ summary, canManage, ready, working, onSend, onCheck, onDownload }: {

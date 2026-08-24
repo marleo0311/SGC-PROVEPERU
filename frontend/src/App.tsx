@@ -14,6 +14,8 @@ import { ModulePage } from './pages/ModulePage'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { ProductsPage } from './pages/ProductsPage'
 import { PurchasesPage } from './pages/PurchasesPage'
+import { ReturnsPage } from './pages/ReturnsPage'
+import { ReportsPage } from './pages/ReportsPage'
 import { PermissionsPage, RolesPage, UsersPage } from './pages/SecurityPages'
 import { SuppliersPage } from './pages/SuppliersPage'
 import { SunatDailySummariesPage } from './pages/SunatDailySummariesPage'
@@ -43,9 +45,11 @@ export default function App() {
           <Route path="cotizaciones" element={<QuotesPage />} />
           <Route path="pedidos" element={<OrdersPage />} />
           <Route path="ventas" element={<SalesPage />} />
+          <Route path="devoluciones" element={<ReturnsPage />} />
           <Route path="comprobantes" element={<ReceiptsPage />} />
           <Route path="resumenes-sunat" element={<SunatDailySummariesPage />} />
           <Route path="caja" element={<CashPage />} />
+          <Route path="reportes" element={<ReportsPage />} />
           <Route path=":module" element={<ModulePage />} />
         </Route>
       </Route>

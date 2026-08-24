@@ -666,7 +666,10 @@ class VentasIntegrationTests {
         Set<String> esperadosComprobantes = Set.of(
             PermisosVenta.COMPROBANTES_VER,
             PermisosVenta.COMPROBANTES_ANULAR,
-            PermisosVenta.SUNAT_ENVIAR
+            PermisosVenta.SUNAT_ENVIAR,
+            PermisosVenta.SUNAT_RESUMENES_GESTIONAR,
+            PermisosVenta.SUNAT_NOTAS_GESTIONAR,
+            PermisosVenta.SUNAT_BAJAS_GESTIONAR
         );
         Set<String> registradosComprobantes = permisoRepository
             .findAllByModuloOrderByCodigoAsc("Comprobantes")

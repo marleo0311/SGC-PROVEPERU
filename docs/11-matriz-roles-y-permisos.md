@@ -72,6 +72,8 @@ Supervisor y Almacén respectivamente para separar responsabilidades.
 - `VEN_SUNAT_ENVIAR` para facturas y pruebas individuales autorizadas.
 - `VEN_SUNAT_RESUMENES_GESTIONAR` para generar, enviar y consultar resúmenes de
   boletas.
+- `VEN_SUNAT_NOTAS_GESTIONAR` para notas de crédito y débito.
+- `VEN_SUNAT_BAJAS_GESTIONAR` para bajas de facturas y anulaciones tributarias de boletas.
 
 No necesita crear ventas, mover caja ni administrar usuarios.
 

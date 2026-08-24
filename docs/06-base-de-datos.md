@@ -67,6 +67,8 @@ Esto significa:
 | V23 | `preparar_facturacion_electronica_sunat` | Datos tributarios, unidad SUNAT, envíos electrónicos y permiso de transmisión. |
 | V24 | `agregar_codigo_establecimiento_sunat` | Código SUNAT del domicilio fiscal o local anexo emisor. |
 | V25 | `crear_resumenes_diarios_sunat` | Resúmenes de boletas, items, tickets, correlativos y permiso SUNAT. |
+| V26 | `crear_notas_electronicas_y_permisos` | Notas de crédito/débito, XML, CDR, secuencias y permiso. |
+| V27 | `crear_comunicaciones_baja_sunat` | Comunicaciones RA, tickets, CDR y estado de baja pendiente. |
 
 Los archivos se encuentran en `backend/src/main/resources/db/migration`.
 

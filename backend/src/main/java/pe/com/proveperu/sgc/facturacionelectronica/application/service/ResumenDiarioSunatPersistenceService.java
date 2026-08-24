@@ -112,7 +112,9 @@ public class ResumenDiarioSunatPersistenceService {
                 documento,
                 boletas
             );
-            boletas.forEach(boleta -> boleta.setEstado(EstadoComprobante.PENDIENTE_ENVIO));
+            boletas.stream()
+                .filter(boleta -> boleta.getEstado() != EstadoComprobante.BAJA_PENDIENTE)
+                .forEach(boleta -> boleta.setEstado(EstadoComprobante.PENDIENTE_ENVIO));
             resultado.add(ResumenDiarioSunatResponse.from(resumenRepository.saveAndFlush(resumen)));
         }
         return List.copyOf(resultado);
@@ -223,10 +225,18 @@ public class ResumenDiarioSunatPersistenceService {
                 ? EstadoResumenDiarioSunat.ACEPTADO
                 : EstadoResumenDiarioSunat.ACEPTADO_CON_OBSERVACIONES
             : EstadoResumenDiarioSunat.RECHAZADO);
-        EstadoComprobante estado = resultado.aceptado()
-            ? EstadoComprobante.EMITIDO
-            : EstadoComprobante.PENDIENTE_ENVIO;
-        resumen.getComprobantes().forEach(comprobante -> comprobante.setEstado(estado));
+        resumen.getComprobantes().forEach(comprobante -> {
+            if (comprobante.getEstado() == EstadoComprobante.BAJA_PENDIENTE) {
+                if (resultado.aceptado()) {
+                    comprobante.setEstado(EstadoComprobante.ANULADO);
+                    comprobante.setFechaAnulacion(Instant.now());
+                }
+            } else {
+                comprobante.setEstado(resultado.aceptado()
+                    ? EstadoComprobante.EMITIDO
+                    : EstadoComprobante.PENDIENTE_ENVIO);
+            }
+        });
         return ResumenDiarioSunatResponse.from(resumenRepository.saveAndFlush(resumen));
     }
 

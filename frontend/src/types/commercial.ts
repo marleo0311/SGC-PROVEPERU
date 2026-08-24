@@ -9,7 +9,7 @@ export type EstadoVenta = 'REGISTRADA' | 'ANULADA' | 'DEVUELTA_PARCIAL' | 'DEVUE
 export type TipoVenta = 'MINORISTA' | 'MAYORISTA'
 export type CondicionPagoVenta = 'CONTADO' | 'CREDITO' | 'PARCIAL'
 export type TipoComprobanteVenta = 'NOTA_VENTA' | 'BOLETA' | 'FACTURA'
-export type EstadoComprobante = 'EMITIDO' | 'ANULADO' | 'PENDIENTE_ENVIO'
+export type EstadoComprobante = 'EMITIDO' | 'ANULADO' | 'PENDIENTE_ENVIO' | 'BAJA_PENDIENTE'
 export type AmbienteSunat = 'BETA' | 'PRODUCCION'
 export type EstadoEnvioSunat = 'GENERADO' | 'ENVIANDO' | 'ACEPTADO' | 'ACEPTADO_CON_OBSERVACIONES' | 'RECHAZADO' | 'ERROR_COMUNICACION'
 export type EstadoResumenDiarioSunat = 'GENERADO' | 'ENVIANDO' | 'TICKET_RECIBIDO' | 'PROCESANDO' | 'ACEPTADO' | 'ACEPTADO_CON_OBSERVACIONES' | 'RECHAZADO' | 'ERROR_COMUNICACION'
@@ -214,12 +214,31 @@ export interface Comprobante {
   envioSunat: EnvioSunat | null
 }
 
+export type FormatoTicket = 'MM58' | 'MM80'
+
+export interface TicketComprobante {
+  idComprobante: number
+  idVenta: number
+  numeroComprobante: string
+  estado: EstadoComprobante
+  formato: FormatoTicket
+  anchoCaracteres: number
+  codificacion: string
+  incluyeComandosEscPos: boolean
+  fechaGeneracion: string
+  contenido: string
+  qrContenido: string
+  qrImagenPngBase64: string
+}
+
 export interface ConfiguracionSunat {
   habilitado: boolean
   ambiente: AmbienteSunat
   produccionHabilitada: boolean
   certificadoConfigurado: boolean
   credencialesConfiguradas: boolean
+  resumenDiarioAutomatico: boolean
+  resumenDiarioAutoEnviar: boolean
   endpoint: string
   advertencia: string
 }
@@ -254,6 +273,57 @@ export interface ResumenDiarioSunat {
   fechaRespuesta: string | null
   total: number
   boletas: BoletaResumenSunat[]
+  xmlDisponible: boolean
+  cdrDisponible: boolean
+}
+
+export type TipoNotaElectronica = 'CREDITO' | 'DEBITO'
+
+export interface NotaElectronica {
+  id: number
+  idComprobanteOrigen: number
+  comprobanteOrigen: string
+  tipo: TipoNotaElectronica
+  numeroCompleto: string
+  codigoMotivo: string
+  descripcionMotivo: string
+  fechaEmision: string
+  subtotal: number
+  igv: number
+  total: number
+  usuarioLogin: string
+  ambiente: AmbienteSunat
+  estado: EstadoEnvioSunat
+  nombreArchivo: string
+  codigoRespuesta: string | null
+  descripcionRespuesta: string | null
+  observaciones: string[]
+  errorUltimo: string | null
+  intentos: number
+  fechaRespuesta: string | null
+  xmlDisponible: boolean
+  cdrDisponible: boolean
+}
+
+export interface ComunicacionBajaSunat {
+  id: number | null
+  idComprobante: number
+  comprobante: string
+  canal: 'COMUNICACION_BAJA' | 'RESUMEN_DIARIO'
+  motivo: string
+  ambiente: AmbienteSunat
+  fechaDocumento: string
+  fechaGeneracion: string | null
+  estado: EstadoResumenDiarioSunat
+  nombreArchivo: string | null
+  ticket: string | null
+  codigoRespuesta: string | null
+  descripcionRespuesta: string | null
+  observaciones: string[]
+  errorUltimo: string | null
+  intentosEnvio: number
+  consultasEstado: number
+  fechaRespuesta: string | null
   xmlDisponible: boolean
   cdrDisponible: boolean
 }

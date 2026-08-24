@@ -12,8 +12,14 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import pe.com.proveperu.sgc.facturacionelectronica.domain.model.AmbienteSunat;
 import pe.com.proveperu.sgc.facturacionelectronica.domain.model.ResumenDiarioSunat;
+import pe.com.proveperu.sgc.facturacionelectronica.domain.model.EstadoResumenDiarioSunat;
 
 public interface ResumenDiarioSunatRepository extends JpaRepository<ResumenDiarioSunat, Long> {
+
+    @EntityGraph(attributePaths = {"comprobantes"})
+    List<ResumenDiarioSunat> findByEstadoInOrderByFechaCreacionAsc(
+        Set<EstadoResumenDiarioSunat> estados
+    );
 
     @EntityGraph(attributePaths = {"comprobantes"})
     List<ResumenDiarioSunat> findByFechaDocumentosOrderByCorrelativoDesc(LocalDate fechaDocumentos);

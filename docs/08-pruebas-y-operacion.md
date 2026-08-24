@@ -19,14 +19,14 @@ cd backend
 
 La última línea debe indicar `BUILD SUCCESS`.
 
-Línea base validada al 23 de agosto de 2026:
+Línea base validada al 24 de agosto de 2026:
 
-- 360 archivos Java de producción compilados.
-- 27 archivos Java de pruebas compilados.
-- 146 pruebas ejecutadas.
+- 403 archivos Java de producción compilados.
+- 39 archivos Java de pruebas compilados.
+- 183 pruebas ejecutadas entre la suite completa y las nuevas pruebas de exportación/QR.
 - 0 fallos.
 - 0 errores.
-- 24 migraciones Flyway validadas.
+- 27 migraciones Flyway validadas sobre PostgreSQL 17.11.
 
 Después de probar:
 
@@ -75,6 +75,9 @@ La suite backend verifica, entre otros:
 - Caja, arqueo y cierre.
 - Devoluciones y soluciones posventa.
 - Reportes, Swagger y bootstrap administrativo.
+- Exportación XLSX/PDF y contenido QR PNG.
+- UBL de notas de crédito/débito, comunicación de baja y condición 3 de boletas.
+- Envío asíncrono, tickets y estados de Resumen Diario/bajas.
 
 Las pruebas de integración son transaccionales cuando corresponde y usan PostgreSQL real para detectar diferencias de SQL y restricciones.
 

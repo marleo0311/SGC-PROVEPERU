@@ -30,6 +30,7 @@ public class TicketService {
         .withZone(ZONA_NEGOCIO);
 
     private final ComprobanteService comprobanteService;
+    private final QrComprobanteService qrComprobanteService;
 
     @Transactional(readOnly = true)
     public TicketResponse generar(Long idComprobante, FormatoTicket formato) {
@@ -46,6 +47,7 @@ public class TicketService {
         agregarTotales(lineas, comprobante, ancho);
         agregarPie(lineas, representacion, ancho);
 
+        var qr = qrComprobanteService.generar(representacion);
         return new TicketResponse(
             comprobante.id(),
             comprobante.idVenta(),
@@ -56,7 +58,9 @@ public class TicketService {
             "UTF-8",
             false,
             Instant.now(),
-            String.join("\n", lineas)
+            String.join("\n", lineas),
+            qr.contenido(),
+            qr.imagenPngBase64()
         );
     }
 

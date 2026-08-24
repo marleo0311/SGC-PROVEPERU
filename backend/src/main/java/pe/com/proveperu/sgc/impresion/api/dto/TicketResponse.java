@@ -14,6 +14,8 @@ public record TicketResponse(
     String codificacion,
     boolean incluyeComandosEscPos,
     Instant fechaGeneracion,
-    String contenido
+    String contenido,
+    String qrContenido,
+    String qrImagenPngBase64
 ) {
 }

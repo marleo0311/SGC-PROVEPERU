@@ -22,10 +22,10 @@
 | Caja | Sí | Sí | Apertura, movimientos, resumen, arqueo y cierre. |
 | Cuentas por cobrar | Sí | Sí | Crédito de clientes, vencimientos, saldos y cobranzas. |
 | Dashboard | Sí | Sí | Indicadores comerciales, inventario y finanzas. |
-| Devoluciones | Sí | Pendiente | Reembolso, cambio y descuento posventa. |
-| Tickets | Sí | Pendiente | Representación de tickets de 58 mm y 80 mm. |
-| Reportes detallados | Sí | Pendiente | Ventas, inventario, finanzas y caja. |
-| SUNAT | Sí | Sí | UBL 2.1, firma, envío BETA, CDR, seguimiento y descarga desde el detalle de venta. |
+| Devoluciones | Sí | Sí | Reembolso, cambio y descuento posventa. |
+| Tickets | Sí | Sí | Vista previa e impresión de 58/80 mm con QR tributario. |
+| Reportes detallados | Sí | Sí | Ventas, inventario, finanzas y caja con Excel/PDF. |
+| SUNAT | Sí | Sí | UBL, firma, BETA, notas, bajas, Resumen Diario automático, tickets y CDR. |
 
 ## 2. Seguridad y administración
 
@@ -255,4 +255,6 @@ El backend soporta:
 
 Soluciones: `REEMBOLSO`, `CAMBIO`, `DESCUENTO`.
 
-La interfaz web de este módulo todavía está pendiente.
+La interfaz permite filtrar, registrar devoluciones por cantidades, consultar el
+detalle y resolver mediante reembolso, cambio de productos o descuento según los
+permisos del usuario.
