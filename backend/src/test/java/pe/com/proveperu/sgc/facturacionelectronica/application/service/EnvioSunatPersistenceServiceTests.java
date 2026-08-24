@@ -25,8 +25,10 @@ class EnvioSunatPersistenceServiceTests {
     void dirigeBoletaDeProduccionAlFlujoDeResumenDiario() {
         Comprobante comprobante = new Comprobante();
         comprobante.setTipo(TipoComprobanteVenta.BOLETA);
+        comprobante.setAmbiente(AmbienteSunat.PRODUCCION);
         EnvioSunat envio = new EnvioSunat();
         envio.setComprobante(comprobante);
+        envio.setAmbiente(AmbienteSunat.PRODUCCION);
         envio.setEstado(EstadoEnvioSunat.GENERADO);
 
         EnvioSunatRepository envioRepository = mock(EnvioSunatRepository.class);

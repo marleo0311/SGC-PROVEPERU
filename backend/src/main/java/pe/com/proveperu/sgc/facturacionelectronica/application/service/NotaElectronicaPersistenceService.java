@@ -8,8 +8,10 @@ import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import pe.com.proveperu.sgc.comprobante.application.service.CorrelativoComprobanteService;
 import pe.com.proveperu.sgc.comprobante.domain.model.Comprobante;
 import pe.com.proveperu.sgc.comprobante.domain.model.EstadoComprobante;
+import pe.com.proveperu.sgc.comprobante.domain.model.TipoNumeracionComprobante;
 import pe.com.proveperu.sgc.comprobante.infrastructure.persistence.ComprobanteRepository;
 import pe.com.proveperu.sgc.configuracion.domain.model.Empresa;
 import pe.com.proveperu.sgc.configuracion.infrastructure.persistence.EmpresaRepository;
@@ -18,6 +20,7 @@ import pe.com.proveperu.sgc.facturacionelectronica.api.dto.NotaElectronicaRespon
 import pe.com.proveperu.sgc.facturacionelectronica.application.dto.ArchivoElectronico;
 import pe.com.proveperu.sgc.facturacionelectronica.application.dto.DocumentoFirmado;
 import pe.com.proveperu.sgc.facturacionelectronica.application.dto.ResultadoCdr;
+import pe.com.proveperu.sgc.facturacionelectronica.domain.model.AmbienteSunat;
 import pe.com.proveperu.sgc.facturacionelectronica.domain.model.EstadoEnvioSunat;
 import pe.com.proveperu.sgc.facturacionelectronica.domain.model.NotaElectronica;
 import pe.com.proveperu.sgc.facturacionelectronica.domain.model.TipoNotaElectronica;
@@ -43,6 +46,7 @@ public class NotaElectronicaPersistenceService {
     private final GeneradorNotaElectronicaUblService generador;
     private final DocumentoElectronicoService documentoService;
     private final SunatProperties properties;
+    private final CorrelativoComprobanteService correlativoService;
 
     @Transactional
     public NotaElectronicaResponse crear(Long idComprobante, NotaElectronicaCrearRequest request, String login) {
@@ -54,9 +58,14 @@ public class NotaElectronicaPersistenceService {
         NotaElectronica nota = new NotaElectronica();
         nota.setComprobanteOrigen(origen);
         nota.setTipo(request.tipo());
-        nota.setSerie(serie(origen, request.tipo()));
-        Long numero = request.tipo() == TipoNotaElectronica.CREDITO ? repository.siguienteCredito() : repository.siguienteDebito();
-        nota.setNumero("%08d".formatted(numero));
+        var numeracion = correlativoService.siguiente(
+            origen.getVenta().getSede().getIdEmpresa(),
+            origen.getVenta().getSede().getId(),
+            properties.getAmbiente(),
+            tipoNumeracion(origen, request.tipo())
+        );
+        nota.setSerie(numeracion.serie());
+        nota.setNumero(numeracion.numero());
         nota.setCodigoMotivo(request.codigoMotivo());
         nota.setDescripcionMotivo(request.descripcionMotivo().strip());
         nota.setFechaEmision(Instant.now());
@@ -83,6 +92,7 @@ public class NotaElectronicaPersistenceService {
     @Transactional
     public NotaPreparada marcarEnviando(Long id) {
         NotaElectronica nota = repository.findForUpdateById(id).orElseThrow(() -> new RecursoNoEncontradoException("No existe la nota electrónica"));
+        validarAmbiente(nota.getAmbiente());
         if (nota.getEstado().aceptado()) return NotaPreparada.aceptada(NotaElectronicaResponse.from(nota));
         if (nota.getEstado() == EstadoEnvioSunat.ENVIANDO) throw new OperacionNoPermitidaException("La nota electrónica ya se está enviando");
         nota.setEstado(EstadoEnvioSunat.ENVIANDO); nota.setIntentos(nota.getIntentos() + 1); nota.setFechaUltimoIntento(Instant.now()); nota.setErrorUltimo(null);
@@ -110,6 +120,7 @@ public class NotaElectronicaPersistenceService {
     public ArchivoElectronico cdr(Long id) { NotaElectronica nota = nota(id); if (nota.getCdrZip() == null) throw new RecursoNoEncontradoException("La nota todavía no tiene CDR"); return new ArchivoElectronico("R-" + nota.getNombreArchivo() + ".zip", "application/zip", nota.getCdrZip()); }
 
     private void validar(Comprobante origen, NotaElectronicaCrearRequest request) {
+        validarAmbiente(origen.getAmbiente());
         if (origen.getTipo() == TipoComprobanteVenta.NOTA_VENTA) throw new OperacionNoPermitidaException("Las notas electrónicas solo se vinculan a boletas o facturas");
         if (origen.getEstado() != EstadoComprobante.EMITIDO) throw new OperacionNoPermitidaException("El comprobante original debe estar emitido y aceptado");
         Set<String> validos = request.tipo() == TipoNotaElectronica.CREDITO ? MOTIVOS_CREDITO : MOTIVOS_DEBITO;
@@ -119,7 +130,31 @@ public class NotaElectronicaPersistenceService {
     }
 
     private Empresa empresa(Comprobante origen) { return empresaRepository.findById(origen.getVenta().getSede().getIdEmpresa()).orElseThrow(() -> new RecursoNoEncontradoException("No existe la empresa emisora")); }
-    private String serie(Comprobante origen, TipoNotaElectronica tipo) { boolean factura = origen.getTipo() == TipoComprobanteVenta.FACTURA; return tipo == TipoNotaElectronica.CREDITO ? factura ? "FC01" : "BC01" : factura ? "FD01" : "BD01"; }
+    private TipoNumeracionComprobante tipoNumeracion(Comprobante origen, TipoNotaElectronica tipo) {
+        boolean factura = origen.getTipo() == TipoComprobanteVenta.FACTURA;
+        if (tipo == TipoNotaElectronica.CREDITO) {
+            return factura
+                ? TipoNumeracionComprobante.NOTA_CREDITO_FACTURA
+                : TipoNumeracionComprobante.NOTA_CREDITO_BOLETA;
+        }
+        return factura
+            ? TipoNumeracionComprobante.NOTA_DEBITO_FACTURA
+            : TipoNumeracionComprobante.NOTA_DEBITO_BOLETA;
+    }
+    private void validarAmbiente(AmbienteSunat ambiente) {
+        if (ambiente != properties.getAmbiente()) {
+            throw new OperacionNoPermitidaException(
+                "El documento fue generado en " + ambiente
+                    + " y no puede procesarse en " + properties.getAmbiente()
+            );
+        }
+        if (ambiente == AmbienteSunat.PRODUCCION && !properties.isProductionEnabled()) {
+            throw new OperacionNoPermitidaException(
+                "La numeración de producción está bloqueada por "
+                    + "SUNAT_PRODUCTION_ENABLED=false"
+            );
+        }
+    }
     private NotaElectronica nota(Long id) { return repository.findDetalleById(id).orElseThrow(() -> new RecursoNoEncontradoException("No existe la nota electrónica")); }
     private String recortar(String value, int max) { if (value == null) return null; return value.length() <= max ? value : value.substring(0, max); }
 

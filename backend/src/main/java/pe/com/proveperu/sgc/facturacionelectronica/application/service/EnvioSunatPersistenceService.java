@@ -90,6 +90,13 @@ public class EnvioSunatPersistenceService {
             .orElseThrow(() -> new RecursoNoEncontradoException(
                 "Primero genera el XML electrónico del comprobante"
             ));
+        validarAmbiente(envio.getComprobante());
+        if (envio.getAmbiente() != properties.getAmbiente()) {
+            throw new OperacionNoPermitidaException(
+                "El XML fue generado en " + envio.getAmbiente()
+                    + " y no puede enviarse a " + properties.getAmbiente()
+            );
+        }
         if (envio.getEstado().aceptado()) {
             return EnvioPreparado.aceptado(EnvioSunatResponse.from(envio));
         }
@@ -206,10 +213,20 @@ public class EnvioSunatPersistenceService {
     }
 
     private void validarEnvioIndividual(Comprobante comprobante) {
+        validarAmbiente(comprobante);
         if (properties.getAmbiente() == AmbienteSunat.PRODUCCION
             && comprobante.getTipo() == TipoComprobanteVenta.BOLETA) {
             throw new OperacionNoPermitidaException(
                 "Las boletas de producción se preparan y envían desde Resúmenes SUNAT"
+            );
+        }
+    }
+
+    private void validarAmbiente(Comprobante comprobante) {
+        if (comprobante.getAmbiente() != properties.getAmbiente()) {
+            throw new OperacionNoPermitidaException(
+                "El comprobante fue emitido en " + comprobante.getAmbiente()
+                    + " y no puede procesarse en " + properties.getAmbiente()
             );
         }
     }

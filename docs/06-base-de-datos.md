@@ -69,6 +69,8 @@ Esto significa:
 | V25 | `crear_resumenes_diarios_sunat` | Resúmenes de boletas, items, tickets, correlativos y permiso SUNAT. |
 | V26 | `crear_notas_electronicas_y_permisos` | Notas de crédito/débito, XML, CDR, secuencias y permiso. |
 | V27 | `crear_comunicaciones_baja_sunat` | Comunicaciones RA, tickets, CDR y estado de baja pendiente. |
+| V28 | `actualizar_datos_fiscales_empresa` | Datos fiscales del emisor y domicilio principal contrastados con la Ficha RUC. |
+| V29 | `separar_series_y_correlativos_por_ambiente` | Series atómicas de comprobantes y notas, ambiente de emisión y numeración independiente BETA/PRODUCCIÓN. |
 
 Los archivos se encuentran en `backend/src/main/resources/db/migration`.
 
@@ -102,8 +104,9 @@ Los archivos se encuentran en `backend/src/main/resources/db/migration`.
 
 - `cotizacion`, `detalle_cotizacion`.
 - `pedido`, `detalle_pedido`, `reserva_stock`.
-- `venta`, `detalle_venta`, `comprobante`, `envio_sunat`.
+- `venta`, `detalle_venta`, `comprobante`, `serie_comprobante`, `envio_sunat`.
 - `resumen_diario_sunat`, `resumen_diario_sunat_item`, `correlativo_resumen_diario_sunat`.
+- `nota_electronica`, `comunicacion_baja_sunat`.
 - `cuenta_cobrar`, `pago_cliente`.
 - `caja`, `sesion_caja`, `movimiento_caja`.
 
@@ -165,7 +168,7 @@ Nunca editar una migración que ya se aplicó en un entorno compartido. Para el 
 1. Crear un archivo nuevo, por ejemplo:
 
 ```text
-V26__descripcion_del_cambio.sql
+V29__descripcion_del_cambio.sql
 ```
 
 2. Usar SQL compatible con PostgreSQL 17.

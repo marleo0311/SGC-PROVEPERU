@@ -23,9 +23,4 @@ public interface NotaElectronicaRepository extends JpaRepository<NotaElectronica
     @Query("select n from NotaElectronica n where n.id = :id")
     Optional<NotaElectronica> findForUpdateById(@Param("id") Long id);
 
-    @Query(value = "select nextval('nota_credito_numero_seq')", nativeQuery = true)
-    Long siguienteCredito();
-
-    @Query(value = "select nextval('nota_debito_numero_seq')", nativeQuery = true)
-    Long siguienteDebito();
 }

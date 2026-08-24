@@ -13,13 +13,15 @@ import pe.com.proveperu.sgc.comprobante.api.dto.ComprobanteResponse;
 import pe.com.proveperu.sgc.comprobante.api.dto.EmpresaComprobanteResponse;
 import pe.com.proveperu.sgc.comprobante.api.dto.RepresentacionComprobanteResponse;
 import pe.com.proveperu.sgc.comprobante.domain.model.EstadoComprobante;
+import pe.com.proveperu.sgc.facturacionelectronica.domain.model.AmbienteSunat;
 import pe.com.proveperu.sgc.venta.domain.model.TipoComprobanteVenta;
 
 class QrComprobanteServiceTests {
     @Test
     void generaQrPngConCamposTributariosSunat() {
         var comprobante = new ComprobanteResponse(
-            1L, 1L, TipoComprobanteVenta.BOLETA, "B001", "00000049", "B001-00000049",
+            1L, 1L, TipoComprobanteVenta.BOLETA, AmbienteSunat.BETA,
+            "B001", "00000049", "B001-00000049",
             Instant.parse("2026-08-22T15:00:00Z"), new BigDecimal("118.64"),
             new BigDecimal("21.36"), new BigDecimal("140.00"), EstadoComprobante.EMITIDO,
             null, null, null, null, null, null, List.of()

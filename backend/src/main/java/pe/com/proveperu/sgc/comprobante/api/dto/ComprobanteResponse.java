@@ -6,6 +6,7 @@ import java.util.List;
 import pe.com.proveperu.sgc.comprobante.domain.model.Comprobante;
 import pe.com.proveperu.sgc.comprobante.domain.model.EstadoComprobante;
 import pe.com.proveperu.sgc.facturacionelectronica.api.dto.EnvioSunatResponse;
+import pe.com.proveperu.sgc.facturacionelectronica.domain.model.AmbienteSunat;
 import pe.com.proveperu.sgc.venta.api.dto.VentaDetalleResponse;
 import pe.com.proveperu.sgc.venta.api.dto.VentaResumenResponse;
 import pe.com.proveperu.sgc.venta.domain.model.TipoComprobanteVenta;
@@ -14,6 +15,7 @@ public record ComprobanteResponse(
     Long id,
     Long idVenta,
     TipoComprobanteVenta tipo,
+    AmbienteSunat ambiente,
     String serie,
     String numero,
     String numeroCompleto,
@@ -35,6 +37,7 @@ public record ComprobanteResponse(
             comprobante.getId(),
             comprobante.getVenta().getId(),
             comprobante.getTipo(),
+            comprobante.getAmbiente(),
             comprobante.getSerie(),
             comprobante.getNumero(),
             comprobante.getNumeroCompleto(),

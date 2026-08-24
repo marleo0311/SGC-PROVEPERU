@@ -18,6 +18,7 @@ import java.time.Instant;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import pe.com.proveperu.sgc.facturacionelectronica.domain.model.AmbienteSunat;
 import pe.com.proveperu.sgc.security.domain.model.Usuario;
 import pe.com.proveperu.sgc.facturacionelectronica.domain.model.EnvioSunat;
 import pe.com.proveperu.sgc.venta.domain.model.TipoComprobanteVenta;
@@ -48,6 +49,10 @@ public class Comprobante {
 
     @Column(name = "numero", nullable = false, length = 30)
     private String numero;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "ambiente", nullable = false, length = 20)
+    private AmbienteSunat ambiente;
 
     @Column(name = "fecha_emision", nullable = false, updatable = false)
     private Instant fechaEmision;

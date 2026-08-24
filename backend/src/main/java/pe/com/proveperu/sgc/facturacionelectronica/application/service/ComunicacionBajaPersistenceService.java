@@ -15,6 +15,7 @@ import pe.com.proveperu.sgc.facturacionelectronica.api.dto.ComunicacionBajaRespo
 import pe.com.proveperu.sgc.facturacionelectronica.application.dto.ArchivoElectronico;
 import pe.com.proveperu.sgc.facturacionelectronica.application.dto.DocumentoFirmado;
 import pe.com.proveperu.sgc.facturacionelectronica.application.dto.ResultadoCdr;
+import pe.com.proveperu.sgc.facturacionelectronica.domain.model.AmbienteSunat;
 import pe.com.proveperu.sgc.facturacionelectronica.domain.model.ComunicacionBajaSunat;
 import pe.com.proveperu.sgc.facturacionelectronica.domain.model.EstadoResumenDiarioSunat;
 import pe.com.proveperu.sgc.facturacionelectronica.infrastructure.config.SunatProperties;
@@ -109,6 +110,7 @@ public class ComunicacionBajaPersistenceService {
     @Transactional
     public BajaPreparada marcarEnviando(Long id) {
         ComunicacionBajaSunat baja = bloqueada(id);
+        validarAmbiente(baja.getAmbiente());
         if (baja.getEstado().aceptado()) return BajaPreparada.terminada(ComunicacionBajaResponse.from(baja));
         if (baja.getTicket() != null && !baja.getTicket().isBlank()) throw new OperacionNoPermitidaException("La baja ya tiene ticket; consulta su estado");
         baja.setEstado(EstadoResumenDiarioSunat.ENVIANDO);
@@ -169,10 +171,19 @@ public class ComunicacionBajaPersistenceService {
     public ArchivoElectronico cdr(Long id) { ComunicacionBajaSunat b = baja(id); if (b.getCdrZip() == null) throw new RecursoNoEncontradoException("La comunicación todavía no tiene CDR"); return new ArchivoElectronico("R-" + b.getNombreArchivo() + ".zip", "application/zip", b.getCdrZip()); }
 
     private void validar(Comprobante comprobante) {
+        validarAmbiente(comprobante.getAmbiente());
         if (comprobante.getTipo() == TipoComprobanteVenta.NOTA_VENTA) throw new OperacionNoPermitidaException("Una nota de venta interna no se comunica a SUNAT");
         if (comprobante.getEstado() != EstadoComprobante.EMITIDO) throw new OperacionNoPermitidaException("El comprobante no está disponible para solicitar la baja");
         LocalDate fecha = comprobante.getFechaEmision().atZone(LIMA).toLocalDate();
         if (LocalDate.now(LIMA).isAfter(fecha.plusDays(7))) throw new ReglaNegocioException("La baja excede el plazo de siete días calendario; utiliza una nota de crédito cuando corresponda");
+    }
+    private void validarAmbiente(AmbienteSunat ambiente) {
+        if (ambiente != properties.getAmbiente()) {
+            throw new OperacionNoPermitidaException(
+                "El documento fue generado en " + ambiente
+                    + " y no puede procesarse en " + properties.getAmbiente()
+            );
+        }
     }
     private Empresa empresa(Comprobante c) { return empresaRepository.findById(c.getVenta().getSede().getIdEmpresa()).orElseThrow(() -> new RecursoNoEncontradoException("No existe la empresa emisora")); }
     private ComunicacionBajaSunat baja(Long id) { return repository.findDetalleById(id).orElseThrow(() -> new RecursoNoEncontradoException("No existe la comunicación de baja")); }

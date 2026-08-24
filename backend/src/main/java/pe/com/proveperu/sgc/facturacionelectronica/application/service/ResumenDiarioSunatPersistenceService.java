@@ -71,6 +71,7 @@ public class ResumenDiarioSunatPersistenceService {
         Instant hasta = fechaDocumentos.plusDays(1).atStartOfDay(LIMA).toInstant();
         List<Comprobante> encontrados = comprobanteRepository.findParaResumenDiario(
             TipoComprobanteVenta.BOLETA,
+            ambiente,
             desde,
             hasta
         );

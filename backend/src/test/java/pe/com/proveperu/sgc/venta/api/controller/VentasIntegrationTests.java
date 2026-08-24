@@ -89,7 +89,8 @@ import pe.com.proveperu.sgc.venta.infrastructure.persistence.VentaRepository;
 
 @SpringBootTest(properties = {
     "app.security.jwt.secret=MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=",
-    "app.sunat.enabled=false"
+    "app.sunat.enabled=false",
+    "app.sunat.ambiente=BETA"
 })
 @AutoConfigureMockMvc
 @Transactional
@@ -802,7 +803,8 @@ class VentasIntegrationTests {
                     PermisosVenta.COMPROBANTES_VER
                 )))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.serie").value("B001"));
+            .andExpect(jsonPath("$.serie").value("B001"))
+            .andExpect(jsonPath("$.ambiente").value("BETA"));
 
         Cliente empresa = new Cliente();
         empresa.setTipoPersona(TipoPersona.JURIDICA);
@@ -838,7 +840,8 @@ class VentasIntegrationTests {
                     PermisosVenta.COMPROBANTES_VER
                 )))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.serie").value("F001"));
+            .andExpect(jsonPath("$.serie").value("F001"))
+            .andExpect(jsonPath("$.ambiente").value("BETA"));
     }
 
     @Test

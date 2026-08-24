@@ -201,6 +201,7 @@ export interface Comprobante {
   id: number
   idVenta: number
   tipo: TipoComprobanteVenta
+  ambiente: AmbienteSunat
   serie: string
   numero: string
   numeroCompleto: string

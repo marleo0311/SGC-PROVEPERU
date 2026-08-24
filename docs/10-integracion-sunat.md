@@ -35,6 +35,18 @@ Antes de probar se necesita:
 4. Certificado digital vigente con llave privada exportado como PKCS#12.
 5. Revisión contable de los datos y escenarios que se transmitirán.
 
+Los datos del emisor y del domicilio principal fueron contrastados con la Ficha
+RUC emitida el 24/08/2026 y se versionan mediante la migración V28. La empresa
+figura activa, habida y habilitada como emisora electrónica de factura y boleta.
+El ubigeo oficial del distrito La Victoria, provincia Chiclayo, departamento
+Lambayeque, es `140106`; el establecimiento principal conserva el código `0000`.
+
+Las facturas y boletas que la empresa emitió directamente desde SEE-SOL utilizan
+la numeración propia del portal. Se confirmó que las series del sistema del
+contribuyente `F001` y `B001` no habían sido utilizadas en producción. La migración
+V29 las reserva para la sede principal con correlativo inicial cero, de modo que el
+primer comprobante real será `F001-00000001` o `B001-00000001`.
+
 SUNAT publica las especificaciones vigentes en su
 [página de guías y manuales](https://cpe.sunat.gob.pe/guias-y-manuales), el
 [manual del programador](https://cpe.sunat.gob.pe/sites/default/files/inline-files/manual_programador%20%281%29.pdf)
@@ -80,6 +92,30 @@ GET /api/v1/sunat/configuracion
 
 Debe indicar `habilitado: true`, `ambiente: BETA` y
 `certificadoConfigurado: true`. Esta respuesta no incluye valores sensibles.
+
+### Series y correlativos
+
+`serie_comprobante` mantiene una serie activa por sede, ambiente y tipo documental.
+La reserva se realiza con una actualización atómica en PostgreSQL, por lo que dos
+ventas simultáneas no pueden recibir el mismo número. La serie tampoco puede
+reutilizarse en otra sede de la misma empresa y ambiente.
+
+Los documentos existentes antes de V29 se clasifican como `BETA`. La configuración
+inicial de la sede principal es:
+
+| Ambiente | Documento | Serie | Primer número disponible |
+| --- | --- | --- | --- |
+| BETA | Boleta / factura | `B001` / `F001` | Continúa desde el último documento de prueba. |
+| PRODUCCIÓN | Boleta / factura | `B001` / `F001` | `00000001`. |
+| PRODUCCIÓN | Notas de boleta | `BC01` / `BD01` | `00000001`. |
+| PRODUCCIÓN | Notas de factura | `FC01` / `FD01` | `00000001`. |
+
+El comprobante conserva su ambiente de emisión. El backend rechaza preparar,
+enviar, resumir, generar notas o solicitar bajas desde un ambiente diferente.
+Mientras `SUNAT_AMBIENTE=PRODUCCION` y
+`SUNAT_PRODUCTION_ENABLED=false`, también se bloquea la asignación de números
+reales para boletas y facturas. Para seguir haciendo pruebas se debe conservar
+`SUNAT_AMBIENTE=BETA`.
 
 ## 4. Flujo desde la interfaz
 
@@ -197,6 +233,10 @@ SUNAT_ENABLED=true
 SUNAT_AMBIENTE=PRODUCCION
 SUNAT_PRODUCTION_ENABLED=true
 ```
+
+`SUNAT_PRODUCTION_ENABLED` habilita tanto la numeración real como la transmisión.
+Debe cambiarse a `true` únicamente al iniciar el piloto controlado; antes de ese
+momento producción conserva `B001` y `F001` con correlativo cero.
 
 Aun con las tres variables, no habilitar producción hasta probar el Resumen Diario
 contra BETA con casos representativos, confirmar series y datos del emisor, revisar

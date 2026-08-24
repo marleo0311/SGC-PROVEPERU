@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import pe.com.proveperu.sgc.comprobante.domain.model.Comprobante;
+import pe.com.proveperu.sgc.facturacionelectronica.domain.model.AmbienteSunat;
 import pe.com.proveperu.sgc.venta.domain.model.TipoComprobanteVenta;
 
 public interface ComprobanteRepository extends JpaRepository<Comprobante, Long> {
@@ -57,12 +58,6 @@ public interface ComprobanteRepository extends JpaRepository<Comprobante, Long> 
     @Query(value = "select nextval('comprobante_nota_venta_seq')", nativeQuery = true)
     Long siguienteNotaVenta();
 
-    @Query(value = "select nextval('comprobante_boleta_seq')", nativeQuery = true)
-    Long siguienteBoleta();
-
-    @Query(value = "select nextval('comprobante_factura_seq')", nativeQuery = true)
-    Long siguienteFactura();
-
     @EntityGraph(attributePaths = {
         "venta",
         "venta.cliente",
@@ -72,6 +67,7 @@ public interface ComprobanteRepository extends JpaRepository<Comprobante, Long> 
     @Query("""
         select distinct c from Comprobante c
         where c.tipo = :tipo
+          and c.ambiente = :ambiente
           and c.fechaEmision >= :desde
           and c.fechaEmision < :hasta
           and c.estado <> pe.com.proveperu.sgc.comprobante.domain.model.EstadoComprobante.ANULADO
@@ -79,6 +75,7 @@ public interface ComprobanteRepository extends JpaRepository<Comprobante, Long> 
         """)
     List<Comprobante> findParaResumenDiario(
         @Param("tipo") TipoComprobanteVenta tipo,
+        @Param("ambiente") AmbienteSunat ambiente,
         @Param("desde") Instant desde,
         @Param("hasta") Instant hasta
     );

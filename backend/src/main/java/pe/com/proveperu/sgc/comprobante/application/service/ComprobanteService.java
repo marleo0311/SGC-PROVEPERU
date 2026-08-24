@@ -13,12 +13,15 @@ import pe.com.proveperu.sgc.comprobante.api.dto.EmpresaComprobanteResponse;
 import pe.com.proveperu.sgc.comprobante.api.dto.RepresentacionComprobanteResponse;
 import pe.com.proveperu.sgc.comprobante.domain.model.Comprobante;
 import pe.com.proveperu.sgc.comprobante.domain.model.EstadoComprobante;
+import pe.com.proveperu.sgc.comprobante.domain.model.TipoNumeracionComprobante;
 import pe.com.proveperu.sgc.comprobante.infrastructure.persistence.ComprobanteRepository;
 import pe.com.proveperu.sgc.configuracion.domain.model.Empresa;
 import pe.com.proveperu.sgc.configuracion.infrastructure.persistence.EmpresaRepository;
 import pe.com.proveperu.sgc.security.application.exception.OperacionNoPermitidaException;
 import pe.com.proveperu.sgc.security.application.exception.RecursoNoEncontradoException;
 import pe.com.proveperu.sgc.security.domain.model.Usuario;
+import pe.com.proveperu.sgc.facturacionelectronica.domain.model.AmbienteSunat;
+import pe.com.proveperu.sgc.facturacionelectronica.infrastructure.config.SunatProperties;
 import pe.com.proveperu.sgc.venta.domain.model.TipoComprobanteVenta;
 import pe.com.proveperu.sgc.venta.domain.model.Venta;
 
@@ -30,6 +33,8 @@ public class ComprobanteService {
 
     private final ComprobanteRepository comprobanteRepository;
     private final EmpresaRepository empresaRepository;
+    private final CorrelativoComprobanteService correlativoService;
+    private final SunatProperties sunatProperties;
 
     @Transactional
     public Comprobante emitirParaVenta(Venta venta) {
@@ -40,13 +45,12 @@ public class ComprobanteService {
             return existente;
         }
         validarEmision(venta);
+        validarNumeracionProduccion(venta.getTipoComprobante());
         Comprobante comprobante = new Comprobante();
         comprobante.setVenta(venta);
         comprobante.setTipo(venta.getTipoComprobante());
-        comprobante.setSerie(serie(venta.getTipoComprobante()));
-        comprobante.setNumero("%08d".formatted(siguienteNumero(
-            venta.getTipoComprobante()
-        )));
+        comprobante.setAmbiente(sunatProperties.getAmbiente());
+        asignarNumeracion(comprobante, venta);
         comprobante.setSubtotal(venta.getSubtotal());
         comprobante.setIgv(venta.getIgv());
         comprobante.setTotal(venta.getTotal());
@@ -149,20 +153,33 @@ public class ComprobanteService {
             ));
     }
 
-    private Long siguienteNumero(TipoComprobanteVenta tipo) {
-        return switch (tipo) {
-            case NOTA_VENTA -> comprobanteRepository.siguienteNotaVenta();
-            case BOLETA -> comprobanteRepository.siguienteBoleta();
-            case FACTURA -> comprobanteRepository.siguienteFactura();
-        };
+    private void asignarNumeracion(Comprobante comprobante, Venta venta) {
+        if (venta.getTipoComprobante() == TipoComprobanteVenta.NOTA_VENTA) {
+            comprobante.setSerie("NV01");
+            comprobante.setNumero("%08d".formatted(
+                comprobanteRepository.siguienteNotaVenta()
+            ));
+            return;
+        }
+        var numeracion = correlativoService.siguiente(
+            venta.getSede().getIdEmpresa(),
+            venta.getSede().getId(),
+            sunatProperties.getAmbiente(),
+            TipoNumeracionComprobante.valueOf(venta.getTipoComprobante().name())
+        );
+        comprobante.setSerie(numeracion.serie());
+        comprobante.setNumero(numeracion.numero());
     }
 
-    private String serie(TipoComprobanteVenta tipo) {
-        return switch (tipo) {
-            case NOTA_VENTA -> "NV01";
-            case BOLETA -> "B001";
-            case FACTURA -> "F001";
-        };
+    private void validarNumeracionProduccion(TipoComprobanteVenta tipo) {
+        if (tipo != TipoComprobanteVenta.NOTA_VENTA
+            && sunatProperties.getAmbiente() == AmbienteSunat.PRODUCCION
+            && !sunatProperties.isProductionEnabled()) {
+            throw new OperacionNoPermitidaException(
+                "La numeración de producción está bloqueada por "
+                    + "SUNAT_PRODUCTION_ENABLED=false"
+            );
+        }
     }
 
     private String titulo(TipoComprobanteVenta tipo) {
