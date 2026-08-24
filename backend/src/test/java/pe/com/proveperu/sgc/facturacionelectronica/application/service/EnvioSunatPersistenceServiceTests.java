@@ -22,7 +22,7 @@ import pe.com.proveperu.sgc.venta.domain.model.TipoComprobanteVenta;
 class EnvioSunatPersistenceServiceTests {
 
     @Test
-    void bloqueaBoletaEnProduccionMientrasNoExistaResumenDiario() {
+    void dirigeBoletaDeProduccionAlFlujoDeResumenDiario() {
         Comprobante comprobante = new Comprobante();
         comprobante.setTipo(TipoComprobanteVenta.BOLETA);
         EnvioSunat envio = new EnvioSunat();
@@ -44,7 +44,7 @@ class EnvioSunatPersistenceServiceTests {
 
         assertThatThrownBy(() -> service.marcarEnviando(91L))
             .isInstanceOf(OperacionNoPermitidaException.class)
-            .hasMessageContaining("resumen diario SUNAT");
+            .hasMessageContaining("Resúmenes SUNAT");
         verify(envioRepository, never()).saveAndFlush(envio);
     }
 }

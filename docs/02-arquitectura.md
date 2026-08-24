@@ -20,7 +20,7 @@ Spring Boot 4 + Java 21           puerto 8080
 PostgreSQL 17                     puerto 5432
    ▲
    │
-Flyway V1–V24 controla el esquema
+Flyway V1–V25 controla el esquema
 ```
 
 Docker Compose administra PostgreSQL. El backend y el frontend se ejecutan como procesos locales durante el desarrollo.

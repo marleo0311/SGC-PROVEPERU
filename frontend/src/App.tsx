@@ -16,6 +16,7 @@ import { ProductsPage } from './pages/ProductsPage'
 import { PurchasesPage } from './pages/PurchasesPage'
 import { PermissionsPage, RolesPage, UsersPage } from './pages/SecurityPages'
 import { SuppliersPage } from './pages/SuppliersPage'
+import { SunatDailySummariesPage } from './pages/SunatDailySummariesPage'
 import { ProtectedRoute } from './router/ProtectedRoute'
 
 export default function App() {
@@ -43,6 +44,7 @@ export default function App() {
           <Route path="pedidos" element={<OrdersPage />} />
           <Route path="ventas" element={<SalesPage />} />
           <Route path="comprobantes" element={<ReceiptsPage />} />
+          <Route path="resumenes-sunat" element={<SunatDailySummariesPage />} />
           <Route path="caja" element={<CashPage />} />
           <Route path=":module" element={<ModulePage />} />
         </Route>

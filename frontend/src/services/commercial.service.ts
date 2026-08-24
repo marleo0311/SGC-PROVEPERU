@@ -17,6 +17,7 @@ import type {
   Venta,
   VentaCrearRequest,
   EnvioSunat,
+  ResumenDiarioSunat,
 } from '../types/commercial'
 import { api } from './api'
 
@@ -45,6 +46,11 @@ export async function getSunatConfiguration(): Promise<ConfiguracionSunat> { con
 export async function prepareReceiptForSunat(id: number): Promise<EnvioSunat> { const { data } = await api.post<EnvioSunat>(`/v1/comprobantes/${id}/sunat/preparar`); return data }
 export async function sendReceiptToSunat(id: number): Promise<EnvioSunat> { const { data } = await api.post<EnvioSunat>(`/v1/comprobantes/${id}/sunat/enviar`); return data }
 export async function downloadSunatFile(id: number, kind: 'xml' | 'cdr'): Promise<Blob> { const { data } = await api.get<Blob>(`/v1/comprobantes/${id}/sunat/${kind}`, { responseType: 'blob' }); return data }
+export async function listDailySummaries(fechaEmision?: string): Promise<ResumenDiarioSunat[]> { const { data } = await api.get<ResumenDiarioSunat[]>('/v1/sunat/resumenes-diarios', { params: { fechaEmision: fechaEmision || undefined } }); return data }
+export async function prepareDailySummaries(fechaEmision: string): Promise<ResumenDiarioSunat[]> { const { data } = await api.post<ResumenDiarioSunat[]>('/v1/sunat/resumenes-diarios', { fechaEmision }); return data }
+export async function sendDailySummary(id: number): Promise<ResumenDiarioSunat> { const { data } = await api.post<ResumenDiarioSunat>(`/v1/sunat/resumenes-diarios/${id}/enviar`); return data }
+export async function checkDailySummary(id: number): Promise<ResumenDiarioSunat> { const { data } = await api.post<ResumenDiarioSunat>(`/v1/sunat/resumenes-diarios/${id}/consultar`); return data }
+export async function downloadDailySummaryFile(id: number, kind: 'xml' | 'cdr'): Promise<Blob> { const { data } = await api.get<Blob>(`/v1/sunat/resumenes-diarios/${id}/${kind}`, { responseType: 'blob' }); return data }
 
 function commercialParams(filters: FiltrosComerciales) {
   return { idCliente: filters.idCliente || undefined, estado: filters.estado || undefined, desde: filters.desde || undefined, hasta: filters.hasta || undefined, page: filters.page, size: filters.size }

@@ -11,6 +11,7 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import org.springframework.stereotype.Component;
 import org.w3c.dom.Document;
 import org.w3c.dom.NodeList;
+import pe.com.proveperu.sgc.facturacionelectronica.application.dto.EstadoTicketSunat;
 import pe.com.proveperu.sgc.facturacionelectronica.application.port.SunatGateway;
 import pe.com.proveperu.sgc.facturacionelectronica.infrastructure.config.SunatProperties;
 
@@ -30,12 +31,39 @@ public class SunatSoapClient implements SunatGateway {
     @Override
     public byte[] enviarComprobante(String ruc, String nombreZip, byte[] contenidoZip) {
         validarConfiguracion();
-        String envelope = envelope(
+        String envelope = envelopeSendBill(
             properties.username(ruc),
             properties.getClaveSol(),
             nombreZip,
             Base64.getEncoder().encodeToString(contenidoZip)
         );
+        return extraerCdr(enviarSoap(envelope));
+    }
+
+    @Override
+    public String enviarResumen(String ruc, String nombreZip, byte[] contenidoZip) {
+        validarConfiguracion();
+        String envelope = envelopeSendSummary(
+            properties.username(ruc),
+            properties.getClaveSol(),
+            nombreZip,
+            Base64.getEncoder().encodeToString(contenidoZip)
+        );
+        return extraerTicket(enviarSoap(envelope));
+    }
+
+    @Override
+    public EstadoTicketSunat consultarTicket(String ruc, String ticket) {
+        validarConfiguracion();
+        String envelope = envelopeGetStatus(
+            properties.username(ruc),
+            properties.getClaveSol(),
+            ticket
+        );
+        return extraerEstadoTicket(enviarSoap(envelope));
+    }
+
+    private byte[] enviarSoap(String envelope) {
         HttpRequest request = HttpRequest.newBuilder(properties.endpoint())
             .timeout(properties.getReadTimeout())
             .header("Content-Type", "text/xml; charset=UTF-8")
@@ -52,7 +80,7 @@ public class SunatSoapClient implements SunatGateway {
                     "SUNAT respondió con HTTP " + response.statusCode()
                 );
             }
-            return extraerCdr(response.body());
+            return response.body();
         } catch (IntegracionSunatException exception) {
             throw exception;
         } catch (InterruptedException exception) {
@@ -69,17 +97,7 @@ public class SunatSoapClient implements SunatGateway {
     byte[] extraerCdr(byte[] soap) {
         try {
             Document document = parsear(soap);
-            String fault = texto(document, "faultstring");
-            if (fault != null) {
-                String code = texto(document, "faultcode");
-                throw new RechazoSunatException(
-                    codigoFault(code),
-                    "SUNAT rechazó la solicitud%s: %s".formatted(
-                        code == null ? "" : " (" + code + ")",
-                        fault
-                    )
-                );
-            }
+            validarFault(document);
             String applicationResponse = texto(document, "applicationResponse");
             if (applicationResponse == null || applicationResponse.isBlank()) {
                 throw new IntegracionSunatException("La respuesta SOAP de SUNAT no contiene un CDR");
@@ -89,6 +107,57 @@ public class SunatSoapClient implements SunatGateway {
             throw exception;
         } catch (Exception exception) {
             throw new IntegracionSunatException("No se pudo interpretar la respuesta SOAP de SUNAT", exception);
+        }
+    }
+
+    String extraerTicket(byte[] soap) {
+        try {
+            Document document = parsear(soap);
+            validarFault(document);
+            String ticket = texto(document, "ticket");
+            if (ticket == null || ticket.isBlank()) {
+                throw new IntegracionSunatException(
+                    "La respuesta SOAP de SUNAT no contiene el ticket del resumen"
+                );
+            }
+            return ticket.strip();
+        } catch (IntegracionSunatException exception) {
+            throw exception;
+        } catch (Exception exception) {
+            throw new IntegracionSunatException(
+                "No se pudo interpretar el ticket devuelto por SUNAT",
+                exception
+            );
+        }
+    }
+
+    EstadoTicketSunat extraerEstadoTicket(byte[] soap) {
+        try {
+            Document document = parsear(soap);
+            validarFault(document);
+            String codigo = texto(document, "statusCode");
+            if (codigo == null || codigo.isBlank()) {
+                throw new IntegracionSunatException(
+                    "La respuesta SOAP de SUNAT no contiene el estado del ticket"
+                );
+            }
+            String mensaje = texto(document, "statusMessage");
+            String content = texto(document, "content");
+            byte[] contenido = content == null || content.isBlank()
+                ? null
+                : Base64.getMimeDecoder().decode(content.strip());
+            return new EstadoTicketSunat(
+                codigo.strip(),
+                mensaje == null || mensaje.isBlank() ? null : mensaje.strip(),
+                contenido
+            );
+        } catch (IntegracionSunatException exception) {
+            throw exception;
+        } catch (Exception exception) {
+            throw new IntegracionSunatException(
+                "No se pudo interpretar el estado del ticket SUNAT",
+                exception
+            );
         }
     }
 
@@ -110,7 +179,7 @@ public class SunatSoapClient implements SunatGateway {
         }
     }
 
-    private String envelope(
+    private String envelopeSendBill(
         String username,
         String password,
         String fileName,
@@ -142,6 +211,64 @@ public class SunatSoapClient implements SunatGateway {
                 escape(fileName),
                 content
             );
+    }
+
+    private String envelopeSendSummary(
+        String username,
+        String password,
+        String fileName,
+        String content
+    ) {
+        return envelopeWithSecurity(username, password, """
+                <ser:sendSummary>
+                  <fileName>%s</fileName>
+                  <contentFile>%s</contentFile>
+                </ser:sendSummary>
+            """.formatted(escape(fileName), content));
+    }
+
+    private String envelopeGetStatus(String username, String password, String ticket) {
+        return envelopeWithSecurity(username, password, """
+                <ser:getStatus>
+                  <ticket>%s</ticket>
+                </ser:getStatus>
+            """.formatted(escape(ticket)));
+    }
+
+    private String envelopeWithSecurity(String username, String password, String body) {
+        return """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                              xmlns:ser="http://service.sunat.gob.pe"
+                              xmlns:wsse="http://schemas.xmlsoap.org/ws/2002/12/secext">
+              <soapenv:Header>
+                <wsse:Security>
+                  <wsse:UsernameToken>
+                    <wsse:Username>%s</wsse:Username>
+                    <wsse:Password>%s</wsse:Password>
+                  </wsse:UsernameToken>
+                </wsse:Security>
+              </soapenv:Header>
+              <soapenv:Body>
+            %s
+              </soapenv:Body>
+            </soapenv:Envelope>
+            """.formatted(escape(username), escape(password), body);
+    }
+
+    private void validarFault(Document document) {
+        String fault = texto(document, "faultstring");
+        if (fault == null) {
+            return;
+        }
+        String code = texto(document, "faultcode");
+        throw new RechazoSunatException(
+            codigoFault(code),
+            "SUNAT rechazó la solicitud%s: %s".formatted(
+                code == null ? "" : " (" + code + ")",
+                fault
+            )
+        );
     }
 
     private Document parsear(byte[] xml) throws Exception {

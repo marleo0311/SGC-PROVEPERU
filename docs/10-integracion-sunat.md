@@ -10,6 +10,7 @@ El repositorio contiene la primera integración técnica del SEE del Contribuyen
 - Firma XMLDSig RSA-SHA256 con certificado PKCS#12 (`.p12` o `.pfx`).
 - Empaquetado ZIP y hash SHA-256 del XML firmado.
 - Envío SOAP mediante `sendBill` a BETA o producción.
+- Resumen Diario UBL 2.0 para boletas, con `sendSummary`, ticket y `getStatus`.
 - Interpretación y almacenamiento del CDR.
 - Estados, intentos, respuesta, observaciones y error de comunicación persistentes.
 - Consulta y acciones desde el detalle de una venta.
@@ -20,8 +21,8 @@ efectuado ninguna transmisión a producción; las credenciales SOL y el certific
 siguen siendo secretos del titular.
 
 La primera versión admite solo operaciones gravadas con IGV. Las notas de venta
-son internas. En producción las boletas se bloquean hasta implementar el resumen
-diario, que SUNAT exige para ese tipo de comprobante.
+son internas. Las facturas se transmiten individualmente; en producción las
+boletas se agrupan por fecha de emisión mediante Resumen Diario.
 
 ## 2. Requisitos del titular
 
@@ -79,6 +80,8 @@ Debe indicar `habilitado: true`, `ambiente: BETA` y
 
 ## 4. Flujo desde la interfaz
 
+### Facturas e individuales en BETA
+
 1. Registrar una venta afecta con boleta o factura.
 2. Abrir el detalle de la venta.
 3. Revisar el bloque **Facturación electrónica SUNAT**.
@@ -93,6 +96,25 @@ Debe indicar `habilitado: true`, `ambiente: BETA` y
 indica que no se completó la comunicación y permite reintentar el mismo comprobante.
 No se debe registrar otra venta para suplir un reintento.
 
+### Boletas en producción
+
+1. Abrir **Control → Resúmenes SUNAT**.
+2. Seleccionar la fecha de emisión de las boletas. No puede ser futura ni superar
+   el plazo de siete días calendario configurado por la regla local.
+3. Pulsar **Generar resumen**. El sistema crea XML `SummaryDocuments` UBL 2.0,
+   firma y divide automáticamente más de 500 boletas en archivos separados.
+4. Pulsar **Enviar y obtener ticket**. `sendSummary` devuelve un ticket asíncrono.
+5. Pulsar **Consultar ticket**. El código `98` significa que sigue procesando;
+   `0` o `99` finalizan la consulta y permiten interpretar el CDR.
+6. Revisar la respuesta y conservar XML firmado y CDR.
+
+Una boleta incluida en un resumen no vuelve a incorporarse en otro resumen del
+mismo ambiente. Los correlativos son independientes por ambiente y fecha, y la
+reserva atómica evita duplicaciones si dos usuarios generan al mismo tiempo.
+Para cliente ocasional se informan guiones en los campos de identificación según
+el formato SUNAT. Si una boleta supera S/ 700.00, el sistema exige que el cliente
+tenga documento antes de generar el resumen.
+
 ## 5. API y permisos
 
 | Método | Ruta | Permiso | Resultado |
@@ -103,9 +125,17 @@ No se debe registrar otra venta para suplir un reintento.
 | POST | `/api/v1/comprobantes/{id}/sunat/enviar` | `VEN_SUNAT_ENVIAR` | CDR y estado actualizado. |
 | GET | `/api/v1/comprobantes/{id}/sunat/xml` | `VEN_COMPROBANTES_VER` | Descarga XML. |
 | GET | `/api/v1/comprobantes/{id}/sunat/cdr` | `VEN_COMPROBANTES_VER` | Descarga ZIP del CDR. |
+| GET | `/api/v1/sunat/resumenes-diarios` | `VEN_COMPROBANTES_VER` | Lista resúmenes y boletas incluidas. |
+| POST | `/api/v1/sunat/resumenes-diarios` | `VEN_SUNAT_RESUMENES_GESTIONAR` | Genera y firma pendientes de una fecha. |
+| POST | `/api/v1/sunat/resumenes-diarios/{id}/enviar` | `VEN_SUNAT_RESUMENES_GESTIONAR` | Ejecuta `sendSummary` y guarda el ticket. |
+| POST | `/api/v1/sunat/resumenes-diarios/{id}/consultar` | `VEN_SUNAT_RESUMENES_GESTIONAR` | Ejecuta `getStatus` y procesa el CDR. |
+| GET | `/api/v1/sunat/resumenes-diarios/{id}/xml` | `VEN_COMPROBANTES_VER` | Descarga XML firmado. |
+| GET | `/api/v1/sunat/resumenes-diarios/{id}/cdr` | `VEN_COMPROBANTES_VER` | Descarga CDR del resumen. |
 
-El rol Administrador recibe `VEN_SUNAT_ENVIAR` por la migración V23. Los demás
-roles deben recibirlo expresamente desde la administración de roles.
+El rol Administrador recibe `VEN_SUNAT_ENVIAR` por V23 y
+`VEN_SUNAT_RESUMENES_GESTIONAR` por V25. Los demás roles deben recibirlos
+expresamente desde la administración de roles. Se recomienda reservar ambos al
+rol de Facturación SUNAT y al Administrador.
 
 ## 6. Estados y persistencia
 
@@ -123,6 +153,11 @@ La tabla `envio_sunat` mantiene una relación única con `comprobante`:
 También conserva nombre de archivo, ambiente, hash, XML, ZIP, CDR, código y
 descripción de respuesta, observaciones, último error, número de intentos y fechas.
 
+`resumen_diario_sunat` conserva el archivo, ticket, estado, consultas y CDR del
+envío agrupado. `resumen_diario_sunat_item` relaciona cada resumen con sus boletas
+y `correlativo_resumen_diario_sunat` reserva el correlativo por fecha y ambiente.
+Sus estados adicionales son `TICKET_RECIBIDO` y `PROCESANDO`.
+
 ## 7. Protección de producción
 
 Para evitar una activación accidental se requieren simultáneamente:
@@ -133,10 +168,11 @@ SUNAT_AMBIENTE=PRODUCCION
 SUNAT_PRODUCTION_ENABLED=true
 ```
 
-Aun con las tres variables, el backend rechaza boletas porque falta su resumen
-diario. No habilitar producción hasta completar el roadmap, validar BETA con casos
-representativos, confirmar series y datos del emisor, revisar las reglas SUNAT
-vigentes y aprobar formalmente la salida con el responsable contable.
+Aun con las tres variables, no habilitar producción hasta probar el Resumen Diario
+contra BETA con casos representativos, confirmar series y datos del emisor, revisar
+las reglas SUNAT vigentes y aprobar formalmente la salida con el responsable
+contable. La implementación técnica no sustituye la homologación operativa ni la
+verificación tributaria del titular.
 
 Un comprobante aceptado no puede anularse con la anulación local; deberá usarse la
 comunicación tributaria aplicable cuando ese flujo se implemente.
@@ -150,7 +186,9 @@ comunicación tributaria aplicable cuando ese flujo se implemente.
 - **HTTP 401/SOAP Fault:** verificar RUC, usuario SOL, clave, ambiente y permisos.
 - **Rechazado por estructura:** descargar XML/CDR, identificar el código y comparar
   con las reglas de validación vigentes de SUNAT.
-- **Sin CDR:** solo existe después de una respuesta válida del receptor.
+- **Ticket 98:** el resumen sigue en proceso; esperar y consultar el mismo ticket.
+- **Ticket 99:** el proceso terminó con error; revisar el CDR o mensaje devuelto.
+- **Sin CDR:** solo existe después de una respuesta final válida del receptor.
 - **Error de comunicación:** conservar el mismo comprobante y usar reintento.
 
 Las pruebas automatizadas validan cálculo con IGV incluido, UBL básico, firma,

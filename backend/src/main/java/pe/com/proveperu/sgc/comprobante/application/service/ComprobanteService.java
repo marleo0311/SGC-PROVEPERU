@@ -1,5 +1,6 @@
 package pe.com.proveperu.sgc.comprobante.application.service;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -24,6 +25,8 @@ import pe.com.proveperu.sgc.venta.domain.model.Venta;
 @Service
 @RequiredArgsConstructor
 public class ComprobanteService {
+
+    private static final BigDecimal LIMITE_BOLETA_SIN_DOCUMENTO = new BigDecimal("700.00");
 
     private final ComprobanteRepository comprobanteRepository;
     private final EmpresaRepository empresaRepository;
@@ -56,13 +59,18 @@ public class ComprobanteService {
     }
 
     public void validarEmision(Venta venta) {
-        if (venta.getTipoComprobante() != TipoComprobanteVenta.FACTURA) {
-            return;
-        }
         Cliente cliente = venta.getCliente();
-        if (cliente == null || cliente.getTipoDocumento() != TipoDocumentoCliente.RUC) {
+        if (venta.getTipoComprobante() == TipoComprobanteVenta.FACTURA
+            && (cliente == null || cliente.getTipoDocumento() != TipoDocumentoCliente.RUC)) {
             throw new OperacionNoPermitidaException(
                 "Una factura requiere un cliente identificado con RUC"
+            );
+        }
+        if (venta.getTipoComprobante() == TipoComprobanteVenta.BOLETA
+            && venta.getTotal().compareTo(LIMITE_BOLETA_SIN_DOCUMENTO) > 0
+            && cliente == null) {
+            throw new OperacionNoPermitidaException(
+                "Una boleta mayor a S/ 700.00 requiere un cliente identificado con DNI o RUC"
             );
         }
     }

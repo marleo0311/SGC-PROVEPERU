@@ -247,6 +247,12 @@ Los endpoints comerciales consideran que los precios de venta son finales. Con
 | POST | `/api/v1/comprobantes/{id}/sunat/enviar` | Preparar si hace falta, transmitir y procesar el CDR. |
 | GET | `/api/v1/comprobantes/{id}/sunat/xml` | Descargar el XML UBL firmado. |
 | GET | `/api/v1/comprobantes/{id}/sunat/cdr` | Descargar el CDR cuando exista. |
+| GET, POST | `/api/v1/sunat/resumenes-diarios` | Listar o generar resúmenes de boletas por fecha. |
+| GET | `/api/v1/sunat/resumenes-diarios/{id}` | Consultar detalle, ticket y boletas incluidas. |
+| POST | `/api/v1/sunat/resumenes-diarios/{id}/enviar` | Enviar mediante `sendSummary` y guardar ticket. |
+| POST | `/api/v1/sunat/resumenes-diarios/{id}/consultar` | Consultar ticket mediante `getStatus` y procesar CDR. |
+| GET | `/api/v1/sunat/resumenes-diarios/{id}/xml` | Descargar XML firmado del resumen. |
+| GET | `/api/v1/sunat/resumenes-diarios/{id}/cdr` | Descargar CDR del resumen. |
 | GET | `/api/v1/cuentas-cobrar` | Consultar cuentas. |
 | GET | `/api/v1/cuentas-cobrar/vencidas` | Consultar vencidas. |
 | GET | `/api/v1/cuentas-cobrar/metodos-pago` | Listar métodos de pago. |
@@ -255,7 +261,8 @@ Los endpoints comerciales consideran que los precios de venta son finales. Con
 | POST | `/api/v1/cuentas-cobrar/{id}/pagos` | Registrar cobranza. |
 
 La lectura usa `VEN_COMPROBANTES_VER`. Preparar y enviar exige
-`VEN_SUNAT_ENVIAR`. El endpoint de configuración nunca expone Clave SOL ni la
+`VEN_SUNAT_ENVIAR`; generar, enviar o consultar resúmenes exige
+`VEN_SUNAT_RESUMENES_GESTIONAR`. El endpoint de configuración nunca expone Clave SOL ni la
 contraseña del certificado. Un fallo HTTP o SOAP del receptor se informa como
 `502 Bad Gateway`; una regla tributaria local incumplida devuelve `422`.
 

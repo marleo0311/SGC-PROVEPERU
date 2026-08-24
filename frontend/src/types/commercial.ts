@@ -12,6 +12,7 @@ export type TipoComprobanteVenta = 'NOTA_VENTA' | 'BOLETA' | 'FACTURA'
 export type EstadoComprobante = 'EMITIDO' | 'ANULADO' | 'PENDIENTE_ENVIO'
 export type AmbienteSunat = 'BETA' | 'PRODUCCION'
 export type EstadoEnvioSunat = 'GENERADO' | 'ENVIANDO' | 'ACEPTADO' | 'ACEPTADO_CON_OBSERVACIONES' | 'RECHAZADO' | 'ERROR_COMUNICACION'
+export type EstadoResumenDiarioSunat = 'GENERADO' | 'ENVIANDO' | 'TICKET_RECIBIDO' | 'PROCESANDO' | 'ACEPTADO' | 'ACEPTADO_CON_OBSERVACIONES' | 'RECHAZADO' | 'ERROR_COMUNICACION'
 
 export interface CotizacionResumen {
   id: number
@@ -221,6 +222,40 @@ export interface ConfiguracionSunat {
   credencialesConfiguradas: boolean
   endpoint: string
   advertencia: string
+}
+
+export interface BoletaResumenSunat {
+  id: number
+  numero: string
+  fechaEmision: string
+  total: number
+}
+
+export interface ResumenDiarioSunat {
+  id: number
+  ambiente: AmbienteSunat
+  fechaDocumentos: string
+  fechaGeneracion: string
+  correlativo: number
+  estado: EstadoResumenDiarioSunat
+  nombreArchivo: string
+  hashXml: string
+  ticket: string | null
+  codigoEstadoTicket: string | null
+  codigoRespuesta: string | null
+  descripcionRespuesta: string | null
+  observaciones: string[]
+  errorUltimo: string | null
+  intentosEnvio: number
+  consultasEstado: number
+  fechaCreacion: string
+  fechaUltimoIntento: string | null
+  fechaUltimaConsulta: string | null
+  fechaRespuesta: string | null
+  total: number
+  boletas: BoletaResumenSunat[]
+  xmlDisponible: boolean
+  cdrDisponible: boolean
 }
 
 export interface VentaCrearRequest {

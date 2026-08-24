@@ -38,4 +38,48 @@ class SunatSoapClientTests {
                 assertThat(exception).hasMessageContaining("Serie inválida");
             });
     }
+
+    @Test
+    void extraeTicketDeUnResumenDiario() {
+        String soap = """
+            <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/">
+              <soapenv:Body><sendSummaryResponse><ticket>202608231234567</ticket></sendSummaryResponse></soapenv:Body>
+            </soapenv:Envelope>
+            """;
+
+        assertThat(client.extraerTicket(soap.getBytes(StandardCharsets.UTF_8)))
+            .isEqualTo("202608231234567");
+    }
+
+    @Test
+    void extraeEstadoProcesandoSinCdr() {
+        String soap = """
+            <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/">
+              <soapenv:Body><getStatusResponse><status><statusCode>98</statusCode>
+              <statusMessage>En proceso</statusMessage></status></getStatusResponse></soapenv:Body>
+            </soapenv:Envelope>
+            """;
+
+        var estado = client.extraerEstadoTicket(soap.getBytes(StandardCharsets.UTF_8));
+
+        assertThat(estado.codigo()).isEqualTo("98");
+        assertThat(estado.procesando()).isTrue();
+        assertThat(estado.contenido()).isNull();
+    }
+
+    @Test
+    void extraeCdrDelEstadoTerminado() {
+        byte[] cdr = "cdr-resumen".getBytes(StandardCharsets.UTF_8);
+        String soap = """
+            <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/">
+              <soapenv:Body><getStatusResponse><status><statusCode>0</statusCode>
+              <content>%s</content></status></getStatusResponse></soapenv:Body>
+            </soapenv:Envelope>
+            """.formatted(Base64.getEncoder().encodeToString(cdr));
+
+        var estado = client.extraerEstadoTicket(soap.getBytes(StandardCharsets.UTF_8));
+
+        assertThat(estado.terminado()).isTrue();
+        assertThat(estado.contenido()).isEqualTo(cdr);
+    }
 }

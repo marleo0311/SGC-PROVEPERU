@@ -28,7 +28,10 @@ public class DocumentoElectronicoService {
     }
 
     public DocumentoFirmado preparar(Comprobante comprobante, Empresa empresa) {
-        DocumentoUbl ubl = generadorUblService.generar(comprobante, empresa);
+        return preparar(generadorUblService.generar(comprobante, empresa));
+    }
+
+    public DocumentoFirmado preparar(DocumentoUbl ubl) {
         byte[] firmado = firmaDigitalService.firmar(ubl.xml());
         return new DocumentoFirmado(
             ubl.nombreBase(),

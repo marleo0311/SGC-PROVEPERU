@@ -34,23 +34,23 @@ El backend representa tickets de 58 mm y 80 mm. Falta:
 ## 2. Integración SUNAT
 
 La primera base técnica ya incluye UBL 2.1 para operaciones gravadas, firma digital,
-ZIP, `sendBill`, CDR, estados, descargas, permiso específico y panel en ventas. Antes
+ZIP, `sendBill`, Resumen Diario UBL 2.0, `sendSummary`, `getStatus`, CDR, estados,
+descargas, permisos específicos y paneles de operación. Antes
 de considerarla apta para producción todavía se requiere:
 
 1. Completar y verificar los datos tributarios del emisor y sus series autorizadas.
 2. Ejecutar casos reales controlados contra BETA y ajustar el XML a las reglas SUNAT
    vigentes.
 3. Generar el código QR y la representación impresa tributaria.
-4. Implementar resumen diario de boletas, comunicación de baja y notas de
-   crédito/débito.
-5. Incorporar consulta de estado y recuperación ante respuesta incierta.
+4. Implementar comunicación de baja y notas de crédito/débito.
+5. Ampliar la recuperación ante respuestas inciertas y automatizar consultas de ticket.
 6. Añadir cola transaccional, reintentos programados e idempotencia distribuida.
 7. Custodiar certificado y Clave SOL en un gestor de secretos para despliegue.
 8. Realizar revisión contable/tributaria y pruebas de aceptación antes de habilitar
    `SUNAT_PRODUCTION_ENABLED`.
 
-El backend bloquea expresamente boletas en producción mientras no exista resumen
-diario. Ver [10. Integración SUNAT](10-integracion-sunat.md).
+El backend dirige expresamente las boletas de producción al Resumen Diario y evita
+su transmisión individual. Ver [10. Integración SUNAT](10-integracion-sunat.md).
 
 ## 3. Calidad del frontend
 

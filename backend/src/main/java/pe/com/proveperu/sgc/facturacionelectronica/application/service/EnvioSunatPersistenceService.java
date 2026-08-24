@@ -51,6 +51,7 @@ public class EnvioSunatPersistenceService {
             .orElseThrow(() -> new RecursoNoEncontradoException(
                 "No existe el comprobante solicitado"
             ));
+        validarEnvioIndividual(comprobante);
         EnvioSunat existente = envioRepository.findForUpdateByComprobanteId(idComprobante)
             .orElse(null);
         if (existente != null && existente.getEstado().aceptado()) {
@@ -100,8 +101,7 @@ public class EnvioSunatPersistenceService {
                 && envio.getComprobante().getTipo() == TipoComprobanteVenta.BOLETA
         ) {
             throw new OperacionNoPermitidaException(
-                "El envío de boletas a producción requiere el resumen diario SUNAT, "
-                    + "flujo que todavía no está habilitado"
+                "Las boletas de producción se envían desde Resúmenes SUNAT, no de forma individual"
             );
         }
         envio.setEstado(EstadoEnvioSunat.ENVIANDO);
@@ -203,6 +203,15 @@ public class EnvioSunatPersistenceService {
             .orElseThrow(() -> new RecursoNoEncontradoException(
                 "No existe la empresa emisora del comprobante"
             ));
+    }
+
+    private void validarEnvioIndividual(Comprobante comprobante) {
+        if (properties.getAmbiente() == AmbienteSunat.PRODUCCION
+            && comprobante.getTipo() == TipoComprobanteVenta.BOLETA) {
+            throw new OperacionNoPermitidaException(
+                "Las boletas de producción se preparan y envían desde Resúmenes SUNAT"
+            );
+        }
     }
 
     private EnvioSunat envio(Long idComprobante) {

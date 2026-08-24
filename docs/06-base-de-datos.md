@@ -66,6 +66,7 @@ Esto significa:
 | V22 | `habilitar_reportes_y_dashboard` | Consultas, permisos e indicadores. |
 | V23 | `preparar_facturacion_electronica_sunat` | Datos tributarios, unidad SUNAT, envíos electrónicos y permiso de transmisión. |
 | V24 | `agregar_codigo_establecimiento_sunat` | Código SUNAT del domicilio fiscal o local anexo emisor. |
+| V25 | `crear_resumenes_diarios_sunat` | Resúmenes de boletas, items, tickets, correlativos y permiso SUNAT. |
 
 Los archivos se encuentran en `backend/src/main/resources/db/migration`.
 
@@ -100,6 +101,7 @@ Los archivos se encuentran en `backend/src/main/resources/db/migration`.
 - `cotizacion`, `detalle_cotizacion`.
 - `pedido`, `detalle_pedido`, `reserva_stock`.
 - `venta`, `detalle_venta`, `comprobante`, `envio_sunat`.
+- `resumen_diario_sunat`, `resumen_diario_sunat_item`, `correlativo_resumen_diario_sunat`.
 - `cuenta_cobrar`, `pago_cliente`.
 - `caja`, `sesion_caja`, `movimiento_caja`.
 
@@ -133,6 +135,7 @@ cotizacion ── pedido ──< detalle_pedido
 pedido ──< reserva_stock
 pedido ── venta ──< detalle_venta
 venta ── comprobante
+resumen_diario_sunat >──< comprobante
 venta ── cuenta_cobrar ──< pago_cliente
 
 caja ──< sesion_caja ──< movimiento_caja
@@ -160,7 +163,7 @@ Nunca editar una migración que ya se aplicó en un entorno compartido. Para el 
 1. Crear un archivo nuevo, por ejemplo:
 
 ```text
-V23__descripcion_del_cambio.sql
+V26__descripcion_del_cambio.sql
 ```
 
 2. Usar SQL compatible con PostgreSQL 17.

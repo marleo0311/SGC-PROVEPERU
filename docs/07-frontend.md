@@ -44,6 +44,7 @@
 | `/app/pedidos` | Pedidos | `PED_PEDIDOS_VER` |
 | `/app/ventas` | Ventas | `VEN_VENTAS_VER` |
 | `/app/comprobantes` | Comprobantes | `VEN_COMPROBANTES_VER` |
+| `/app/resumenes-sunat` | Resúmenes diarios de boletas | `VEN_COMPROBANTES_VER` |
 | `/app/caja` | Caja | `CAJ_CAJAS_VER` |
 | `/app/cuentas-cobrar` | Cuentas por cobrar | `CXC_CUENTAS_VER` |
 | `/app/usuarios` | Usuarios | `SEG_USUARIOS_VER` |
@@ -110,6 +111,11 @@ No colocar secretos en variables `VITE_*`: Vite las incorpora al JavaScript visi
   preparación, envío/reintento y descarga de XML/CDR.
 - Los controles de transmisión solo aparecen con `VEN_SUNAT_ENVIAR`; la lectura
   del resultado utiliza `VEN_COMPROBANTES_VER`.
+- Pantalla de Resúmenes SUNAT con fecha, métricas, boletas agrupadas, envío,
+  consulta de ticket y descargas. Las acciones requieren
+  `VEN_SUNAT_RESUMENES_GESTIONAR`.
+- En PRODUCCIÓN, el detalle de una boleta dirige al Resumen Diario y no ofrece el
+  envío individual mediante `sendBill`.
 
 ## 7. Añadir una nueva pantalla
 

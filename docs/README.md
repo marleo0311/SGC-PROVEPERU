@@ -16,6 +16,7 @@ Esta carpeta contiene la documentación técnica, funcional y operativa del Sist
 | [08. Pruebas y operación](08-pruebas-y-operacion.md) | Validaciones, logs, diagnóstico y solución de problemas frecuentes. |
 | [09. Pendientes y evolución](09-pendientes-y-evolucion.md) | Límites actuales y siguientes etapas recomendadas. |
 | [10. Integración SUNAT](10-integracion-sunat.md) | Configuración BETA, flujo electrónico, endpoints, estados, seguridad y paso a producción. |
+| [11. Roles y permisos recomendados](11-matriz-roles-y-permisos.md) | Matriz operativa de mínimo privilegio para crear los roles. |
 
 ## Estado general
 
@@ -23,7 +24,7 @@ Esta carpeta contiene la documentación técnica, funcional y operativa del Sist
 | --- | --- |
 | PostgreSQL 17 y Docker Compose | Operativo |
 | Spring Boot, seguridad JWT y API REST | Operativo |
-| Migraciones Flyway V1–V24 | Operativas |
+| Migraciones Flyway V1–V25 | Operativas |
 | React, Vite y navegación por permisos | Operativo |
 | Catálogos, productos, clientes e inventario | Operativo en backend y frontend |
 | Proveedores, compras, transportistas y gastos | Operativo en backend y frontend |
@@ -32,7 +33,7 @@ Esta carpeta contiene la documentación técnica, funcional y operativa del Sist
 | Devoluciones, cambios, descuentos y reembolsos | Backend operativo; frontend pendiente |
 | Dashboard | Operativo |
 | Reportes detallados y tickets | Backend operativo; frontend pendiente |
-| Facturación electrónica SUNAT | Base UBL 2.1, firma, envío BETA y CDR implementados; falta validación real y flujos productivos complementarios |
+| Facturación electrónica SUNAT | UBL 2.1, Resumen Diario UBL 2.0, firma, BETA, tickets y CDR implementados; falta validación productiva y flujos complementarios |
 
 ## Inicio rápido
 
