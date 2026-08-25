@@ -14,10 +14,14 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pe.com.proveperu.sgc.caja.application.service.CajaService;
+import pe.com.proveperu.sgc.catalogo.domain.model.EstadoCatalogo;
+import pe.com.proveperu.sgc.cliente.domain.model.Cliente;
+import pe.com.proveperu.sgc.cliente.infrastructure.persistence.ClienteRepository;
 import pe.com.proveperu.sgc.configuracion.domain.model.MetodoPago;
 import pe.com.proveperu.sgc.configuracion.infrastructure.persistence.MetodoPagoRepository;
 import pe.com.proveperu.sgc.cuentacobrar.api.dto.CuentaCobrarDetalleResponse;
 import pe.com.proveperu.sgc.cuentacobrar.api.dto.CuentaCobrarResumenResponse;
+import pe.com.proveperu.sgc.cuentacobrar.api.dto.CuentaCobrarSaldoInicialRequest;
 import pe.com.proveperu.sgc.cuentacobrar.api.dto.MetodoPagoCobranzaResponse;
 import pe.com.proveperu.sgc.cuentacobrar.api.dto.PagoClienteRequest;
 import pe.com.proveperu.sgc.security.application.exception.OperacionNoPermitidaException;
@@ -32,6 +36,7 @@ import pe.com.proveperu.sgc.venta.api.dto.PagoClienteResponse;
 import pe.com.proveperu.sgc.venta.domain.model.CuentaCobrar;
 import pe.com.proveperu.sgc.venta.domain.model.EstadoCuentaCobrar;
 import pe.com.proveperu.sgc.venta.domain.model.EstadoVenta;
+import pe.com.proveperu.sgc.venta.domain.model.OrigenCuentaCobrar;
 import pe.com.proveperu.sgc.venta.domain.model.PagoCliente;
 import pe.com.proveperu.sgc.venta.infrastructure.persistence.CuentaCobrarRepository;
 import pe.com.proveperu.sgc.venta.infrastructure.persistence.PagoClienteRepository;
@@ -48,9 +53,46 @@ public class CuentaCobrarService {
 
     private final CuentaCobrarRepository cuentaRepository;
     private final PagoClienteRepository pagoRepository;
+    private final ClienteRepository clienteRepository;
     private final MetodoPagoRepository metodoPagoRepository;
     private final UsuarioRepository usuarioRepository;
     private final CajaService cajaService;
+
+    @Transactional
+    public CuentaCobrarResumenResponse registrarSaldoInicial(
+        CuentaCobrarSaldoInicialRequest request,
+        String usuarioLogin
+    ) {
+        Cliente cliente = clienteRepository.findById(request.idCliente())
+            .orElseThrow(() -> new RecursoNoEncontradoException(
+                "No existe el cliente seleccionado"
+            ));
+        if (cliente.getEstado() != EstadoCatalogo.ACTIVO) {
+            throw new OperacionNoPermitidaException(
+                "El cliente seleccionado no está activo"
+            );
+        }
+
+        Usuario usuario = buscarUsuarioActivo(usuarioLogin);
+        BigDecimal saldo = normalizarMonto(request.saldo());
+        CuentaCobrar cuenta = new CuentaCobrar();
+        cuenta.setCliente(cliente);
+        cuenta.setUsuarioCreacion(usuario);
+        cuenta.setOrigen(OrigenCuentaCobrar.SALDO_INICIAL);
+        cuenta.setFechaOrigen(request.fechaOrigen());
+        cuenta.setDocumentoReferencia(normalizarTexto(
+            request.documentoReferencia()
+        ));
+        cuenta.setObservacion(normalizarTexto(request.observacion()));
+        cuenta.setTotal(saldo);
+        cuenta.setImportePagado(BigDecimal.ZERO.setScale(2));
+        cuenta.setSaldoPendiente(saldo);
+        cuenta.setFechaVencimiento(request.fechaVencimiento());
+        cuenta.setEstado(calcularEstado(cuenta));
+        return CuentaCobrarResumenResponse.from(
+            cuentaRepository.saveAndFlush(cuenta)
+        );
+    }
 
     @Transactional
     public PaginaResponse<CuentaCobrarResumenResponse> listar(
@@ -116,7 +158,8 @@ public class CuentaCobrarService {
         CuentaCobrar cuenta = buscarCuentaParaActualizar(id);
         if (cuenta.getEstado() == EstadoCuentaCobrar.PAGADO
             || cuenta.getEstado() == EstadoCuentaCobrar.ANULADO
-            || cuenta.getVenta().getEstado() == EstadoVenta.ANULADA) {
+            || (cuenta.getVenta() != null
+                && cuenta.getVenta().getEstado() == EstadoVenta.ANULADA)) {
             throw new OperacionNoPermitidaException(
                 "La cuenta " + cuenta.getEstado() + " no admite nuevos pagos"
             );
@@ -179,7 +222,7 @@ public class CuentaCobrarService {
             List<Predicate> condiciones = new ArrayList<>();
             if (idCliente != null) {
                 condiciones.add(builder.equal(
-                    root.get("venta").get("cliente").get("id"),
+                    root.get("cliente").get("id"),
                     idCliente
                 ));
             }

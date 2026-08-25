@@ -60,6 +60,7 @@ import pe.com.proveperu.sgc.venta.domain.model.CuentaCobrar;
 import pe.com.proveperu.sgc.venta.domain.model.EstadoCuentaCobrar;
 import pe.com.proveperu.sgc.venta.domain.model.EstadoVenta;
 import pe.com.proveperu.sgc.venta.domain.model.PagoCliente;
+import pe.com.proveperu.sgc.venta.domain.model.OrigenCuentaCobrar;
 import pe.com.proveperu.sgc.venta.domain.model.TipoComprobanteVenta;
 import pe.com.proveperu.sgc.venta.domain.model.TipoVenta;
 import pe.com.proveperu.sgc.venta.domain.model.Venta;
@@ -166,6 +167,10 @@ class CuentasCobrarIntegrationTests {
 
         cuenta = new CuentaCobrar();
         cuenta.setVenta(venta);
+        cuenta.setCliente(cliente);
+        cuenta.setUsuarioCreacion(usuario);
+        cuenta.setOrigen(OrigenCuentaCobrar.VENTA);
+        cuenta.setFechaOrigen(hoy);
         cuenta.setTotal(new BigDecimal("100.00"));
         cuenta.setImportePagado(BigDecimal.ZERO.setScale(2));
         cuenta.setSaldoPendiente(new BigDecimal("100.00"));
@@ -256,6 +261,84 @@ class CuentasCobrarIntegrationTests {
                 new BigDecimal("30.00"),
                 new BigDecimal("70.00")
             );
+    }
+
+    @Test
+    void registraSaldoInicialYCobraSinCrearVenta() throws Exception {
+        long ventasAntes = ventaRepository.count();
+        long movimientosAntes = movimientoCajaRepository.count();
+
+        mockMvc.perform(post("/api/v1/cuentas-cobrar/saldos-iniciales")
+                .header(HttpHeaders.AUTHORIZATION, bearer(
+                    PermisosCuentaCobrar.SALDOS_CREAR
+                ))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "idCliente": %d,
+                      "saldo": 275.50,
+                      "fechaOrigen": "%s",
+                      "fechaVencimiento": "%s",
+                      "documentoReferencia": "CUADERNO-2026-04",
+                      "observacion": "Saldo migrado del cuaderno"
+                    }
+                    """.formatted(
+                        cliente.getId(),
+                        hoy.minusDays(30),
+                        hoy.plusDays(15)
+                    )))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.idVenta").value(
+                org.hamcrest.Matchers.nullValue()
+            ))
+            .andExpect(jsonPath("$.origen").value("SALDO_INICIAL"))
+            .andExpect(jsonPath("$.idCliente").value(cliente.getId()))
+            .andExpect(jsonPath("$.saldoPendiente").value(275.50))
+            .andExpect(jsonPath("$.documentoReferencia")
+                .value("CUADERNO-2026-04"))
+            .andExpect(jsonPath("$.usuarioCreacion")
+                .value(usuario.getUsuarioLogin()));
+
+        CuentaCobrar saldoInicial = cuentaRepository.findAll().stream()
+            .filter(item -> item.getOrigen() == OrigenCuentaCobrar.SALDO_INICIAL)
+            .filter(item -> "CUADERNO-2026-04".equals(
+                item.getDocumentoReferencia()
+            ))
+            .findFirst()
+            .orElseThrow();
+        assertThat(ventaRepository.count()).isEqualTo(ventasAntes);
+        assertThat(movimientoCajaRepository.count()).isEqualTo(movimientosAntes);
+        assertThat(saldoInicial.getVenta()).isNull();
+
+        mockMvc.perform(post(
+                "/api/v1/cuentas-cobrar/{id}/pagos",
+                saldoInicial.getId()
+            )
+                .header(HttpHeaders.AUTHORIZATION, bearer(
+                    PermisosCuentaCobrar.PAGOS_CREAR
+                ))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "idMetodoPago": %d,
+                      "monto": 75.50,
+                      "referencia": "ABONO-SALDO-INICIAL"
+                    }
+                    """.formatted(efectivo.getId())))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.cuenta.saldoPendiente").value(200.0))
+            .andExpect(jsonPath("$.cuenta.estado").value("PARCIAL"));
+
+        assertThat(movimientoCajaRepository
+            .findAllBySesionIdOrderByFechaHoraAscIdAsc(sesionCaja.getId()))
+            .singleElement()
+            .satisfies(movimiento -> {
+                assertThat(movimiento.getConcepto())
+                    .isEqualTo(ConceptoMovimientoCaja.PAGO_CLIENTE);
+                assertThat(movimiento.getVenta()).isNull();
+                assertThat(movimiento.getImporte())
+                    .isEqualByComparingTo("75.50");
+            });
     }
 
     @Test
@@ -353,7 +436,8 @@ class CuentasCobrarIntegrationTests {
         Set<String> esperados = Set.of(
             PermisosCuentaCobrar.CUENTAS_VER,
             PermisosCuentaCobrar.CUENTAS_EDITAR,
-            PermisosCuentaCobrar.PAGOS_CREAR
+            PermisosCuentaCobrar.PAGOS_CREAR,
+            PermisosCuentaCobrar.SALDOS_CREAR
         );
         Set<String> registrados = permisoRepository
             .findAllByModuloOrderByCodigoAsc("Cuentas por cobrar")

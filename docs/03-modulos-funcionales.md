@@ -247,6 +247,11 @@ Conceptos soportados: venta, pago de cliente, ingreso/egreso manual, gasto, pago
 - Registro de cobranzas y método de pago.
 - Historial y saldo actualizado.
 - Integración con una sesión de caja abierta.
+- Registro de saldos iniciales o históricos asociados a un cliente.
+
+Un saldo inicial no crea venta, comprobante, movimiento de inventario ni ingreso
+de caja. El ingreso de caja se genera recién cuando se registra una cobranza real
+sobre esa cuenta.
 
 Estados: `PENDIENTE`, `PARCIAL`, `PAGADO`, `VENCIDO`, `ANULADO`.
 

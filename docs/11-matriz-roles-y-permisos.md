@@ -27,7 +27,8 @@ No usar esta cuenta para vender, cobrar o registrar compras diariamente.
   `VEN_TICKETS_IMPRIMIR`.
 - Caja: `CAJ_CAJAS_VER`, `CAJ_SESIONES_ABRIR`, `CAJ_MOVIMIENTOS_VER`,
   `CAJ_MOVIMIENTOS_CREAR`, `CAJ_SESIONES_CERRAR`, `CAJ_RESUMEN_VER`.
-- Cobranza: `CXC_CUENTAS_VER`, `CXC_PAGOS_CREAR`.
+- Cobranza: `CXC_CUENTAS_VER`, `CXC_PAGOS_CREAR`. El permiso sensible
+  `CXC_SALDOS_CREAR` se recomienda solo para Administración o Finanzas.
 
 No asignar anulación, descuentos especiales, ajustes de inventario ni envío SUNAT
 salvo que la empresa apruebe expresamente que el cajero también cumpla esa función.
@@ -59,7 +60,7 @@ Supervisor y Almacén respectivamente para separar responsabilidades.
 - Cuentas por pagar: `CXP_CUENTAS_VER`, `CXP_CUENTAS_EDITAR`,
   `CXP_PAGOS_CREAR`.
 - Cuentas por cobrar: `CXC_CUENTAS_VER`, `CXC_CUENTAS_EDITAR`,
-  `CXC_PAGOS_CREAR`.
+  `CXC_PAGOS_CREAR`, `CXC_SALDOS_CREAR`.
 - Caja: todos los permisos `CAJ_*`.
 - Gastos: `TRN_GASTOS_VER`, `TRN_GASTOS_CREAR`.
 - Consulta: `VEN_VENTAS_VER`, `VEN_COMPROBANTES_VER`, `CMP_COMPRAS_VER`,

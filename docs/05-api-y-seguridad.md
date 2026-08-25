@@ -273,6 +273,7 @@ importe final queda como `(precio unitario - descuento unitario) × cantidad`.
 | POST | `/api/v1/sunat/comunicaciones-baja/{id}/enviar` | Enviar RA y obtener ticket. |
 | POST | `/api/v1/sunat/comunicaciones-baja/{id}/consultar` | Consultar ticket y procesar CDR. |
 | GET | `/api/v1/cuentas-cobrar` | Consultar cuentas. |
+| POST | `/api/v1/cuentas-cobrar/saldos-iniciales` | Registrar deuda histórica de un cliente sin venta ni inventario. |
 | GET | `/api/v1/cuentas-cobrar/vencidas` | Consultar vencidas. |
 | GET | `/api/v1/cuentas-cobrar/metodos-pago` | Listar métodos de pago. |
 | GET | `/api/v1/cuentas-cobrar/{id}` | Consultar detalle e historial. |
@@ -337,7 +338,7 @@ contraseña del certificado. Un fallo HTTP o SOAP del receptor se informa como
 
 ### Finanzas
 
-`CXP_CUENTAS_VER`, `CXP_CUENTAS_EDITAR`, `CXP_PAGOS_CREAR`, `CXC_CUENTAS_VER`, `CXC_CUENTAS_EDITAR`, `CXC_PAGOS_CREAR`, `CAJ_CAJAS_VER`, `CAJ_SESIONES_ABRIR`, `CAJ_MOVIMIENTOS_VER`, `CAJ_MOVIMIENTOS_CREAR`, `CAJ_SESIONES_CERRAR`, `CAJ_RESUMEN_VER`.
+`CXP_CUENTAS_VER`, `CXP_CUENTAS_EDITAR`, `CXP_PAGOS_CREAR`, `CXC_CUENTAS_VER`, `CXC_CUENTAS_EDITAR`, `CXC_PAGOS_CREAR`, `CXC_SALDOS_CREAR`, `CAJ_CAJAS_VER`, `CAJ_SESIONES_ABRIR`, `CAJ_MOVIMIENTOS_VER`, `CAJ_MOVIMIENTOS_CREAR`, `CAJ_SESIONES_CERRAR`, `CAJ_RESUMEN_VER`.
 
 ### Comercial
 

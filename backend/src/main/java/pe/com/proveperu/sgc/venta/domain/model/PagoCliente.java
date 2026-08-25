@@ -30,8 +30,8 @@ public class PagoCliente {
     @Column(name = "id_pago_cliente")
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "id_venta", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_venta")
     private Venta venta;
 
     @ManyToOne(fetch = FetchType.LAZY)

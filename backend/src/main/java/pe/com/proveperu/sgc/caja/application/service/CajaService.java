@@ -352,7 +352,8 @@ public class CajaService {
         ).orElseThrow(() -> new OperacionNoPermitidaException(
             mensajeCajaCerrada
         ));
-        if (!sesion.getCaja().getSede().getId().equals(venta.getSede().getId())) {
+        if (venta != null
+            && !sesion.getCaja().getSede().getId().equals(venta.getSede().getId())) {
             throw new OperacionNoPermitidaException(
                 "La caja abierta pertenece a una sede diferente a la venta"
             );
@@ -389,7 +390,8 @@ public class CajaService {
         ).orElseThrow(() -> new OperacionNoPermitidaException(
             "Debe abrir una caja antes de registrar un pago"
         ));
-        if (!sesion.getCaja().getSede().getId().equals(venta.getSede().getId())) {
+        if (venta != null
+            && !sesion.getCaja().getSede().getId().equals(venta.getSede().getId())) {
             throw new OperacionNoPermitidaException(
                 "La caja abierta pertenece a una sede diferente a la venta"
             );
@@ -401,7 +403,7 @@ public class CajaService {
         movimiento.setUsuario(usuario);
         movimiento.setVenta(venta);
         movimiento.setPagoCliente(pago);
-        movimiento.setVendedor(venta.getVendedor());
+        movimiento.setVendedor(venta == null ? null : venta.getVendedor());
         movimiento.setTipo(TipoMovimientoCaja.INGRESO);
         movimiento.setConcepto(concepto);
         movimiento.setIdOrigen(idOrigen);

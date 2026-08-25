@@ -30,6 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
 import pe.com.proveperu.sgc.config.OpenApiConfig;
 import pe.com.proveperu.sgc.cuentacobrar.api.dto.CuentaCobrarDetalleResponse;
 import pe.com.proveperu.sgc.cuentacobrar.api.dto.CuentaCobrarResumenResponse;
+import pe.com.proveperu.sgc.cuentacobrar.api.dto.CuentaCobrarSaldoInicialRequest;
 import pe.com.proveperu.sgc.cuentacobrar.api.dto.CuentaCobrarVencimientoRequest;
 import pe.com.proveperu.sgc.cuentacobrar.api.dto.MetodoPagoCobranzaResponse;
 import pe.com.proveperu.sgc.cuentacobrar.api.dto.PagoClienteRequest;
@@ -50,6 +51,23 @@ import pe.com.proveperu.sgc.venta.domain.model.EstadoCuentaCobrar;
 public class CuentaCobrarController {
 
     private final CuentaCobrarService cuentaCobrarService;
+
+    @PostMapping("/saldos-iniciales")
+    @PreAuthorize("hasAuthority('" + PermisosCuentaCobrar.SALDOS_CREAR + "')")
+    @Operation(
+        summary = "Registrar un saldo inicial de cliente",
+        description = "Crea una cuenta histórica sin generar venta, movimiento de inventario, movimiento de caja ni comprobante SUNAT"
+    )
+    public ResponseEntity<CuentaCobrarResumenResponse> registrarSaldoInicial(
+        @Valid @RequestBody CuentaCobrarSaldoInicialRequest request,
+        @AuthenticationPrincipal Jwt jwt
+    ) {
+        CuentaCobrarResumenResponse cuenta = cuentaCobrarService
+            .registrarSaldoInicial(request, jwt.getSubject());
+        return ResponseEntity.created(URI.create(
+            "/api/v1/cuentas-cobrar/" + cuenta.id()
+        )).body(cuenta);
+    }
 
     @GetMapping
     @PreAuthorize("hasAuthority('" + PermisosCuentaCobrar.CUENTAS_VER + "')")

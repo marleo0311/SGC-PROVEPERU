@@ -215,6 +215,18 @@ Cuenta por cobrar
 
 El pago no puede ser cero, negativo ni mayor al saldo.
 
+### Migración de deudas anotadas fuera del sistema
+
+1. Registrar o localizar al cliente responsable.
+2. Ir a **Cuentas por cobrar** y elegir **Nuevo saldo inicial**.
+3. Indicar saldo pendiente, fecha de origen y, si corresponde, vencimiento,
+   documento de referencia y observación.
+4. Confirmar el registro con el permiso `CXC_SALDOS_CREAR`.
+5. Cuando el cliente abone, abrir caja y registrar la cobranza desde el detalle.
+
+Esta operación incorpora únicamente la deuda. No crea una venta retroactiva, no
+altera existencias, no registra dinero en caja y no emite boleta o factura SUNAT.
+
 ## 7. Pagos a proveedores
 
 ```text

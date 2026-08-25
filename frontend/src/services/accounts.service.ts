@@ -6,6 +6,7 @@ import type {
   PaginaCuentasCobrar,
   PaginaCuentasPagar,
   PagoRequest,
+  SaldoInicialRequest,
 } from '../types/accounts'
 import { api } from './api'
 
@@ -41,6 +42,11 @@ export async function listReceivables(filters: CuentaFiltros): Promise<PaginaCue
 
 export async function getReceivable(id: number): Promise<CuentaCobrarDetalle> {
   const { data } = await api.get<CuentaCobrarDetalle>(`/v1/cuentas-cobrar/${id}`)
+  return data
+}
+
+export async function createInitialReceivable(request: SaldoInicialRequest) {
+  const { data } = await api.post('/v1/cuentas-cobrar/saldos-iniciales', request)
   return data
 }
 

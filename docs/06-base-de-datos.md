@@ -141,7 +141,8 @@ pedido ──< reserva_stock
 pedido ── venta ──< detalle_venta
 venta ── comprobante
 resumen_diario_sunat >──< comprobante
-venta ── cuenta_cobrar ──< pago_cliente
+cliente ──< cuenta_cobrar ──< pago_cliente
+venta ── cuenta_cobrar (opcional para saldos iniciales)
 
 caja ──< sesion_caja ──< movimiento_caja
 venta ──< devolucion ──< detalle_devolucion
@@ -159,6 +160,8 @@ venta ──< devolucion ──< detalle_devolucion
 - Una sola sesión de caja abierta por usuario.
 - Un movimiento automático por origen para evitar duplicados de venta o cobranza.
 - Saldos de cuentas por pagar/cobrar consistentes con importe original y pagos.
+- Toda cuenta por cobrar identifica al cliente y su origen `VENTA` o
+  `SALDO_INICIAL`; solo el primer origen exige una venta asociada.
 - Índices por fechas, estados y relaciones de búsqueda frecuente.
 
 ## 7. Crear una nueva migración

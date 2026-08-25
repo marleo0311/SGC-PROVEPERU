@@ -45,14 +45,20 @@ export interface CuentaPagarDetalle {
 
 export interface CuentaCobrar {
   id: number
-  idVenta: number
+  idVenta: number | null
+  origen: 'VENTA' | 'SALDO_INICIAL'
   idCliente: number | null
   clienteDocumento: string | null
   cliente: string | null
-  fechaVenta: string
-  tipoComprobante: 'NOTA_VENTA' | 'BOLETA' | 'FACTURA'
-  numeroComprobante: string
-  condicionPago: 'CONTADO' | 'CREDITO' | 'PARCIAL'
+  fechaVenta: string | null
+  fechaOrigen: string
+  fechaRegistro: string
+  tipoComprobante: 'NOTA_VENTA' | 'BOLETA' | 'FACTURA' | null
+  numeroComprobante: string | null
+  condicionPago: 'CONTADO' | 'CREDITO' | 'PARCIAL' | null
+  documentoReferencia: string | null
+  observacion: string | null
+  usuarioCreacion: string
   total: number
   importePagado: number
   saldoPendiente: number
@@ -91,6 +97,15 @@ export interface PagoRequest {
   idMetodoPago: number
   monto: number
   referencia: string | null
+}
+
+export interface SaldoInicialRequest {
+  idCliente: number
+  saldo: number
+  fechaOrigen: string
+  fechaVencimiento: string | null
+  documentoReferencia: string | null
+  observacion: string | null
 }
 
 export type PaginaCuentasPagar = Pagina<CuentaPagar>

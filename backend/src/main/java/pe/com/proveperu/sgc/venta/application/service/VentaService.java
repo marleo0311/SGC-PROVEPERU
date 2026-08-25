@@ -68,6 +68,7 @@ import pe.com.proveperu.sgc.venta.domain.model.DetalleVenta;
 import pe.com.proveperu.sgc.venta.domain.model.EstadoCuentaCobrar;
 import pe.com.proveperu.sgc.venta.domain.model.EstadoVenta;
 import pe.com.proveperu.sgc.venta.domain.model.PagoCliente;
+import pe.com.proveperu.sgc.venta.domain.model.OrigenCuentaCobrar;
 import pe.com.proveperu.sgc.venta.domain.model.Venta;
 import pe.com.proveperu.sgc.venta.infrastructure.persistence.CuentaCobrarRepository;
 import pe.com.proveperu.sgc.venta.infrastructure.persistence.PagoClienteRepository;
@@ -508,6 +509,12 @@ public class VentaService {
         if (saldo.compareTo(BigDecimal.ZERO) > 0) {
             cuenta = new CuentaCobrar();
             cuenta.setVenta(venta);
+            cuenta.setCliente(venta.getCliente());
+            cuenta.setUsuarioCreacion(usuario);
+            cuenta.setOrigen(OrigenCuentaCobrar.VENTA);
+            cuenta.setFechaOrigen(venta.getFechaHora()
+                .atZone(ZONA_NEGOCIO)
+                .toLocalDate());
             cuenta.setTotal(venta.getTotal());
             cuenta.setImportePagado(importePagado);
             cuenta.setSaldoPendiente(saldo);

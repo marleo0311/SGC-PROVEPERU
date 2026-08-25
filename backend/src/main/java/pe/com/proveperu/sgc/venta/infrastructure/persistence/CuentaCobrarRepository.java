@@ -19,6 +19,8 @@ public interface CuentaCobrarRepository
     JpaSpecificationExecutor<CuentaCobrar> {
 
     @EntityGraph(attributePaths = {
+        "cliente",
+        "usuarioCreacion",
         "venta",
         "venta.cliente",
         "venta.vendedor",
@@ -29,6 +31,8 @@ public interface CuentaCobrarRepository
     Optional<CuentaCobrar> findByVentaId(Long idVenta);
 
     @EntityGraph(attributePaths = {
+        "cliente",
+        "usuarioCreacion",
         "venta",
         "venta.cliente",
         "venta.vendedor",
@@ -41,6 +45,8 @@ public interface CuentaCobrarRepository
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @EntityGraph(attributePaths = {
+        "cliente",
+        "usuarioCreacion",
         "venta",
         "venta.cliente",
         "venta.vendedor",
@@ -53,6 +59,8 @@ public interface CuentaCobrarRepository
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @EntityGraph(attributePaths = {
+        "cliente",
+        "usuarioCreacion",
         "venta",
         "venta.cliente",
         "venta.vendedor",

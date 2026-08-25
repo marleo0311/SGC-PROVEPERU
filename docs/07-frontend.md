@@ -67,6 +67,10 @@ El menú se genera desde `frontend/src/config/navigation.ts`. Una ruta sin panta
 
 El frontend usa los permisos del token para navegación y botones. Esto mejora la experiencia, pero no reemplaza la validación del backend.
 
+En Cuentas por cobrar, el permiso `CXC_SALDOS_CREAR` muestra **Nuevo saldo
+inicial**. El formulario identifica cliente, importe, fecha y referencia, y
+explica antes de guardar que no generará venta, inventario, caja ni SUNAT.
+
 ## 5. Acceso a la API
 
 La instancia Axios está en `frontend/src/services/api.ts`:
