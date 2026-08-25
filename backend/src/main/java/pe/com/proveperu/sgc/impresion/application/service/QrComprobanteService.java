@@ -62,11 +62,13 @@ public class QrComprobanteService {
     }
 
     private String codigoComprobante(TipoComprobanteVenta tipo) {
-        return switch (tipo) {
-            case FACTURA -> "01";
-            case BOLETA -> "03";
-            case NOTA_VENTA -> "00";
-        };
+        if (tipo == TipoComprobanteVenta.FACTURA) {
+            return "01";
+        }
+        if (tipo == TipoComprobanteVenta.BOLETA) {
+            return "03";
+        }
+        return "00";
     }
 
     private String codigoDocumento(TipoDocumentoCliente tipo) {

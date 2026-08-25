@@ -21,6 +21,7 @@ import type {
   CondicionPagoVenta,
   Cotizacion,
   CotizacionGuardarRequest,
+  EstadoPedido,
   Pedido,
   PedidoGuardarRequest,
   PedidoResumen,
@@ -50,12 +51,20 @@ interface LineDraft {
 interface Props {
   kind: CommercialFormKind
   quote?: Cotizacion
+  initialOrder?: PedidoResumen
   onClose: () => void
   onSaved: (result: CommercialFormResult) => void
 }
 
 const currency = new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' })
 const today = () => new Date().toISOString().slice(0, 10)
+const friendlyOrderState = (state: EstadoPedido) => ({
+  CONFIRMADO: 'Confirmado',
+  PAGADO: 'Pagado',
+  EN_PREPARACION: 'En preparación',
+  LISTO: 'Listo',
+  ENTREGADO: 'Entregado pendiente de facturar',
+} as Partial<Record<EstadoPedido, string>>)[state] ?? state
 const roundMoney = (value: number) => Math.round((value + Number.EPSILON) * 100) / 100
 const lineDiscountTotal = (line: LineDraft) => roundMoney(
   (Number(line.cantidad) || 0) * (Number(line.descuentoUnitario) || 0),
@@ -68,7 +77,14 @@ const lineNetTotal = (line: LineDraft) => roundMoney(
   ),
 )
 
-export function CommercialDocumentForm({ kind, quote, onClose, onSaved }: Props) {
+const sellableOrderStates: EstadoPedido[] = [
+  'CONFIRMADO',
+  'PAGADO',
+  'EN_PREPARACION',
+  'LISTO',
+]
+
+export function CommercialDocumentForm({ kind, quote, initialOrder, onClose, onSaved }: Props) {
   const [clients, setClients] = useState<Cliente[]>([])
   const [sites, setSites] = useState<Sede[]>([])
   const [methods, setMethods] = useState<MetodoPago[]>([])
@@ -80,8 +96,8 @@ export function CommercialDocumentForm({ kind, quote, onClose, onSaved }: Props)
   const [siteId, setSiteId] = useState('')
   const [channel, setChannel] = useState<CanalPedido>('PRESENCIAL')
   const [observation, setObservation] = useState('')
-  const [saleSource, setSaleSource] = useState<'DIRECT' | 'ORDER'>('DIRECT')
-  const [orderId, setOrderId] = useState('')
+  const [saleSource, setSaleSource] = useState<'DIRECT' | 'ORDER'>(initialOrder ? 'ORDER' : 'DIRECT')
+  const [orderId, setOrderId] = useState(initialOrder ? String(initialOrder.id) : '')
   const [saleType, setSaleType] = useState<TipoVenta>('MINORISTA')
   const [condition, setCondition] = useState<CondicionPagoVenta>('CONTADO')
   const [methodId, setMethodId] = useState('')
@@ -108,7 +124,16 @@ export function CommercialDocumentForm({ kind, quote, onClose, onSaved }: Props)
     const clientRequest = listClients({ buscar: '', estado: 'ACTIVO', tipoPersona: '', permiteCredito: '', page: 0, size: 100 }).then((page) => page.contenido).catch(() => [] as Cliente[])
     const siteRequest = kind === 'quote' ? Promise.resolve([] as Sede[]) : listSites().catch(() => [] as Sede[])
     const methodRequest = kind === 'sale' ? listSaleMethods().catch(() => [] as MetodoPago[]) : Promise.resolve([] as MetodoPago[])
-    const orderRequest = kind === 'sale' ? listOrders({ idCliente: '', estado: 'CONFIRMADO', desde: '', hasta: '', page: 0, size: 100 }).then((page) => page.contenido).catch(() => [] as PedidoResumen[]) : Promise.resolve([] as PedidoResumen[])
+    const orderRequest = kind === 'sale'
+      ? Promise.all(sellableOrderStates.map((estado) => listOrders({ idCliente: '', estado, desde: '', hasta: '', page: 0, size: 100 })
+        .then((page) => page.contenido)
+        .catch(() => [] as PedidoResumen[])))
+        .then((groups) => {
+          const available = groups.flat()
+          if (initialOrder && !available.some((order) => order.id === initialOrder.id)) available.unshift(initialOrder)
+          return available
+        })
+      : Promise.resolve([] as PedidoResumen[])
     Promise.all([clientRequest, siteRequest, methodRequest, orderRequest]).then(([clientList, siteList, methodList, orderList]) => {
       if (!active) return
       setClients(clientList); setSites(siteList); setMethods(methodList); setOrders(orderList)
@@ -116,7 +141,7 @@ export function CommercialDocumentForm({ kind, quote, onClose, onSaved }: Props)
       if (methodList[0]) setMethodId(String(methodList[0].id))
     }).finally(() => { if (active) setIsPreparing(false) })
     return () => { active = false }
-  }, [kind])
+  }, [initialOrder, kind])
 
   useEffect(() => {
     const previous = document.body.style.overflow
@@ -167,7 +192,7 @@ export function CommercialDocumentForm({ kind, quote, onClose, onSaved }: Props)
     if (kind === 'quote' && !documentDate) next.date = 'Selecciona la fecha.'
     if (kind === 'quote' && expiryDate && expiryDate < documentDate) next.expiry = 'La vigencia no puede terminar antes de la fecha.'
     if (kind === 'order' && !siteId) next.site = 'Selecciona la sede.'
-    if (kind === 'sale' && isSaleFromOrder && !orderId) next.order = 'Selecciona un pedido confirmado.'
+    if (kind === 'sale' && isSaleFromOrder && !orderId) next.order = 'Selecciona un pedido con reserva activa.'
     if (kind === 'sale' && !isSaleFromOrder && !siteId) next.site = 'Selecciona la sede.'
     if (!isSaleFromOrder && !lines.length) next.lines = 'Agrega al menos un producto.'
     if (lines.some((line) => Number(line.cantidad) <= 0)) next.lines = 'Todas las cantidades deben ser mayores que cero.'
@@ -206,7 +231,7 @@ export function CommercialDocumentForm({ kind, quote, onClose, onSaved }: Props)
   if (isPreparing) return <div className="modal-backdrop commercial-form-backdrop"><section className="commercial-form-modal commercial-form-loading"><span className="spinner-border" /><strong>Preparando formulario…</strong></section></div>
 
   return <div className="modal-backdrop commercial-form-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && !isSubmitting && onClose()}><section className="commercial-form-modal"><header><div><span><i className={`bi ${icon}`} /></span><span><small>Flujo comercial</small><h2>{title}</h2></span></div><button className="icon-button" type="button" onClick={onClose}><i className="bi bi-x-lg" /></button></header><form onSubmit={submit} noValidate><div className="commercial-form-body">{submitError && <div className="alert-message alert-message--danger"><i className="bi bi-exclamation-circle-fill" /><span>{submitError}</span></div>}
-    {kind === 'sale' && <section className="commercial-form-section"><header><span>1</span><div><h3>Origen de la venta</h3><p>Registra una venta directa o consume las reservas de un pedido confirmado.</p></div></header><div className="commercial-source-switch"><button className={saleSource === 'DIRECT' ? 'active' : ''} type="button" onClick={() => { setSaleSource('DIRECT'); setOrderId(''); setIncludeIgv(true) }}><i className="bi bi-shop" /><span><strong>Venta directa</strong><small>Selecciona cliente, sede y productos.</small></span></button><button className={saleSource === 'ORDER' ? 'active' : ''} type="button" onClick={() => { setSaleSource('ORDER'); setLines([]) }}><i className="bi bi-bag-check" /><span><strong>Desde pedido</strong><small>Utiliza productos y reservas existentes.</small></span></button></div>{isSaleFromOrder && <div className="commercial-header-grid"><Field label="Pedido confirmado" error={errors.order} wide><select value={orderId} onChange={(event) => { setOrderId(event.target.value); const order = orders.find((item) => item.id === Number(event.target.value)); if (order?.idCliente) setClientId(String(order.idCliente)); setIncludeIgv((order?.igv ?? 0) > 0) }}><option value="">Seleccionar pedido</option>{orders.map((order) => <option key={order.id} value={order.id}>Pedido #{order.id} · {order.cliente || 'Cliente ocasional'} · {currency.format(order.total)}</option>)}</select></Field></div>}</section>}
+    {kind === 'sale' && <section className="commercial-form-section"><header><span>1</span><div><h3>Origen de la venta</h3><p>Registra una venta directa o consume las reservas activas de un pedido.</p></div></header><div className="commercial-source-switch"><button className={saleSource === 'DIRECT' ? 'active' : ''} type="button" onClick={() => { setSaleSource('DIRECT'); setOrderId(''); setIncludeIgv(true) }}><i className="bi bi-shop" /><span><strong>Venta directa</strong><small>Selecciona cliente, sede y productos.</small></span></button><button className={saleSource === 'ORDER' ? 'active' : ''} type="button" onClick={() => { setSaleSource('ORDER'); setLines([]) }}><i className="bi bi-bag-check" /><span><strong>Desde pedido</strong><small>Factura el pedido y registra su entrega.</small></span></button></div>{isSaleFromOrder && <div className="commercial-header-grid"><Field label="Pedido con reserva" error={errors.order} wide><select value={orderId} onChange={(event) => { setOrderId(event.target.value); const order = orders.find((item) => item.id === Number(event.target.value)); if (order?.idCliente) setClientId(String(order.idCliente)); setIncludeIgv((order?.igv ?? 0) > 0) }}><option value="">Seleccionar pedido</option>{orders.map((order) => <option key={order.id} value={order.id}>Pedido #{order.id} · {friendlyOrderState(order.estado)} · {order.cliente || 'Cliente ocasional'} · {currency.format(order.total)}</option>)}</select></Field></div>}</section>}
     {!isSaleFromOrder && <section className="commercial-form-section"><header><span>{kind === 'sale' ? 2 : 1}</span><div><h3>{kind === 'quote' ? 'Cliente y vigencia' : kind === 'order' ? 'Cliente y atención' : 'Cliente y sede'}</h3><p>Define los datos principales de la operación.</p></div></header><div className="commercial-header-grid">{kind === 'sale' ? <ClientDocumentLookup key={receiptType === 'FACTURA' ? 'factura' : 'otro-comprobante'} clients={clients} value={clientId} receiptType={receiptType} error={errors.client} onSelect={setClientId} onClientResolved={handleClientResolved} /> : <Field label="Cliente" error={errors.client}><select value={clientId} onChange={(event) => setClientId(event.target.value)}><option value="">Cliente ocasional</option>{clients.map((client) => <option key={client.id} value={client.id}>{client.nombreMostrar} · {client.numeroDocumento}</option>)}</select></Field>}{kind === 'quote' && <><Field label="Fecha" error={errors.date}><input type="date" value={documentDate} onChange={(event) => setDocumentDate(event.target.value)} /></Field><Field label="Vigencia hasta" error={errors.expiry}><input type="date" min={documentDate} value={expiryDate} onChange={(event) => setExpiryDate(event.target.value)} /></Field></>}{kind !== 'quote' && <Field label="Sede" error={errors.site}><select value={siteId} onChange={(event) => setSiteId(event.target.value)}><option value="">Seleccionar sede</option>{sites.map((site) => <option key={site.id} value={site.id}>{site.nombre}</option>)}</select></Field>}{kind === 'order' && <Field label="Canal"><select value={channel} onChange={(event) => setChannel(event.target.value as CanalPedido)}><option value="PRESENCIAL">Presencial</option><option value="WHATSAPP">WhatsApp</option></select></Field>}{kind === 'sale' && <Field label="Tipo de venta"><select value={saleType} onChange={(event) => { const type = event.target.value as TipoVenta; setSaleType(type); setLines((current) => current.map((line) => ({ ...line, tipoPrecio: type }))) }}><option value="MINORISTA">Minorista</option><option value="MAYORISTA">Mayorista</option></select></Field>}{kind === 'order' && <Field label="Observación" wide><textarea value={observation} onChange={(event) => setObservation(event.target.value)} maxLength={300} rows={2} placeholder="Indicaciones para preparación o entrega" /></Field>}</div></section>}
     {!isSaleFromOrder && <section className="commercial-form-section commercial-products-section"><header><span>{kind === 'sale' ? 3 : 2}</span><div><h3>Productos</h3><p>El descuento se aplica a cada unidad: (precio unitario − descuento unitario) × cantidad.</p></div></header><div className="commercial-product-search"><i className="bi bi-search" /><input value={productSearch} onChange={(event) => setProductSearch(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); void searchProducts() } }} placeholder="Buscar producto por nombre o código" /><button type="button" onClick={() => void searchProducts()} disabled={isSearching}>{isSearching ? <span className="spinner-border spinner-border-sm" /> : <><i className="bi bi-plus-lg" /> Buscar</>}</button></div>{productResults.length > 0 && <div className="commercial-product-results">{productResults.map((product) => <button type="button" key={product.id} onClick={() => void addProduct(product)}><span><i className="bi bi-box-seam" /></span><span><strong>{product.nombre}</strong><small>{product.codigoInterno} · {product.unidadBase.codigo}</small></span><i className="bi bi-plus-circle" /></button>)}</div>}{lines.length === 0 ? <div className="commercial-lines-empty"><i className="bi bi-basket" /><span><strong>Aún no agregaste productos</strong><small>Busca y selecciona el primer artículo.</small></span></div> : <div className="commercial-lines"><header><span>Producto</span><span>Precio unitario</span><span>Cantidad</span><span>Descuento unitario</span><span>Precio con descuento</span><span>Importe final</span><span /></header>{lines.map((line, index) => { const currentPrice = line.precios[line.tipoPrecio]; const netUnitPrice = Math.max(0, (currentPrice ?? 0) - (Number(line.descuentoUnitario) || 0)); return <article key={line.idProducto}><div><span><i className="bi bi-box-seam" /></span><span><strong>{line.producto}</strong><small>{line.codigo} · {line.unidad}</small></span></div><select value={line.tipoPrecio} onChange={(event) => patchLine(index, { tipoPrecio: event.target.value as TipoVenta })}><option value="MINORISTA">Minorista{line.precios.MINORISTA == null ? '' : ` · ${currency.format(line.precios.MINORISTA)}`}</option><option value="MAYORISTA">Mayorista{line.precios.MAYORISTA == null ? '' : ` · ${currency.format(line.precios.MAYORISTA)}`}</option></select><input type="number" min="0.001" step="0.001" value={line.cantidad} onChange={(event) => patchLine(index, { cantidad: event.target.value })} aria-label={`Cantidad de ${line.producto}`} /><div className="money-input"><span>S/</span><input type="number" min="0" step="0.01" value={line.descuentoUnitario} onChange={(event) => patchLine(index, { descuentoUnitario: event.target.value })} aria-label={`Descuento unitario de ${line.producto}`} /></div><strong>{currentPrice == null ? 'Al guardar' : currency.format(netUnitPrice)}</strong><strong>{currentPrice == null ? 'Precio al guardar' : currency.format(lineNetTotal(line))}</strong><button type="button" onClick={() => setLines((current) => current.filter((_, itemIndex) => itemIndex !== index))}><i className="bi bi-trash3" /></button></article> })}</div>}{errors.lines && <span className="commercial-field-error"><i className="bi bi-exclamation-circle" /> {errors.lines}</span>}</section>}
     <section className="commercial-form-section"><header><span>{kind === 'sale' ? 4 : 3}</span><div><h3>{kind === 'sale' ? 'Comprobante y pago' : 'Resumen económico'}</h3><p>Confirma las condiciones finales antes de registrar.</p></div></header>{kind === 'sale' ? <div className="commercial-payment-grid"><Field label="Comprobante"><select value={receiptType} onChange={(event) => { const type = event.target.value as TipoComprobanteVenta; setReceiptType(type); if (type === 'FACTURA' && selectedClient?.tipoDocumento !== 'RUC') setClientId('') }}><option value="NOTA_VENTA">Nota de venta</option><option value="BOLETA">Boleta</option><option value="FACTURA">Factura</option></select></Field><Field label="Condición de pago"><select value={condition} onChange={(event) => { setCondition(event.target.value as CondicionPagoVenta); setPaidAmount(''); setExpiryDate('') }}><option value="CONTADO">Contado</option><option value="CREDITO">Crédito</option><option value="PARCIAL">Pago parcial</option></select></Field>{condition !== 'CREDITO' && <Field label="Método de pago" error={errors.method}><select value={methodId} onChange={(event) => setMethodId(event.target.value)}><option value="">Seleccionar</option>{methods.map((method) => <option key={method.id} value={method.id}>{method.nombre}</option>)}</select></Field>}{condition === 'PARCIAL' && <Field label="Pago inicial" error={errors.paid}><div className="money-input"><span>S/</span><input type="number" min="0.01" step="0.01" value={paidAmount} onChange={(event) => setPaidAmount(event.target.value)} /></div></Field>}{condition !== 'CONTADO' && <Field label="Fecha de vencimiento" error={errors.expiry}><input type="date" min={today()} value={expiryDate} onChange={(event) => setExpiryDate(event.target.value)} /></Field>}{condition !== 'CREDITO' && <Field label="Referencia de pago"><input value={paymentReference} onChange={(event) => setPaymentReference(event.target.value)} maxLength={120} placeholder="Operación o voucher" /></Field>}<label className={`commercial-tax-toggle ${includeIgv ? 'active' : ''} ${isSaleFromOrder ? 'locked' : ''}`}><input type="checkbox" checked={includeIgv} disabled={isSaleFromOrder} onChange={(event) => setIncludeIgv(event.target.checked)} /><span><i className="bi bi-percent" /></span><span><strong>Precio con IGV incluido (18 %)</strong><small>{isSaleFromOrder ? 'Se conserva el cálculo del pedido.' : 'El IGV se desglosa; no se suma al precio final.'}</small></span><b><i className="bi bi-check2" /></b></label><div className="commercial-totals commercial-totals--sale"><span><small>Valor de venta</small><strong>{currency.format(estimatedSubtotal)}</strong></span><span><small>IGV incluido</small><strong>{currency.format(estimatedIgv)}</strong></span><span><small>Total a pagar</small><strong>{currency.format(estimatedTotal)}</strong></span></div></div> : <div className="commercial-summary-row"><label className={`commercial-tax-toggle ${includeIgv ? 'active' : ''}`}><input type="checkbox" checked={includeIgv} onChange={(event) => setIncludeIgv(event.target.checked)} /><span><i className="bi bi-percent" /></span><span><strong>Precio con IGV incluido (18 %)</strong><small>El IGV se desglosa; no se suma al precio final.</small></span><b><i className="bi bi-check2" /></b></label><div className="commercial-totals"><span><small>Valor de venta</small><strong>{currency.format(estimatedSubtotal)}</strong></span><span><small>IGV incluido</small><strong>{currency.format(estimatedIgv)}</strong></span><span><small>Total estimado</small><strong>{currency.format(estimatedTotal)}</strong></span></div></div>}</section>

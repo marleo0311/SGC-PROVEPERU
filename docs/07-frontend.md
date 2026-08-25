@@ -120,11 +120,17 @@ No colocar secretos en variables `VITE_*`: Vite las incorpora al JavaScript visi
 - Los formularios de cotización, pedido y venta solicitan el descuento por
   unidad, muestran el precio neto y actualizan inmediatamente el importe final
   con `(precio unitario - descuento unitario) × cantidad`.
+- El detalle de un pedido con reservas activas ofrece **Registrar venta y
+  entregar**. El estado `ENTREGADO` ya no está disponible como cambio manual;
+  se asigna al generar la venta y su comprobante. Los pedidos antiguos con
+  entrega inconsistente muestran **Generar comprobante pendiente**.
 - La pantalla de devoluciones permite seleccionar cantidades devueltas y resolver
   con reembolso, cambio o descuento.
 - Reportes ofrece ventas, inventario, finanzas y caja, filtros y descargas XLSX/PDF.
 - El detalle del comprobante genera vista previa térmica de 58/80 mm, QR y diálogo
   de impresión nativo.
+- El mismo detalle permite descargar una representación PDF A4 con QR para
+  entregarla al cliente por correo, WhatsApp u otro medio electrónico acordado.
 - El detalle fiscal permite generar, enviar y descargar notas electrónicas; las
   comunicaciones de baja se administran junto a los Resúmenes SUNAT.
 

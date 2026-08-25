@@ -225,6 +225,12 @@ Actuator expone las métricas únicamente a usuarios autenticados con
 | PATCH | `/api/v1/pedidos/{id}/estado` | Avanzar estado. |
 | GET | `/api/v1/pedidos/{id}/reservas` | Consultar reservas. |
 
+`PATCH /api/v1/pedidos/{id}/estado` no admite `ENTREGADO`. La entrega se
+registra exclusivamente mediante `POST /api/v1/ventas` enviando `idPedido`;
+esa transacción consume las reservas activas, emite el comprobante y cambia el
+pedido a `ENTREGADO`. La misma operación permite regularizar pedidos antiguos
+que ya figuren entregados pero todavía conserven sus reservas activas.
+
 ### Ventas, comprobantes y cobranzas
 
 Los endpoints comerciales consideran que los precios de venta son finales. Con
@@ -303,6 +309,7 @@ contraseña del certificado. Un fallo HTTP o SOAP del receptor se informa como
 | POST | `/api/v1/devoluciones/{id}/cambio` | Resolver con cambio. |
 | POST | `/api/v1/devoluciones/{id}/descuento` | Resolver con descuento. |
 | GET | `/api/v1/impresiones/ticket/{idComprobante}?formato=MM58\|MM80` | Ticket con texto y QR PNG. |
+| GET | `/api/v1/impresiones/comprobante/{idComprobante}/pdf` | Descargar representación PDF A4 con detalle, totales, estado y QR. |
 | GET | `/api/v1/reportes/dashboard` | Indicadores del dashboard. |
 | GET | `/api/v1/reportes/ventas` | Reporte de ventas. |
 | GET | `/api/v1/reportes/inventario` | Reporte de inventario. |

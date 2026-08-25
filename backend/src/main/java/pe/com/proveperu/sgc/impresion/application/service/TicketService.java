@@ -75,7 +75,9 @@ public class TicketService {
             ? emisor.razonSocial()
             : emisor.nombreComercial();
         agregarCentrado(lineas, nombre, ancho);
-        agregarCentrado(lineas, emisor.razonSocial(), ancho);
+        if (!limpiar(nombre).equalsIgnoreCase(limpiar(emisor.razonSocial()))) {
+            agregarCentrado(lineas, emisor.razonSocial(), ancho);
+        }
         agregarCentrado(lineas, "RUC " + emisor.ruc(), ancho);
         agregarCentrado(lineas, emisor.sede(), ancho);
         String direccion = emisor.direccionSede() == null

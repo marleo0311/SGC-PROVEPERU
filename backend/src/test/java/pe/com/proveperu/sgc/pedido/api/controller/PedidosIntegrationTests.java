@@ -381,7 +381,7 @@ class PedidosIntegrationTests {
     }
 
     @Test
-    void controlaTransicionesDePreparacionYBloqueaCancelarEntregado()
+    void controlaTransicionesDePreparacionYBloqueaLaEntregaManual()
         throws Exception {
         long id = crearPedidoBase("2.000");
 
@@ -396,17 +396,15 @@ class PedidosIntegrationTests {
         cambiarEstado(id, "LISTO")
             .andExpect(status().isOk());
         cambiarEstado(id, "ENTREGADO")
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.pedido.estado").value("ENTREGADO"));
-
-        mockMvc.perform(post("/api/v1/pedidos/{id}/cancelar", id)
-                .header(HttpHeaders.AUTHORIZATION, bearer(
-                    PermisosPedido.PEDIDOS_CANCELAR
-                )))
             .andExpect(status().isConflict())
             .andExpect(jsonPath("$.detail").value(
-                "Un pedido ENTREGADO no puede cancelarse"
+                "La entrega se registra al convertir el pedido en una venta"
             ));
+
+        assertThat(pedidoRepository.findById(id).orElseThrow().getEstado())
+            .isEqualTo(EstadoPedido.LISTO);
+        assertThat(reservaRepository.findAllByPedidoIdOrderByIdAsc(id).getFirst()
+            .getEstado()).isEqualTo(EstadoReservaStock.ACTIVA);
     }
 
     @Test

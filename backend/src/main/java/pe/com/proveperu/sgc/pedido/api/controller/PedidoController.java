@@ -135,7 +135,10 @@ public class PedidoController {
 
     @PatchMapping("/{id}/estado")
     @PreAuthorize("hasAuthority('" + PermisosPedido.PEDIDOS_ESTADO + "')")
-    @Operation(summary = "Actualizar el estado de cotización, pago o preparación")
+    @Operation(
+        summary = "Actualizar el estado de cotización, pago o preparación",
+        description = "ENTREGADO no se admite aquí: la entrega se registra al convertir el pedido en una venta"
+    )
     public PedidoResponse cambiarEstado(
         @PathVariable @Positive Long id,
         @Valid @RequestBody PedidoEstadoRequest request

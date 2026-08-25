@@ -23,7 +23,7 @@
 | Cuentas por cobrar | Sí | Sí | Crédito de clientes, vencimientos, saldos y cobranzas. |
 | Dashboard | Sí | Sí | Indicadores comerciales, inventario y finanzas. |
 | Devoluciones | Sí | Sí | Reembolso, cambio y descuento posventa. |
-| Tickets | Sí | Sí | Vista previa e impresión de 58/80 mm con QR tributario. |
+| Tickets y PDF | Sí | Sí | Vista previa e impresión de 58/80 mm y representación PDF descargable con QR tributario. |
 | Reportes detallados | Sí | Sí | Ventas, inventario, finanzas y caja con Excel/PDF. |
 | SUNAT | Sí | Sí | UBL, firma, BETA, notas, bajas, Resumen Diario automático, tickets y CDR. |
 
@@ -171,15 +171,22 @@ Estados: `PENDIENTE`, `ACEPTADA`, `RECHAZADA`, `VENCIDA`, `CONVERTIDA`.
 - Canales `PRESENCIAL` y `WHATSAPP`.
 - Confirmación y reserva de stock por sede.
 - Consulta de reservas.
-- Preparación, entrega y cancelación.
+- Preparación y cancelación operativa.
+- Registro de venta y entrega en una única transacción: consume la reserva,
+  descuenta el stock y genera el comprobante elegido.
 
 Estados: `RECIBIDO`, `COTIZADO`, `CONFIRMADO`, `PAGADO`, `EN_PREPARACION`, `LISTO`, `ENTREGADO`, `CANCELADO`.
 
 Reservas: `ACTIVA`, `LIBERADA`, `CONSUMIDA`.
 
+`ENTREGADO` no se asigna manualmente. El último estado operativo es `LISTO` y
+la acción **Registrar venta y entregar** es la única que completa la entrega.
+Pedidos antiguos marcados como `ENTREGADO` que todavía conserven todas sus
+reservas `ACTIVA` pueden regularizarse mediante **Generar comprobante pendiente**.
+
 ### Ventas
 
-- Venta directa o conversión desde pedido confirmado.
+- Venta directa o conversión desde un pedido con reservas activas.
 - Tipos `MINORISTA` y `MAYORISTA`.
 - Condiciones `CONTADO`, `CREDITO` y `PARCIAL`.
 - Comprobantes internos `NOTA_VENTA`, `BOLETA` y `FACTURA`.
@@ -200,6 +207,7 @@ Estados: `REGISTRADA`, `ANULADA`, `DEVUELTA_PARCIAL`, `DEVUELTA_TOTAL`.
 - Número interno y representación legible.
 - Datos del emisor, cliente, venta y detalle.
 - Consulta por comprobante o por venta.
+- Descarga de una representación PDF A4 para entrega por medios electrónicos.
 - Anulación autorizada.
 
 Estados: `EMITIDO`, `ANULADO`, `PENDIENTE_ENVIO`.

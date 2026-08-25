@@ -448,6 +448,43 @@ class VentasIntegrationTests {
     }
 
     @Test
+    void recuperaPedidoEntregadoAntiguoConReservaActivaYEmiteBoleta()
+        throws Exception {
+        Pedido pedido = crearPedidoConfirmado(new BigDecimal("2.000"));
+        pedido.setEstado(EstadoPedido.ENTREGADO);
+        pedidoRepository.saveAndFlush(pedido);
+
+        MvcResult resultado = mockMvc.perform(post("/api/v1/ventas")
+                .header(HttpHeaders.AUTHORIZATION, bearer(
+                    PermisosVenta.VENTAS_CREAR
+                ))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "idPedido": %d,
+                      "tipoVenta": "MINORISTA",
+                      "condicionPago": "CONTADO",
+                      "idMetodoPago": %d,
+                      "tipoComprobante": "BOLETA"
+                    }
+                    """.formatted(pedido.getId(), efectivo.getId())))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.venta.idPedido").value(pedido.getId()))
+            .andExpect(jsonPath("$.venta.tipoComprobante").value("BOLETA"))
+            .andExpect(jsonPath("$.venta.numeroComprobante").value(
+                org.hamcrest.Matchers.startsWith("B001-")
+            ))
+            .andReturn();
+
+        long idVenta = idVenta(resultado);
+        assertThat(comprobanteRepository.findByVentaId(idVenta)).isPresent();
+        assertThat(reservaRepository.findAllByPedidoIdOrderByIdAsc(pedido.getId())
+            .getFirst().getEstado()).isEqualTo(EstadoReservaStock.CONSUMIDA);
+        assertThat(inventarioActual().getStockReservado())
+            .isEqualByComparingTo("0.000");
+    }
+
+    @Test
     void ventaCreditoCreaCuentaSinRegistrarPago() throws Exception {
         MvcResult resultado = crearVentaDirecta(
             "CREDITO",
@@ -711,13 +748,22 @@ class VentasIntegrationTests {
     }
 
     @Test
-    void generaTicketTermicoDe58Y80Milimetros() throws Exception {
-        MvcResult ventaResult = crearVentaDirecta(
+    void generaTicketTermicoYRepresentacionPdf() throws Exception {
+        String boleta = cuerpoVentaDirecta(
             "CONTADO",
             "\"idMetodoPago\": %d,".formatted(efectivo.getId()),
             "",
-            PermisosVenta.VENTAS_CREAR
-        ).andExpect(status().isCreated()).andReturn();
+            "25.00",
+            "0.00"
+        ).replace("\"NOTA_VENTA\"", "\"BOLETA\"");
+        MvcResult ventaResult = mockMvc.perform(post("/api/v1/ventas")
+                .header(HttpHeaders.AUTHORIZATION, bearer(
+                    PermisosVenta.VENTAS_CREAR
+                ))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(boleta))
+            .andExpect(status().isCreated())
+            .andReturn();
         long idComprobante = comprobanteRepository
             .findByVentaId(idVenta(ventaResult))
             .orElseThrow()
@@ -752,6 +798,8 @@ class VentasIntegrationTests {
         );
         assertThat(contenido58.lines())
             .allMatch(linea -> linea.length() <= 32);
+        assertThat(contenido58)
+            .containsOnlyOnce("INVERSIONES PROVEPERU S.R.L.");
 
         mockMvc.perform(get(
                 "/api/v1/impresiones/ticket/{idComprobante}",
@@ -764,8 +812,39 @@ class VentasIntegrationTests {
             .andExpect(jsonPath("$.formato").value("MM80"))
             .andExpect(jsonPath("$.anchoCaracteres").value(48));
 
+        MvcResult pdfResult = mockMvc.perform(get(
+                "/api/v1/impresiones/comprobante/{idComprobante}/pdf",
+                idComprobante
+            )
+                .header(HttpHeaders.AUTHORIZATION, bearer(
+                    PermisosImpresion.TICKETS_IMPRIMIR
+                )))
+            .andExpect(status().isOk())
+            .andExpect(header().string(
+                HttpHeaders.CONTENT_TYPE,
+                MediaType.APPLICATION_PDF_VALUE
+            ))
+            .andExpect(header().string(
+                HttpHeaders.CONTENT_DISPOSITION,
+                org.hamcrest.Matchers.containsString(".pdf")
+            ))
+            .andReturn();
+        byte[] pdf = pdfResult.getResponse().getContentAsByteArray();
+        assertThat(pdf).hasSizeGreaterThan(2_000);
+        assertThat(new String(pdf, 0, 5, java.nio.charset.StandardCharsets.US_ASCII))
+            .isEqualTo("%PDF-");
+
         mockMvc.perform(get(
                 "/api/v1/impresiones/ticket/{idComprobante}",
+                idComprobante
+            )
+                .header(HttpHeaders.AUTHORIZATION, bearer(
+                    PermisosVenta.COMPROBANTES_VER
+                )))
+            .andExpect(status().isForbidden());
+
+        mockMvc.perform(get(
+                "/api/v1/impresiones/comprobante/{idComprobante}/pdf",
                 idComprobante
             )
                 .header(HttpHeaders.AUTHORIZATION, bearer(

@@ -290,6 +290,11 @@ public class PedidoService {
                 "Use el endpoint específico para confirmar o cancelar el pedido"
             );
         }
+        if (nuevoEstado == EstadoPedido.ENTREGADO) {
+            throw new OperacionNoPermitidaException(
+                "La entrega se registra al convertir el pedido en una venta"
+            );
+        }
         Pedido pedido = buscarPedidoParaActualizar(id);
         if (pedido.getEstado() == nuevoEstado) {
             return respuesta(pedido);
@@ -660,8 +665,7 @@ public class PedidoService {
                 || nuevo == EstadoPedido.EN_PREPARACION;
             case PAGADO -> nuevo == EstadoPedido.EN_PREPARACION;
             case EN_PREPARACION -> nuevo == EstadoPedido.LISTO;
-            case LISTO -> nuevo == EstadoPedido.ENTREGADO;
-            case COTIZADO, ENTREGADO, CANCELADO -> false;
+            case COTIZADO, LISTO, ENTREGADO, CANCELADO -> false;
         };
     }
 

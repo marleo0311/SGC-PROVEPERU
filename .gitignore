@@ -26,6 +26,9 @@ Thumbs.db
 *.log
 .run/
 
+# Archivos generados
+output/
+
 # Certificados y llaves privadas
 *.p12
 *.pfx

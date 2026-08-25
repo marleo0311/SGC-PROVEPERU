@@ -14,6 +14,8 @@ El repositorio contiene la primera integración técnica del SEE del Contribuyen
 - Interpretación y almacenamiento del CDR.
 - Estados, intentos, respuesta, observaciones y error de comunicación persistentes.
 - Consulta y acciones desde el detalle de una venta.
+- Representación PDF A4 descargable con datos del emisor, cliente, productos,
+  importes, estado y QR para la entrega electrónica al cliente.
 
 La integración está deshabilitada por defecto. La estructura, firma, transmisión
 SOAP y lectura del CDR se validaron funcionalmente contra SUNAT BETA. No se ha
@@ -199,6 +201,7 @@ exista una venta verdadera que vaya a utilizarse como primer comprobante.
 | POST | `/api/v1/comprobantes/{id}/sunat/enviar` | `VEN_SUNAT_ENVIAR` | CDR y estado actualizado. |
 | GET | `/api/v1/comprobantes/{id}/sunat/xml` | `VEN_COMPROBANTES_VER` | Descarga XML. |
 | GET | `/api/v1/comprobantes/{id}/sunat/cdr` | `VEN_COMPROBANTES_VER` | Descarga ZIP del CDR. |
+| GET | `/api/v1/impresiones/comprobante/{id}/pdf` | `VEN_TICKETS_IMPRIMIR` | Descarga la representación PDF; no sustituye XML ni CDR. |
 | GET | `/api/v1/sunat/resumenes-diarios` | `VEN_COMPROBANTES_VER` | Lista resúmenes y boletas incluidas. |
 | POST | `/api/v1/sunat/resumenes-diarios` | `VEN_SUNAT_RESUMENES_GESTIONAR` | Genera y firma pendientes de una fecha. |
 | POST | `/api/v1/sunat/resumenes-diarios/{id}/enviar` | `VEN_SUNAT_RESUMENES_GESTIONAR` | Ejecuta `sendSummary` y guarda el ticket. |
