@@ -1,6 +1,6 @@
 # Documentación de SGC PROVEPERU
 
-Esta carpeta contiene la documentación técnica, funcional y operativa del Sistema de Gestión Comercial de INVERSIONES PROVEPERU S.R.L. Su contenido describe el estado real del repositorio al 24 de agosto de 2026.
+Esta carpeta contiene la documentación técnica, funcional y operativa del Sistema de Gestión Comercial de INVERSIONES PROVEPERU S.R.L. Su contenido describe el estado real del repositorio al 25 de agosto de 2026.
 
 ## Mapa de documentos
 
@@ -17,6 +17,7 @@ Esta carpeta contiene la documentación técnica, funcional y operativa del Sist
 | [09. Pendientes y evolución](09-pendientes-y-evolucion.md) | Límites actuales y siguientes etapas recomendadas. |
 | [10. Integración SUNAT](10-integracion-sunat.md) | Configuración BETA, flujo electrónico, endpoints, estados, seguridad y paso a producción. |
 | [11. Roles y permisos recomendados](11-matriz-roles-y-permisos.md) | Matriz operativa de mínimo privilegio para crear los roles. |
+| [12. Despliegue de producción sin HTTPS](12-despliegue-produccion-sin-https.md) | Contenedores, base limpia, secretos, respaldo y puesta en marcha privada. |
 
 ## Estado general
 
@@ -24,7 +25,7 @@ Esta carpeta contiene la documentación técnica, funcional y operativa del Sist
 | --- | --- |
 | PostgreSQL 17 y Docker Compose | Operativo |
 | Spring Boot, seguridad JWT y API REST | Operativo |
-| Migraciones Flyway V1–V27 | Operativas |
+| Migraciones Flyway V1–V30 | Operativas |
 | React, Vite y navegación por permisos | Operativo |
 | Catálogos, productos, clientes e inventario | Operativo en backend y frontend |
 | Proveedores, compras, transportistas y gastos | Operativo en backend y frontend |

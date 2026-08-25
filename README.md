@@ -6,7 +6,7 @@ Sistema web modular para la gestión integral de INVERSIONES PROVEPERU S.R.L.
 
 - Frontend: React 19, TypeScript, Vite, Axios, Bootstrap y CSS propio.
 - Backend: Java 21, Spring Boot 4, Spring Security, JWT, JPA y OpenAPI.
-- Base de datos: PostgreSQL 17 con 24 migraciones Flyway.
+- Base de datos: PostgreSQL 17 con 30 migraciones Flyway.
 - Infraestructura local: Docker y Docker Compose.
 
 ## Módulos
@@ -74,3 +74,11 @@ Para detener todos los componentes iniciados por el proyecto:
 ```powershell
 .\detener-sistema.cmd
 ```
+
+## Preparación de producción
+
+El repositorio incluye un entorno Docker aislado para producción, sin HTTPS y con emisión
+SUNAT real bloqueada por defecto. No reutiliza el volumen de desarrollo.
+
+La guía de configuración, base limpia, respaldos y puesta en marcha se encuentra en
+[docs/12-despliegue-produccion-sin-https.md](docs/12-despliegue-produccion-sin-https.md).

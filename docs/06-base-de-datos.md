@@ -71,6 +71,7 @@ Esto significa:
 | V27 | `crear_comunicaciones_baja_sunat` | Comunicaciones RA, tickets, CDR y estado de baja pendiente. |
 | V28 | `actualizar_datos_fiscales_empresa` | Datos fiscales del emisor y domicilio principal contrastados con la Ficha RUC. |
 | V29 | `separar_series_y_correlativos_por_ambiente` | Series atómicas de comprobantes y notas, ambiente de emisión y numeración independiente BETA/PRODUCCIÓN. |
+| V30 | `habilitar_saldos_iniciales_clientes` | Cuentas por cobrar históricas sin venta ni movimiento de inventario. |
 
 Los archivos se encuentran en `backend/src/main/resources/db/migration`.
 
@@ -171,7 +172,7 @@ Nunca editar una migración que ya se aplicó en un entorno compartido. Para el 
 1. Crear un archivo nuevo, por ejemplo:
 
 ```text
-V29__descripcion_del_cambio.sql
+V31__descripcion_del_cambio.sql
 ```
 
 2. Usar SQL compatible con PostgreSQL 17.
@@ -211,5 +212,9 @@ Antes de producción se debe establecer:
 - Copia fuera del servidor principal.
 - Pruebas periódicas de restauración.
 - Responsable y procedimiento de recuperación.
+
+Las herramientas implementadas se encuentran en `database/scripts`. Los respaldos locales
+se escriben en `database/backups`, ruta ignorada por Git. Consulta también
+`docs/12-despliegue-produccion-sin-https.md`.
 
 Detener el contenedor no elimina datos. Eliminar el volumen `postgres_data` sí es destructivo y no debe hacerse sin respaldo y autorización explícita.
