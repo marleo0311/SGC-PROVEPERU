@@ -15,9 +15,9 @@ certificado web TLS.
 
 `docker-compose.production.yml` utiliza el proyecto `sgc-proveperu-production` y el volumen
 `postgres_production_data`. No importa ni elimina el volumen `postgres_data` usado en
-desarrollo. Una base nueva ejecuta Flyway V1–V30 y contiene únicamente configuración base:
+desarrollo. Una base nueva ejecuta Flyway V1–V32 y contiene únicamente configuración base:
 
-- empresa y sede principal;
+- empresa, sede fiscal única, Almacén de Tienda y Almacén General;
 - caja principal;
 - roles, permisos y métodos de pago base;
 - series B001, F001, BC01, BD01, FC01 y FD01 separadas por ambiente;

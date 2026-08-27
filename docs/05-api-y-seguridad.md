@@ -172,12 +172,14 @@ Actuator expone las métricas únicamente a usuarios autenticados con
 
 | Método | Ruta | Función |
 | --- | --- | --- |
-| GET | `/api/v1/sedes` | Listar sedes activas. |
+| GET | `/api/v1/sedes` | Listar almacenes internos activos e identificar la sede fiscal. |
 | GET | `/api/v1/inventario` | Consultar existencias. |
 | GET | `/api/v1/inventario/stock-bajo` | Consultar alertas. |
 | GET | `/api/v1/inventario/movimientos` | Listar movimientos. |
 | GET | `/api/v1/inventario/{idProducto}` | Ver stock de producto. |
 | POST | `/api/v1/inventario/ajustes` | Registrar ajuste de entrada o salida. |
+| POST | `/api/v1/inventario/transferencias` | Trasladar stock entre almacenes con salida y entrada atómicas. |
+| PUT | `/api/v1/inventario/{idProducto}/stock-minimo` | Configurar la alerta mínima del producto en un almacén. |
 | GET | `/api/v1/kardex/{idProducto}` | Consultar Kardex. |
 
 ### Proveedores, compras y logística
@@ -330,7 +332,7 @@ contraseña del certificado. Un fallo HTTP o SOAP del receptor se informa como
 
 ### Clientes e inventario
 
-`CLI_CLIENTES_VER`, `CLI_CLIENTES_CREAR`, `CLI_CLIENTES_EDITAR`, `CLI_CLIENTES_ESTADO`, `CLI_HISTORIAL_VER`, `CLI_PRECIOS_VER`, `CLI_PRECIOS_CREAR`, `INV_STOCK_VER`, `INV_AJUSTES_CREAR`, `INV_MOVIMIENTOS_VER`, `INV_KARDEX_VER`.
+`CLI_CLIENTES_VER`, `CLI_CLIENTES_CREAR`, `CLI_CLIENTES_EDITAR`, `CLI_CLIENTES_ESTADO`, `CLI_HISTORIAL_VER`, `CLI_PRECIOS_VER`, `CLI_PRECIOS_CREAR`, `INV_STOCK_VER`, `INV_AJUSTES_CREAR`, `INV_MOVIMIENTOS_VER`, `INV_KARDEX_VER`, `INV_TRANSFERENCIAS_CREAR`, `INV_MINIMOS_EDITAR`.
 
 ### Abastecimiento
 

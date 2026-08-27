@@ -40,7 +40,8 @@ public interface InventarioRepository extends JpaRepository<Inventario, Long> {
             left join Inventario i
               on i.producto.id = p.id and i.sede.id = :idSede
             where p.estado = :estado
-              and coalesce(i.stockFisico, 0) - coalesce(i.stockReservado, 0) <= p.stockMinimo
+              and coalesce(i.stockFisico, 0) - coalesce(i.stockReservado, 0)
+                    <= coalesce(i.stockMinimo, p.stockMinimo)
               and (
                   :buscar = ''
                   or lower(p.nombre) like lower(concat('%', :buscar, '%'))
@@ -53,7 +54,8 @@ public interface InventarioRepository extends JpaRepository<Inventario, Long> {
             left join Inventario i
               on i.producto.id = p.id and i.sede.id = :idSede
             where p.estado = :estado
-              and coalesce(i.stockFisico, 0) - coalesce(i.stockReservado, 0) <= p.stockMinimo
+              and coalesce(i.stockFisico, 0) - coalesce(i.stockReservado, 0)
+                    <= coalesce(i.stockMinimo, p.stockMinimo)
               and (
                   :buscar = ''
                   or lower(p.nombre) like lower(concat('%', :buscar, '%'))

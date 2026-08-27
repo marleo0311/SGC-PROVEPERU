@@ -66,7 +66,7 @@ su transmisión individual. Ver [10. Integración SUNAT](10-integracion-sunat.md
 - Pasarelas o conciliación bancaria.
 - Lectores de código de barras.
 - Impresoras térmicas.
-- Almacenes o sedes adicionales.
+- Reglas avanzadas de reposición automática entre los almacenes ya implementados.
 
 Cada integración debe aislarse detrás de un servicio, manejar indisponibilidad y no comprometer la transacción principal.
 

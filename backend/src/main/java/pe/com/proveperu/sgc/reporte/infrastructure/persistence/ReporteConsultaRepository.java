@@ -185,7 +185,8 @@ public class ReporteConsultaRepository {
                 count(*) AS productos_activos,
                 count(*) FILTER (
                     WHERE coalesce(i.stock_fisico, 0)
-                        - coalesce(i.stock_reservado, 0) <= p.stock_minimo
+                        - coalesce(i.stock_reservado, 0)
+                        <= coalesce(i.stock_minimo, p.stock_minimo)
                 ) AS productos_stock_bajo,
                 count(*) FILTER (
                     WHERE coalesce(i.stock_fisico, 0)
@@ -222,7 +223,7 @@ public class ReporteConsultaRepository {
                 coalesce(i.stock_reservado, 0) AS stock_reservado,
                 coalesce(i.stock_fisico, 0)
                     - coalesce(i.stock_reservado, 0) AS stock_disponible,
-                p.stock_minimo,
+                coalesce(i.stock_minimo, p.stock_minimo) AS stock_minimo,
                 CASE
                     WHEN coalesce(i.stock_fisico, 0)
                         - coalesce(i.stock_reservado, 0) <= 0 THEN 'AGOTADO'
@@ -235,7 +236,8 @@ public class ReporteConsultaRepository {
              AND i.id_sede = :idSede
             WHERE p.estado = 'ACTIVO'
               AND coalesce(i.stock_fisico, 0)
-                    - coalesce(i.stock_reservado, 0) <= p.stock_minimo
+                    - coalesce(i.stock_reservado, 0)
+                    <= coalesce(i.stock_minimo, p.stock_minimo)
             ORDER BY stock_disponible ASC, p.nombre ASC, p.id_producto ASC
             LIMIT :limite
             """;

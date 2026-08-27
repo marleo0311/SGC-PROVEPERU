@@ -9,5 +9,7 @@ public interface SedeRepository extends JpaRepository<Sede, Long> {
 
     Optional<Sede> findFirstByEstadoIgnoreCaseOrderByIdAsc(String estado);
 
+    Optional<Sede> findFirstBySedeFacturacionTrueAndEstadoIgnoreCaseOrderByIdAsc(String estado);
+
     List<Sede> findAllByEstadoIgnoreCaseOrderByNombreAsc(String estado);
 }

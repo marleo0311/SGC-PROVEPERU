@@ -171,7 +171,7 @@ public class DevolucionService {
             if (request.tipoSolucion() != TipoSolucionDevolucion.DESCUENTO
                 && detalle.getEstadoProducto() == EstadoProductoDevuelto.APTO) {
                 inventarioService.registrarDevolucionVenta(
-                    venta.getSede(),
+                    venta.getAlmacenSalida(),
                     detalle.getProducto(),
                     detalle.getUnidadMedida(),
                     detalle.getCantidad(),
@@ -326,7 +326,7 @@ public class DevolucionService {
         devolucion.getDetallesCambio().stream()
             .sorted(Comparator.comparing(detalle -> detalle.getProducto().getId()))
             .forEach(detalle -> inventarioService.registrarSalidaCambio(
-                devolucion.getVenta().getSede(),
+                devolucion.getVenta().getAlmacenSalida(),
                 detalle.getProducto(),
                 detalle.getUnidadMedida(),
                 detalle.getCantidad(),

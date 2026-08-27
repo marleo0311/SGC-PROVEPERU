@@ -61,6 +61,15 @@ regla 4198 de boletas evalúa el código de establecimiento en
 El generador envía `0000` para el domicilio fiscal principal junto con los atributos
 `listAgencyName="PE:SUNAT"` y `listName="Establecimientos anexos"`.
 
+### Almacenes internos y sede fiscal
+
+`Almacén de Tienda` y `Almacén General` son ubicaciones internas de inventario.
+No representan establecimientos anexos adicionales ante SUNAT. Al registrar una
+venta, el usuario selecciona de cuál almacén sale físicamente el producto, mientras
+el backend asigna siempre la única sede marcada `es_sede_facturacion` al comprobante,
+su serie y su código de establecimiento. La base de datos impide que una empresa
+tenga dos sedes fiscales activas simultáneamente.
+
 ## 3. Configuración segura para BETA
 
 Guardar el certificado fuera del repositorio. Los formatos de certificado y llave
@@ -97,7 +106,7 @@ Debe indicar `habilitado: true`, `ambiente: BETA` y
 
 ### Series y correlativos
 
-`serie_comprobante` mantiene una serie activa por sede, ambiente y tipo documental.
+`serie_comprobante` mantiene una serie activa por sede fiscal, ambiente y tipo documental.
 La reserva se realiza con una actualización atómica en PostgreSQL, por lo que dos
 ventas simultáneas no pueden recibir el mismo número. La serie tampoco puede
 reutilizarse en otra sede de la misma empresa y ambiente.

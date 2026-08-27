@@ -23,6 +23,8 @@ const movementTypes: Array<{ value: TipoMovimientoInventario; label: string }> =
   { value: 'RESERVA', label: 'Reserva' },
   { value: 'LIBERACION_RESERVA', label: 'Liberación de reserva' },
   { value: 'ANULACION_VENTA', label: 'Anulación de venta' },
+  { value: 'TRANSFERENCIA_ENTRADA', label: 'Transferencia recibida' },
+  { value: 'TRANSFERENCIA_SALIDA', label: 'Transferencia enviada' },
 ]
 
 const quantityFormatter = new Intl.NumberFormat('es-PE', {
@@ -231,7 +233,7 @@ export function KardexPage() {
             <div className="kardex-product-picker__copy">
               <small>Producto seleccionado</small>
               <strong>{selectedProduct.nombre}</strong>
-              <span>{selectedProduct.codigoInterno} · {selectedProduct.unidadBase.nombre} ({selectedProduct.unidadBase.codigo})</span>
+              <span>{selectedProduct.codigoInterno} · {selectedProduct.unidadBase.nombre}</span>
             </div>
             <span className="kardex-product-picker__status"><i className="bi bi-check-circle-fill" /> Listo para consultar</span>
             <button type="button" onClick={changeProduct}><i className="bi bi-arrow-left-right" /> Cambiar producto</button>
@@ -268,7 +270,7 @@ export function KardexPage() {
           <section className="kardex-metrics" aria-label="Resumen del Kardex">
             <article><span className="kardex-metric-icon kardex-metric-icon--blue"><i className="bi bi-list-ul" /></span><div><small>Movimientos encontrados</small><strong>{pageData?.totalElementos ?? 0}</strong></div></article>
             <article><span className="kardex-metric-icon kardex-metric-icon--teal"><i className="bi bi-geo-alt" /></span><div><small>Sede</small><strong>{selectedSite?.nombre ?? pageData?.contenido[0]?.nombreSede ?? 'Sede activa'}</strong></div></article>
-            <article><span className="kardex-metric-icon kardex-metric-icon--violet"><i className="bi bi-rulers" /></span><div><small>Unidad base</small><strong>{selectedProduct.unidadBase.codigo}</strong><span>{selectedProduct.unidadBase.nombre}</span></div></article>
+            <article><span className="kardex-metric-icon kardex-metric-icon--violet"><i className="bi bi-rulers" /></span><div><small>Unidad base</small><strong>{selectedProduct.unidadBase.nombre}</strong></div></article>
           </section>
 
           <form className="kardex-filters" onSubmit={applyFilters}>
@@ -291,7 +293,7 @@ export function KardexPage() {
                 <div className={`catalog-table-wrap ${isLoading ? 'catalog-table-wrap--loading' : ''}`}>
                   <table className="catalog-table kardex-table">
                     <thead><tr><th>Fecha y hora</th><th>Movimiento</th><th>Cantidad</th><th>Stock anterior</th><th>Stock resultante</th><th>Origen y motivo</th><th>Responsable</th></tr></thead>
-                    <tbody>{pageData?.contenido.map((movement) => <MovementRow key={movement.id} movement={movement} />)}</tbody>
+                    <tbody>{pageData?.contenido.map((movement) => <MovementRow key={movement.id} movement={movement} displayUnit={selectedProduct.unidadBase.nombre} />)}</tbody>
                   </table>
                 </div>
                 {pageData && pageData.totalPaginas > 0 && <footer className="catalog-pagination"><span>Mostrando {pageData.contenido.length} de {pageData.totalElementos} movimientos</span><nav aria-label="Paginación del Kardex"><button type="button" disabled={pageData.pagina === 0} onClick={() => goToPage(pageData.pagina - 1)} aria-label="Página anterior"><i className="bi bi-chevron-left" /></button>{pageNumbers(pageData.pagina, pageData.totalPaginas).map((page) => <button className={page === pageData.pagina ? 'active' : ''} type="button" key={page} onClick={() => goToPage(page)} aria-current={page === pageData.pagina ? 'page' : undefined}>{page + 1}</button>)}<button type="button" disabled={pageData.ultima} onClick={() => goToPage(pageData.pagina + 1)} aria-label="Página siguiente"><i className="bi bi-chevron-right" /></button></nav></footer>}
@@ -304,7 +306,7 @@ export function KardexPage() {
   )
 }
 
-function MovementRow({ movement }: { movement: MovimientoInventario }) {
+function MovementRow({ movement, displayUnit }: { movement: MovimientoInventario; displayUnit: string }) {
   const meta = movementMeta(movement.tipoMovimiento)
   const signedQuantity = movement.cantidadBase > 0 ? `+${quantityFormatter.format(movement.cantidadBase)}` : quantityFormatter.format(movement.cantidadBase)
   const origin = movement.documentoOrigen
@@ -314,9 +316,9 @@ function MovementRow({ movement }: { movement: MovimientoInventario }) {
     <tr>
       <td><span className="kardex-date"><strong>{dateFormatter.format(new Date(movement.fechaHora))}</strong><small>Movimiento #{movement.id}</small></span></td>
       <td><span className={`kardex-type kardex-type--${meta.tone}`}><i className={`bi ${meta.icon}`} /> {meta.label}</span></td>
-      <td><span className={`kardex-quantity kardex-quantity--${movement.cantidadBase >= 0 ? 'positive' : 'negative'}`}><strong>{signedQuantity}</strong><small>{movement.codigoUnidadBase}</small></span></td>
-      <td><span className="kardex-stock-value">{quantityFormatter.format(movement.stockAnterior)} <small>{movement.codigoUnidadBase}</small></span></td>
-      <td><span className="kardex-stock-value kardex-stock-value--result">{quantityFormatter.format(movement.stockResultante)} <small>{movement.codigoUnidadBase}</small></span></td>
+      <td><span className={`kardex-quantity kardex-quantity--${movement.cantidadBase >= 0 ? 'positive' : 'negative'}`}><strong>{signedQuantity}</strong><small>{displayUnit}</small></span></td>
+      <td><span className="kardex-stock-value">{quantityFormatter.format(movement.stockAnterior)} <small>{displayUnit}</small></span></td>
+      <td><span className="kardex-stock-value kardex-stock-value--result">{quantityFormatter.format(movement.stockResultante)} <small>{displayUnit}</small></span></td>
       <td><span className="kardex-origin"><strong>{origin}</strong><small>{movement.motivo || 'Sin motivo adicional'}</small></span></td>
       <td><span className="kardex-user"><i className="bi bi-person-circle" /><span><strong>{movement.nombreUsuario}</strong><small>@{movement.usuarioLogin}</small></span></span></td>
     </tr>
@@ -325,8 +327,8 @@ function MovementRow({ movement }: { movement: MovimientoInventario }) {
 
 function movementMeta(type: TipoMovimientoInventario) {
   const found = movementTypes.find((item) => item.value === type)
-  if (['COMPRA', 'AJUSTE_ENTRADA', 'DEVOLUCION_ENTRADA', 'ANULACION_VENTA'].includes(type)) return { label: found?.label ?? type, tone: 'input', icon: 'bi-arrow-down-left' }
-  if (['VENTA', 'AJUSTE_SALIDA', 'DEVOLUCION_SALIDA'].includes(type)) return { label: found?.label ?? type, tone: 'output', icon: 'bi-arrow-up-right' }
+  if (['COMPRA', 'AJUSTE_ENTRADA', 'DEVOLUCION_ENTRADA', 'ANULACION_VENTA', 'TRANSFERENCIA_ENTRADA'].includes(type)) return { label: found?.label ?? type, tone: 'input', icon: 'bi-arrow-down-left' }
+  if (['VENTA', 'AJUSTE_SALIDA', 'DEVOLUCION_SALIDA', 'TRANSFERENCIA_SALIDA'].includes(type)) return { label: found?.label ?? type, tone: 'output', icon: 'bi-arrow-up-right' }
   if (['RESERVA', 'LIBERACION_RESERVA'].includes(type)) return { label: found?.label ?? type, tone: 'reserve', icon: 'bi-bookmark-check' }
   return { label: found?.label ?? type, tone: 'neutral', icon: 'bi-record-circle' }
 }

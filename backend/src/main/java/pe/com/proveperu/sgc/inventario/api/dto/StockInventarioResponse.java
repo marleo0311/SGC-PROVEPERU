@@ -37,7 +37,10 @@ public record StockInventarioResponse(
             ? BigDecimal.ZERO.setScale(3)
             : inventario.getStockReservado();
         BigDecimal stockDisponible = stockFisico.subtract(stockReservado);
-        EstadoStock estadoStock = calcularEstado(stockDisponible, producto.getStockMinimo());
+        BigDecimal stockMinimo = inventario == null
+            ? producto.getStockMinimo()
+            : inventario.getStockMinimo();
+        EstadoStock estadoStock = calcularEstado(stockDisponible, stockMinimo);
 
         return new StockInventarioResponse(
             inventario == null ? null : inventario.getId(),
@@ -53,7 +56,7 @@ public record StockInventarioResponse(
             stockFisico,
             stockReservado,
             stockDisponible,
-            producto.getStockMinimo(),
+            stockMinimo,
             estadoStock,
             inventario == null ? null : inventario.getFechaActualizacion()
         );

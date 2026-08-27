@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
-import { Link } from 'react-router-dom'
+import { InventoryActionsMenu } from '../components/InventoryActionsMenu'
 import { InventoryAdjustmentModal } from '../components/InventoryAdjustmentModal'
+import { InventoryTransferModal } from '../components/InventoryTransferModal'
+import { MinimumStockModal } from '../components/MinimumStockModal'
 import { ToastMessage } from '../components/ToastMessage'
 import { useAuth } from '../hooks/useAuth'
 import { getApiErrorMessage } from '../services/api'
@@ -12,6 +14,7 @@ import type {
   PaginaInventario,
   Sede,
   StockInventario,
+  TransferenciaInventarioResponse,
 } from '../types/inventory'
 
 const initialFilters: InventarioFiltros = {
@@ -59,15 +62,20 @@ export function InventoryPage() {
   const [sites, setSites] = useState<Sede[]>([])
   const [sitesReady, setSitesReady] = useState(false)
   const [lowStockTotal, setLowStockTotal] = useState(0)
+  const [siteAlerts, setSiteAlerts] = useState<Record<number, number>>({})
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
   const [refreshKey, setRefreshKey] = useState(0)
   const [adjustmentTarget, setAdjustmentTarget] = useState<StockInventario | null>(null)
+  const [transferTarget, setTransferTarget] = useState<StockInventario | null>(null)
+  const [minimumTarget, setMinimumTarget] = useState<StockInventario | null>(null)
   const [toast, setToast] = useState<ToastState | null>(null)
   const { hasAnyAuthority } = useAuth()
 
   const canAdjust = hasAnyAuthority('INV_AJUSTES_CREAR')
   const canViewKardex = hasAnyAuthority('INV_KARDEX_VER')
+  const canTransfer = hasAnyAuthority('INV_TRANSFERENCIAS_CREAR')
+  const canEditMinimum = hasAnyAuthority('INV_MINIMOS_EDITAR')
 
   useEffect(() => {
     let active = true
@@ -111,10 +119,14 @@ export function InventoryPage() {
       })
       .catch(() => undefined)
 
+    Promise.all(sites.map(async (site) => [site.id, await countLowStock(site.id)] as const))
+      .then((counts) => { if (active) setSiteAlerts(Object.fromEntries(counts)) })
+      .catch(() => undefined)
+
     return () => {
       active = false
     }
-  }, [filters, refreshKey, sitesReady])
+  }, [filters, refreshKey, sites, sitesReady])
 
   function applyFilter(patch: Partial<InventarioFiltros>) {
     setIsLoading(true)
@@ -144,6 +156,22 @@ export function InventoryPage() {
       tone: 'success',
       message: `La ${movement} de ${response.inventario.nombreProducto} se registró correctamente.`,
     })
+    refreshInventory()
+  }
+
+  function handleTransferred(response: TransferenciaInventarioResponse) {
+    const displayUnit = transferTarget?.nombreUnidadBase ?? response.unidadMedida
+    setTransferTarget(null)
+    setToast({
+      tone: 'success',
+      message: `Se trasladaron ${quantityFormatter.format(response.cantidad)} ${displayUnit} de ${response.sedeOrigen} a ${response.sedeDestino}.`,
+    })
+    refreshInventory()
+  }
+
+  function handleMinimumSaved(stock: StockInventario) {
+    setMinimumTarget(null)
+    setToast({ tone: 'success', message: `La alerta de ${stock.nombreProducto} en ${stock.nombreSede} quedó configurada en ${quantityFormatter.format(stock.stockMinimo)} ${stock.nombreUnidadBase}.` })
     refreshInventory()
   }
 
@@ -180,9 +208,17 @@ export function InventoryPage() {
           </article>
           <article className="inventory-metric inventory-metric--site">
             <span className="inventory-metric__icon inventory-metric__icon--teal"><i className="bi bi-geo-alt" /></span>
-            <div><small>Sede consultada</small><strong>{displayedSite}</strong></div>
+            <div><small>Almacén consultado</small><strong>{displayedSite}</strong></div>
           </article>
         </section>
+
+        {sites.length > 1 && <section className="warehouse-overview" aria-label="Alertas por almacén">
+          {sites.map((site) => <button className={site.id === filters.idSede ? 'warehouse-card warehouse-card--active' : 'warehouse-card'} type="button" key={site.id} onClick={() => applyFilter({ idSede: site.id })}>
+            <span><i className={site.sedeFacturacion ? 'bi bi-shop' : 'bi bi-building'} /></span>
+            <div><small>{site.sedeFacturacion ? 'Almacén de atención' : 'Almacén interno'}</small><strong>{site.nombre}</strong><em className={(siteAlerts[site.id] ?? 0) > 0 ? 'has-alerts' : ''}><i className="bi bi-exclamation-triangle" /> {siteAlerts[site.id] ?? 0} alertas</em></div>
+            <i className="bi bi-chevron-right" />
+          </button>)}
+        </section>}
 
         <section className="catalog-toolbar inventory-toolbar" aria-label="Filtros de existencias">
           <form className="catalog-search" onSubmit={handleSearch}>
@@ -204,7 +240,7 @@ export function InventoryPage() {
               <select
                 value={filters.idSede}
                 onChange={(event) => applyFilter({ idSede: Number(event.target.value) })}
-                aria-label="Seleccionar sede"
+                aria-label="Seleccionar almacén"
               >
                 {sites.map((site) => <option key={site.id} value={site.id}>{site.nombre}</option>)}
               </select>
@@ -261,7 +297,7 @@ export function InventoryPage() {
                       <th>Stock mínimo</th>
                       <th>Situación</th>
                       <th>Actualización</th>
-                      {(canAdjust || canViewKardex) && <th className="catalog-table__actions-heading">Acciones</th>}
+                      {(canAdjust || canViewKardex || canTransfer || canEditMinimum) && <th className="catalog-table__actions-heading">Acciones</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -276,10 +312,10 @@ export function InventoryPage() {
                             </span>
                           </div>
                         </td>
-                        <td><StockQuantity value={stock.stockFisico} unit={stock.codigoUnidadBase} /></td>
-                        <td><StockQuantity value={stock.stockReservado} unit={stock.codigoUnidadBase} muted /></td>
-                        <td><StockQuantity value={stock.stockDisponible} unit={stock.codigoUnidadBase} emphasis /></td>
-                        <td><StockQuantity value={stock.stockMinimo} unit={stock.codigoUnidadBase} muted /></td>
+                        <td><StockQuantity value={stock.stockFisico} unit={stock.nombreUnidadBase} /></td>
+                        <td><StockQuantity value={stock.stockReservado} unit={stock.nombreUnidadBase} muted /></td>
+                        <td><StockQuantity value={stock.stockDisponible} unit={stock.nombreUnidadBase} emphasis /></td>
+                        <td><StockQuantity value={stock.stockMinimo} unit={stock.nombreUnidadBase} muted /></td>
                         <td>
                           <span className={`stock-status stock-status--${stock.estadoStock.toLowerCase()}`}>
                             <i className={`bi ${stock.estadoStock === 'NORMAL' ? 'bi-check-circle-fill' : stock.estadoStock === 'BAJO' ? 'bi-exclamation-circle-fill' : 'bi-x-circle-fill'}`} />
@@ -291,20 +327,18 @@ export function InventoryPage() {
                             {stock.fechaActualizacion ? dateFormatter.format(new Date(stock.fechaActualizacion)) : 'Sin movimientos'}
                           </span>
                         </td>
-                        {(canAdjust || canViewKardex) && (
-                          <td>
-                            <div className="inventory-row-actions">
-                              {canViewKardex && (
-                                <Link className="inventory-kardex-button" to={`/app/kardex?producto=${stock.idProducto}&sede=${stock.idSede}`} aria-label={`Ver Kardex de ${stock.nombreProducto}`}>
-                                  <i className="bi bi-clock-history" /> Kardex
-                                </Link>
-                              )}
-                              {canAdjust && (
-                                <button className="inventory-adjust-button" type="button" onClick={() => setAdjustmentTarget(stock)} aria-label={`Ajustar existencias de ${stock.nombreProducto}`}>
-                                  <i className="bi bi-sliders" /> Ajustar
-                                </button>
-                              )}
-                            </div>
+                        {(canAdjust || canViewKardex || canTransfer || canEditMinimum) && (
+                          <td className="inventory-actions-cell">
+                            <InventoryActionsMenu
+                              stock={stock}
+                              canViewKardex={canViewKardex}
+                              canAdjust={canAdjust}
+                              canTransfer={canTransfer && sites.length > 1}
+                              canEditMinimum={canEditMinimum}
+                              onAdjust={setAdjustmentTarget}
+                              onTransfer={setTransferTarget}
+                              onEditMinimum={setMinimumTarget}
+                            />
                           </td>
                         )}
                       </tr>
@@ -338,6 +372,9 @@ export function InventoryPage() {
           onAdjusted={handleAdjusted}
         />
       )}
+
+      {transferTarget && <InventoryTransferModal stock={transferTarget} sites={sites} onClose={() => setTransferTarget(null)} onTransferred={handleTransferred} />}
+      {minimumTarget && <MinimumStockModal stock={minimumTarget} onClose={() => setMinimumTarget(null)} onSaved={handleMinimumSaved} />}
 
       {toast && <ToastMessage tone={toast.tone} message={toast.message} onClose={closeToast} />}
     </>

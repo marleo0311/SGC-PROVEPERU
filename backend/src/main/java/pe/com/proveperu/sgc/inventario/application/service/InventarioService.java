@@ -24,14 +24,19 @@ import pe.com.proveperu.sgc.inventario.api.dto.AjusteInventarioRequest;
 import pe.com.proveperu.sgc.inventario.api.dto.AjusteInventarioResponse;
 import pe.com.proveperu.sgc.inventario.api.dto.MovimientoInventarioResponse;
 import pe.com.proveperu.sgc.inventario.api.dto.StockInventarioResponse;
+import pe.com.proveperu.sgc.inventario.api.dto.StockMinimoInventarioRequest;
+import pe.com.proveperu.sgc.inventario.api.dto.TransferenciaInventarioRequest;
+import pe.com.proveperu.sgc.inventario.api.dto.TransferenciaInventarioResponse;
 import pe.com.proveperu.sgc.inventario.domain.model.Inventario;
 import pe.com.proveperu.sgc.inventario.domain.model.MovimientoInventario;
 import pe.com.proveperu.sgc.inventario.domain.model.Sede;
 import pe.com.proveperu.sgc.inventario.domain.model.TipoAjusteInventario;
 import pe.com.proveperu.sgc.inventario.domain.model.TipoMovimientoInventario;
+import pe.com.proveperu.sgc.inventario.domain.model.TransferenciaInventario;
 import pe.com.proveperu.sgc.inventario.infrastructure.persistence.InventarioRepository;
 import pe.com.proveperu.sgc.inventario.infrastructure.persistence.MovimientoInventarioRepository;
 import pe.com.proveperu.sgc.inventario.infrastructure.persistence.SedeRepository;
+import pe.com.proveperu.sgc.inventario.infrastructure.persistence.TransferenciaInventarioRepository;
 import pe.com.proveperu.sgc.security.application.exception.OperacionNoPermitidaException;
 import pe.com.proveperu.sgc.security.application.exception.RecursoNoEncontradoException;
 import pe.com.proveperu.sgc.security.domain.model.EstadoUsuario;
@@ -56,6 +61,7 @@ public class InventarioService {
     private final ProductoUnidadConversionRepository conversionRepository;
     private final InventarioRepository inventarioRepository;
     private final MovimientoInventarioRepository movimientoRepository;
+    private final TransferenciaInventarioRepository transferenciaRepository;
     private final UsuarioRepository usuarioRepository;
 
     @Transactional(readOnly = true)
@@ -158,6 +164,139 @@ public class InventarioService {
             MovimientoInventarioResponse.from(movimiento),
             StockInventarioResponse.from(sede, producto, inventario)
         );
+    }
+
+    @Transactional
+    public TransferenciaInventarioResponse transferir(
+        TransferenciaInventarioRequest request,
+        String usuarioLogin
+    ) {
+        if (request.idSedeOrigen().equals(request.idSedeDestino())) {
+            throw new SolicitudInvalidaException(
+                "Los almacenes de origen y destino deben ser diferentes"
+            );
+        }
+
+        Sede origen = resolverSede(request.idSedeOrigen());
+        Sede destino = resolverSede(request.idSedeDestino());
+        if (!origen.getIdEmpresa().equals(destino.getIdEmpresa())) {
+            throw new OperacionNoPermitidaException(
+                "No se puede transferir mercadería entre empresas diferentes"
+            );
+        }
+        Producto producto = buscarProducto(request.idProducto(), true);
+        UnidadMedida unidad = buscarUnidad(request.idUnidadMedida());
+        Usuario usuario = buscarUsuarioActivo(usuarioLogin);
+        validarCantidadPermitida(unidad, request.cantidad());
+
+        BigDecimal cantidad = request.cantidad().setScale(
+            ESCALA_STOCK,
+            RoundingMode.UNNECESSARY
+        );
+        BigDecimal cantidadBase = convertirAUnidadBase(producto, unidad, cantidad);
+        if (cantidadBase.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new SolicitudInvalidaException(
+                "La conversión produce una cantidad menor a la precisión admitida"
+            );
+        }
+
+        Inventario inventarioOrigen = inventarioRepository
+            .findForUpdate(origen.getId(), producto.getId())
+            .orElseThrow(() -> new ReglaNegocioException(
+                "Stock insuficiente en " + origen.getNombre() + ". Disponible: 0.000"
+            ));
+        if (cantidadBase.compareTo(inventarioOrigen.getStockDisponible()) > 0) {
+            throw new ReglaNegocioException(
+                "Stock insuficiente en " + origen.getNombre() + ". Disponible: "
+                    + inventarioOrigen.getStockDisponible().toPlainString()
+            );
+        }
+
+        Inventario inventarioDestino = inventarioRepository
+            .findForUpdate(destino.getId(), producto.getId())
+            .orElseGet(() -> crearInventarioVacio(destino, producto));
+        BigDecimal stockOrigenAnterior = inventarioOrigen.getStockFisico();
+        BigDecimal stockDestinoAnterior = inventarioDestino.getStockFisico();
+        BigDecimal stockOrigenResultante = stockOrigenAnterior.subtract(cantidadBase);
+        BigDecimal stockDestinoResultante = stockDestinoAnterior.add(cantidadBase);
+        validarCapacidadStock(stockDestinoResultante);
+
+        Instant ahora = Instant.now();
+        inventarioOrigen.setStockFisico(stockOrigenResultante);
+        inventarioOrigen.setFechaActualizacion(ahora);
+        inventarioDestino.setStockFisico(stockDestinoResultante);
+        inventarioDestino.setFechaActualizacion(ahora);
+        inventarioRepository.save(inventarioOrigen);
+        inventarioRepository.save(inventarioDestino);
+
+        TransferenciaInventario transferencia = new TransferenciaInventario();
+        transferencia.setSedeOrigen(origen);
+        transferencia.setSedeDestino(destino);
+        transferencia.setProducto(producto);
+        transferencia.setUnidadMedida(unidad);
+        transferencia.setUsuario(usuario);
+        transferencia.setCantidad(cantidad);
+        transferencia.setCantidadBase(cantidadBase);
+        transferencia.setMotivo(request.motivo().strip());
+        transferencia.setFechaHora(ahora);
+        transferencia = transferenciaRepository.save(transferencia);
+
+        MovimientoInventario salida = crearMovimientoTransferencia(
+            origen,
+            producto,
+            unidad,
+            usuario,
+            TipoMovimientoInventario.TRANSFERENCIA_SALIDA,
+            cantidad.negate(),
+            cantidadBase.negate(),
+            stockOrigenAnterior,
+            stockOrigenResultante,
+            transferencia.getId(),
+            "Traslado a " + destino.getNombre() + ": " + transferencia.getMotivo(),
+            ahora
+        );
+        MovimientoInventario entrada = crearMovimientoTransferencia(
+            destino,
+            producto,
+            unidad,
+            usuario,
+            TipoMovimientoInventario.TRANSFERENCIA_ENTRADA,
+            cantidad,
+            cantidadBase,
+            stockDestinoAnterior,
+            stockDestinoResultante,
+            transferencia.getId(),
+            "Traslado desde " + origen.getNombre() + ": " + transferencia.getMotivo(),
+            ahora
+        );
+
+        return TransferenciaInventarioResponse.from(
+            transferencia,
+            MovimientoInventarioResponse.from(salida),
+            MovimientoInventarioResponse.from(entrada),
+            StockInventarioResponse.from(origen, producto, inventarioOrigen),
+            StockInventarioResponse.from(destino, producto, inventarioDestino)
+        );
+    }
+
+    @Transactional
+    public StockInventarioResponse actualizarStockMinimo(
+        Long idProducto,
+        StockMinimoInventarioRequest request
+    ) {
+        Sede sede = resolverSede(request.idSede());
+        Producto producto = buscarProducto(idProducto, true);
+        BigDecimal minimo = request.stockMinimo().setScale(
+            ESCALA_STOCK,
+            RoundingMode.UNNECESSARY
+        );
+        Inventario inventario = inventarioRepository
+            .findForUpdate(sede.getId(), producto.getId())
+            .orElseGet(() -> crearInventarioVacio(sede, producto));
+        inventario.setStockMinimo(minimo);
+        inventario.setFechaActualizacion(Instant.now());
+        inventario = inventarioRepository.save(inventario);
+        return StockInventarioResponse.from(sede, producto, inventario);
     }
 
     @Transactional
@@ -777,8 +916,40 @@ public class InventarioService {
         inventario.setProducto(producto);
         inventario.setStockFisico(BigDecimal.ZERO.setScale(ESCALA_STOCK));
         inventario.setStockReservado(BigDecimal.ZERO.setScale(ESCALA_STOCK));
+        inventario.setStockMinimo(producto.getStockMinimo());
         inventario.setFechaActualizacion(Instant.now());
         return inventarioRepository.save(inventario);
+    }
+
+    private MovimientoInventario crearMovimientoTransferencia(
+        Sede sede,
+        Producto producto,
+        UnidadMedida unidad,
+        Usuario usuario,
+        TipoMovimientoInventario tipo,
+        BigDecimal cantidad,
+        BigDecimal cantidadBase,
+        BigDecimal stockAnterior,
+        BigDecimal stockResultante,
+        Long idTransferencia,
+        String motivo,
+        Instant fechaHora
+    ) {
+        MovimientoInventario movimiento = new MovimientoInventario();
+        movimiento.setSede(sede);
+        movimiento.setProducto(producto);
+        movimiento.setUsuario(usuario);
+        movimiento.setUnidadMedida(unidad);
+        movimiento.setTipoMovimiento(tipo);
+        movimiento.setCantidad(cantidad);
+        movimiento.setCantidadBase(cantidadBase);
+        movimiento.setStockAnterior(stockAnterior);
+        movimiento.setStockResultante(stockResultante);
+        movimiento.setDocumentoOrigen("TRANSFERENCIA");
+        movimiento.setIdOrigen(idTransferencia);
+        movimiento.setMotivo(motivo);
+        movimiento.setFechaHora(fechaHora);
+        return movimientoRepository.save(movimiento);
     }
 
     private BigDecimal firmar(TipoAjusteInventario tipo, BigDecimal cantidad) {

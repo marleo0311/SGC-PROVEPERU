@@ -6,6 +6,9 @@ import type {
   PaginaMovimientos,
   PaginaInventario,
   Sede,
+  StockInventario,
+  TransferenciaInventarioRequest,
+  TransferenciaInventarioResponse,
 } from '../types/inventory'
 import { api } from './api'
 
@@ -38,6 +41,28 @@ export async function createInventoryAdjustment(
   request: AjusteInventarioRequest,
 ): Promise<AjusteInventarioResponse> {
   const { data } = await api.post<AjusteInventarioResponse>('/v1/inventario/ajustes', request)
+  return data
+}
+
+export async function createInventoryTransfer(
+  request: TransferenciaInventarioRequest,
+): Promise<TransferenciaInventarioResponse> {
+  const { data } = await api.post<TransferenciaInventarioResponse>(
+    '/v1/inventario/transferencias',
+    request,
+  )
+  return data
+}
+
+export async function updateMinimumStock(
+  idProducto: number,
+  idSede: number,
+  stockMinimo: number,
+): Promise<StockInventario> {
+  const { data } = await api.put<StockInventario>(
+    `/v1/inventario/${idProducto}/stock-minimo`,
+    { idSede, stockMinimo },
+  )
   return data
 }
 

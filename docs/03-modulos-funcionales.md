@@ -91,13 +91,17 @@ Estados de registro: `ACTIVO`, `INACTIVO`.
 
 ## 5. Inventario
 
-Por sede y producto se controla:
+Por almacén interno y producto se controla:
 
 - Stock físico.
 - Stock reservado.
 - Stock disponible.
 - Stock mínimo.
 - Estado `NORMAL`, `BAJO` o `AGOTADO`.
+
+El sistema crea dos ubicaciones internas: `Almacén de Tienda` y `Almacén General`.
+Cada una conserva su propia existencia y su propio stock mínimo. Las transferencias
+descuentan el origen y aumentan el destino dentro de una sola transacción.
 
 Movimientos trazables:
 
@@ -107,8 +111,11 @@ Movimientos trazables:
 - `RESERVA` y `LIBERACION_RESERVA`.
 - `DEVOLUCION_ENTRADA` y `DEVOLUCION_SALIDA`.
 - `ANULACION_VENTA`.
+- `TRANSFERENCIA_SALIDA` y `TRANSFERENCIA_ENTRADA`.
 
-El Kardex permite consultar movimientos cronológicos por producto y filtros de fecha, sede o tipo.
+El Kardex permite consultar movimientos cronológicos por producto y filtros de fecha,
+almacén o tipo. Una venta selecciona el almacén físico de salida, pero la sede fiscal
+del comprobante continúa siendo única y no expone los almacenes internos a SUNAT.
 
 ## 6. Abastecimiento
 

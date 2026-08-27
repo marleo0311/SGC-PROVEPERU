@@ -291,8 +291,8 @@ export function ProductsPage() {
                       </td>
                       <td><strong className="product-code">{product.codigoInterno}</strong><small className="table-subtext">{product.codigoBarras || 'Sin código de barras'}</small></td>
                       <td>{product.categoria.nombre}</td>
-                      <td><span className="unit-badge">{product.unidadBase.codigo}</span> {product.unidadBase.nombre}</td>
-                      <td><strong>{product.stockMinimo}</strong> <span className="table-muted">{product.unidadBase.codigo}</span></td>
+                      <td><span className="unit-badge">{product.unidadBase.nombre}</span></td>
+                      <td><strong>{product.stockMinimo}</strong> <span className="table-muted">{product.unidadBase.nombre}</span></td>
                       <td><span className={`catalog-status catalog-status--${product.estado.toLowerCase()}`}><i className="bi bi-circle-fill" /> {product.estado === 'ACTIVO' ? 'Activo' : 'Inactivo'}</span></td>
                       {(canEdit || canChangeStatus) && (
                         <td>

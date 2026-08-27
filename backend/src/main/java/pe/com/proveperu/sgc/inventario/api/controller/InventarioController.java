@@ -22,6 +22,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -31,6 +32,9 @@ import pe.com.proveperu.sgc.inventario.api.dto.AjusteInventarioRequest;
 import pe.com.proveperu.sgc.inventario.api.dto.AjusteInventarioResponse;
 import pe.com.proveperu.sgc.inventario.api.dto.MovimientoInventarioResponse;
 import pe.com.proveperu.sgc.inventario.api.dto.StockInventarioResponse;
+import pe.com.proveperu.sgc.inventario.api.dto.StockMinimoInventarioRequest;
+import pe.com.proveperu.sgc.inventario.api.dto.TransferenciaInventarioRequest;
+import pe.com.proveperu.sgc.inventario.api.dto.TransferenciaInventarioResponse;
 import pe.com.proveperu.sgc.inventario.application.service.InventarioService;
 import pe.com.proveperu.sgc.inventario.application.service.PermisosInventario;
 import pe.com.proveperu.sgc.inventario.domain.model.TipoMovimientoInventario;
@@ -126,5 +130,34 @@ public class InventarioController {
             "/api/v1/inventario/movimientos/" + response.movimiento().id()
         );
         return ResponseEntity.created(location).body(response);
+    }
+
+    @PostMapping("/transferencias")
+    @PreAuthorize("hasAuthority('" + PermisosInventario.TRANSFERENCIAS_CREAR + "')")
+    @Operation(
+        summary = "Transferir existencias entre almacenes",
+        description = "Registra una salida y una entrada enlazadas dentro de una sola transacción"
+    )
+    public ResponseEntity<TransferenciaInventarioResponse> transferir(
+        @Valid @RequestBody TransferenciaInventarioRequest request,
+        @AuthenticationPrincipal Jwt jwt
+    ) {
+        TransferenciaInventarioResponse response = inventarioService.transferir(
+            request,
+            jwt.getSubject()
+        );
+        return ResponseEntity
+            .created(URI.create("/api/v1/inventario/transferencias/" + response.id()))
+            .body(response);
+    }
+
+    @PutMapping("/{idProducto}/stock-minimo")
+    @PreAuthorize("hasAuthority('" + PermisosInventario.MINIMOS_EDITAR + "')")
+    @Operation(summary = "Configurar el stock mínimo de un producto por almacén")
+    public StockInventarioResponse actualizarStockMinimo(
+        @PathVariable @Positive Long idProducto,
+        @Valid @RequestBody StockMinimoInventarioRequest request
+    ) {
+        return inventarioService.actualizarStockMinimo(idProducto, request);
     }
 }

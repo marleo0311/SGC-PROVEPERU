@@ -3,6 +3,7 @@ package pe.com.proveperu.sgc.inventario.api.controller;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -94,6 +95,7 @@ class InventarioIntegrationTests {
     private UsuarioRepository usuarioRepository;
 
     private Sede sede;
+    private Sede almacenDestino;
     private Producto producto;
     private UnidadMedida unidadBase;
     private UnidadMedida unidadAlterna;
@@ -103,6 +105,11 @@ class InventarioIntegrationTests {
     void crearDatosBase() {
         String sufijo = UUID.randomUUID().toString().substring(0, 8);
         sede = sedeRepository.findFirstByEstadoIgnoreCaseOrderByIdAsc("ACTIVO").orElseThrow();
+        almacenDestino = sedeRepository.findAllByEstadoIgnoreCaseOrderByNombreAsc("ACTIVO")
+            .stream()
+            .filter(item -> !item.getId().equals(sede.getId()))
+            .findFirst()
+            .orElseThrow();
 
         Categoria categoria = new Categoria();
         categoria.setNombre("Categoría inventario " + sufijo);
@@ -155,9 +162,9 @@ class InventarioIntegrationTests {
         mockMvc.perform(get("/api/v1/sedes")
                 .header(HttpHeaders.AUTHORIZATION, bearer(PermisosInventario.STOCK_VER)))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$[0].id").value(sede.getId()))
-            .andExpect(jsonPath("$[0].nombre").value(sede.getNombre()))
-            .andExpect(jsonPath("$[0].estado").value("ACTIVO"));
+            .andExpect(jsonPath("$[?(@.id == %d)]".formatted(sede.getId())).exists())
+            .andExpect(jsonPath("$[?(@.id == %d)]".formatted(almacenDestino.getId())).exists())
+            .andExpect(jsonPath("$[?(@.sedeFacturacion == true)]").exists());
 
         mockMvc.perform(get("/api/v1/sedes")
                 .header(HttpHeaders.AUTHORIZATION, bearer(
@@ -327,12 +334,85 @@ class InventarioIntegrationTests {
     }
 
     @Test
+    void transfiereStockEntreAlmacenesConDosMovimientosEnlazados() throws Exception {
+        ajustar("ENTRADA", "10.000", unidadBase.getId(), "Carga para transferencia")
+            .andExpect(status().isCreated());
+
+        mockMvc.perform(post("/api/v1/inventario/transferencias")
+                .header(HttpHeaders.AUTHORIZATION, bearer(
+                    PermisosInventario.TRANSFERENCIAS_CREAR
+                ))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "idSedeOrigen": %d,
+                      "idSedeDestino": %d,
+                      "idProducto": %d,
+                      "idUnidadMedida": %d,
+                      "cantidad": 4.000,
+                      "motivo": "Reposición de la tienda"
+                    }
+                    """.formatted(
+                        sede.getId(),
+                        almacenDestino.getId(),
+                        producto.getId(),
+                        unidadBase.getId()
+                    )))
+            .andExpect(status().isCreated())
+            .andExpect(header().exists("Location"))
+            .andExpect(jsonPath("$.movimientoSalida.tipoMovimiento")
+                .value("TRANSFERENCIA_SALIDA"))
+            .andExpect(jsonPath("$.movimientoEntrada.tipoMovimiento")
+                .value("TRANSFERENCIA_ENTRADA"))
+            .andExpect(jsonPath("$.stockOrigen.stockFisico").value(6.0))
+            .andExpect(jsonPath("$.stockDestino.stockFisico").value(4.0));
+
+        assertThat(inventarioRepository
+            .findBySedeIdAndProductoId(sede.getId(), producto.getId())
+            .orElseThrow()
+            .getStockFisico()).isEqualByComparingTo("6.000");
+        assertThat(inventarioRepository
+            .findBySedeIdAndProductoId(almacenDestino.getId(), producto.getId())
+            .orElseThrow()
+            .getStockFisico()).isEqualByComparingTo("4.000");
+    }
+
+    @Test
+    void configuraStockMinimoIndependientePorAlmacen() throws Exception {
+        mockMvc.perform(put("/api/v1/inventario/{idProducto}/stock-minimo", producto.getId())
+                .header(HttpHeaders.AUTHORIZATION, bearer(
+                    PermisosInventario.MINIMOS_EDITAR
+                ))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "idSede": %d,
+                      "stockMinimo": 12.000
+                    }
+                    """.formatted(almacenDestino.getId())))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.idSede").value(almacenDestino.getId()))
+            .andExpect(jsonPath("$.stockMinimo").value(12.0))
+            .andExpect(jsonPath("$.estadoStock").value("AGOTADO"));
+
+        assertThat(inventarioRepository
+            .findBySedeIdAndProductoId(almacenDestino.getId(), producto.getId())
+            .orElseThrow()
+            .getStockMinimo()).isEqualByComparingTo("12.000");
+        assertThat(inventarioRepository
+            .findBySedeIdAndProductoId(sede.getId(), producto.getId()))
+            .isEmpty();
+    }
+
+    @Test
     void migracionAsignaPermisosDeInventarioAlAdministrador() {
         Set<String> esperados = Set.of(
             PermisosInventario.STOCK_VER,
             PermisosInventario.AJUSTES_CREAR,
             PermisosInventario.MOVIMIENTOS_VER,
-            PermisosInventario.KARDEX_VER
+            PermisosInventario.KARDEX_VER,
+            PermisosInventario.TRANSFERENCIAS_CREAR,
+            PermisosInventario.MINIMOS_EDITAR
         );
         Set<String> registrados = permisoRepository.findAllByModuloOrderByCodigoAsc("Inventario")
             .stream()

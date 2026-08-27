@@ -6,6 +6,8 @@ public final class PermisosInventario {
     public static final String AJUSTES_CREAR = "INV_AJUSTES_CREAR";
     public static final String MOVIMIENTOS_VER = "INV_MOVIMIENTOS_VER";
     public static final String KARDEX_VER = "INV_KARDEX_VER";
+    public static final String TRANSFERENCIAS_CREAR = "INV_TRANSFERENCIAS_CREAR";
+    public static final String MINIMOS_EDITAR = "INV_MINIMOS_EDITAR";
 
     private PermisosInventario() {
     }

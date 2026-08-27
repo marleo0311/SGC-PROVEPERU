@@ -6,6 +6,7 @@ public record SedeResponse(
     Long id,
     String nombre,
     String direccion,
+    boolean sedeFacturacion,
     String estado
 ) {
     public static SedeResponse from(Sede sede) {
@@ -13,6 +14,7 @@ public record SedeResponse(
             sede.getId(),
             sede.getNombre(),
             sede.getDireccion(),
+            sede.isSedeFacturacion(),
             sede.getEstado()
         );
     }

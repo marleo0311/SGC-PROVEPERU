@@ -140,6 +140,8 @@ export interface VentaResumen {
   idPedido: number | null
   idSede: number
   sede: string
+  idAlmacenSalida: number
+  almacenSalida: string
   fechaHora: string
   tipoVenta: TipoVenta
   condicionPago: CondicionPagoVenta

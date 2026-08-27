@@ -36,7 +36,7 @@ function validate(values: AdjustmentValues, stock: StockInventario): AdjustmentE
   } else if (decimals > 3) {
     errors.cantidad = 'La cantidad admite como máximo 3 decimales.'
   } else if (values.tipoAjuste === 'SALIDA' && quantity > stock.stockDisponible) {
-    errors.cantidad = `Solo hay ${quantityFormatter.format(stock.stockDisponible)} ${stock.codigoUnidadBase} disponibles.`
+    errors.cantidad = `Solo hay ${quantityFormatter.format(stock.stockDisponible)} ${stock.nombreUnidadBase} disponibles.`
   }
 
   if (!values.motivo.trim()) errors.motivo = 'Indica el motivo del ajuste.'
@@ -148,7 +148,7 @@ export function InventoryAdjustmentModal({
               <div>
                 <small>{stock.codigoInterno} · {stock.nombreSede}</small>
                 <strong>{stock.nombreProducto}</strong>
-                <span>Disponible: <b>{quantityFormatter.format(stock.stockDisponible)} {stock.codigoUnidadBase}</b></span>
+                <span>Disponible: <b>{quantityFormatter.format(stock.stockDisponible)} {stock.nombreUnidadBase}</b></span>
               </div>
             </div>
 
@@ -193,7 +193,7 @@ export function InventoryAdjustmentModal({
                     placeholder="0.000"
                     autoFocus
                   />
-                  <span>{stock.codigoUnidadBase}</span>
+                  <span>{stock.nombreUnidadBase}</span>
                 </div>
                 {errors.cantidad && <span className="product-form-field__error"><i className="bi bi-exclamation-circle" /> {errors.cantidad}</span>}
               </label>

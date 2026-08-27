@@ -301,6 +301,63 @@ class VentasIntegrationTests {
     }
 
     @Test
+    void ventaDesdeAlmacenGeneralMantieneUnaUnicaSedeFiscal() throws Exception {
+        Sede almacenGeneral = sedeRepository
+            .findAllByEstadoIgnoreCaseOrderByNombreAsc("ACTIVO")
+            .stream()
+            .filter(item -> !item.isSedeFacturacion())
+            .findFirst()
+            .orElseThrow();
+        Inventario stockGeneral = new Inventario();
+        stockGeneral.setSede(almacenGeneral);
+        stockGeneral.setProducto(producto);
+        stockGeneral.setStockFisico(new BigDecimal("9.000"));
+        stockGeneral.setStockReservado(BigDecimal.ZERO.setScale(3));
+        inventarioRepository.saveAndFlush(stockGeneral);
+
+        MvcResult resultado = mockMvc.perform(post("/api/v1/ventas")
+                .header(HttpHeaders.AUTHORIZATION, bearer(PermisosVenta.VENTAS_CREAR))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "idCliente": %d,
+                      "idSede": %d,
+                      "tipoVenta": "MINORISTA",
+                      "condicionPago": "CONTADO",
+                      "idMetodoPago": %d,
+                      "tipoComprobante": "NOTA_VENTA",
+                      "items": [{
+                        "idProducto": %d,
+                        "idUnidadMedida": %d,
+                        "cantidad": 2.000,
+                        "descuento": 0.00
+                      }]
+                    }
+                    """.formatted(
+                        cliente.getId(),
+                        almacenGeneral.getId(),
+                        efectivo.getId(),
+                        producto.getId(),
+                        unidadBase.getId()
+                    )))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.venta.idAlmacenSalida")
+                .value(almacenGeneral.getId()))
+            .andExpect(jsonPath("$.venta.almacenSalida")
+                .value(almacenGeneral.getNombre()))
+            .andReturn();
+
+        var venta = ventaRepository.findById(idVenta(resultado)).orElseThrow();
+        assertThat(venta.getSede().isSedeFacturacion()).isTrue();
+        assertThat(venta.getAlmacenSalida().getId()).isEqualTo(almacenGeneral.getId());
+        assertThat(inventarioRepository
+            .findBySedeIdAndProductoId(almacenGeneral.getId(), producto.getId())
+            .orElseThrow()
+            .getStockFisico()).isEqualByComparingTo("7.000");
+        assertThat(inventarioActual().getStockFisico()).isEqualByComparingTo("20.000");
+    }
+
+    @Test
     void boletaMantieneElPrecioFinalYDesglosaElIgvIncluido() throws Exception {
         precioVigente.setMonto(new BigDecimal("14.00"));
         precioRepository.saveAndFlush(precioVigente);

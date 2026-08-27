@@ -72,6 +72,8 @@ Esto significa:
 | V28 | `actualizar_datos_fiscales_empresa` | Datos fiscales del emisor y domicilio principal contrastados con la Ficha RUC. |
 | V29 | `separar_series_y_correlativos_por_ambiente` | Series atómicas de comprobantes y notas, ambiente de emisión y numeración independiente BETA/PRODUCCIÓN. |
 | V30 | `habilitar_saldos_iniciales_clientes` | Cuentas por cobrar históricas sin venta ni movimiento de inventario. |
+| V31 | `habilitar_multi_almacen_y_transferencias` | Dos almacenes internos, mínimos independientes, transferencias y almacén físico de salida de la venta. |
+| V32 | `reforzar_separacion_fiscal_y_almacenes` | Una sola sede fiscal por empresa e índices del almacén de salida. |
 
 Los archivos se encuentran en `backend/src/main/resources/db/migration`.
 
@@ -92,6 +94,7 @@ Los archivos se encuentran en `backend/src/main/resources/db/migration`.
 
 - `inventario`.
 - `movimiento_inventario`.
+- `transferencia_inventario`.
 
 ### Abastecimiento
 
@@ -130,6 +133,7 @@ producto ──< producto_unidad_conversion
 
 sede + producto ── inventario
 inventario ──< movimiento_inventario
+sede origen ──< transferencia_inventario >── sede destino
 
 proveedor ──< compra ──< detalle_compra >── producto
 compra ──< recepcion_compra ──< detalle_recepcion_compra
@@ -140,6 +144,8 @@ cliente ──< cotizacion ──< detalle_cotizacion
 cotizacion ── pedido ──< detalle_pedido
 pedido ──< reserva_stock
 pedido ── venta ──< detalle_venta
+venta >── sede (fiscal)
+venta >── sede (almacén interno de salida)
 venta ── comprobante
 resumen_diario_sunat >──< comprobante
 cliente ──< cuenta_cobrar ──< pago_cliente
@@ -155,6 +161,10 @@ venta ──< devolucion ──< detalle_devolucion
 - Código de barras único cuando está informado.
 - Categorías y marcas con nombre único normalizado.
 - Una fila de inventario por sede y producto.
+- Un solo registro `es_sede_facturacion = true` por empresa.
+- Una transferencia usa almacenes diferentes, cantidad positiva y dos movimientos
+  de Kardex enlazados al mismo origen.
+- La venta conserva por separado la sede fiscal y el almacén del que salió el stock.
 - Stock físico y reservado controlados por reglas de aplicación y restricciones.
 - Comprobante de compra único por proveedor cuando está informado.
 - Una sola sesión de caja abierta por caja.

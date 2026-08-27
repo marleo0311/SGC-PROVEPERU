@@ -45,6 +45,9 @@ public class Inventario {
     @Column(name = "stock_reservado", nullable = false, precision = 14, scale = 3)
     private BigDecimal stockReservado = BigDecimal.ZERO;
 
+    @Column(name = "stock_minimo", nullable = false, precision = 14, scale = 3)
+    private BigDecimal stockMinimo;
+
     @Column(name = "fecha_actualizacion", nullable = false)
     private Instant fechaActualizacion;
 
@@ -55,6 +58,11 @@ public class Inventario {
     @PrePersist
     @PreUpdate
     void actualizarFecha() {
+        if (stockMinimo == null) {
+            stockMinimo = producto == null || producto.getStockMinimo() == null
+                ? BigDecimal.ZERO
+                : producto.getStockMinimo();
+        }
         fechaActualizacion = Instant.now();
     }
 

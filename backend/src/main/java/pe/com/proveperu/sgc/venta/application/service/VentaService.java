@@ -188,7 +188,7 @@ public class VentaService {
             .toList();
         for (DetalleVenta detalle : detalles) {
             inventarioService.restaurarVentaAnulada(
-                venta.getSede(),
+                venta.getAlmacenSalida(),
                 detalle.getProducto(),
                 detalle.getUnidadMedida(),
                 detalle.getCantidad(),
@@ -260,7 +260,8 @@ public class VentaService {
 
         venta.setPedido(pedido);
         venta.setCliente(pedido.getCliente());
-        venta.setSede(pedido.getSede());
+        venta.setSede(resolverSedeFacturacion());
+        venta.setAlmacenSalida(pedido.getSede());
         BigDecimal descuentoTotal = dinero(BigDecimal.ZERO);
         for (DetallePedido origen : pedido.getDetalles()) {
             DetalleVenta detalle = new DetalleVenta();
@@ -296,7 +297,8 @@ public class VentaService {
         }
         Cliente cliente = buscarClienteActivo(request.idCliente());
         venta.setCliente(cliente);
-        venta.setSede(resolverSede(request.idSede()));
+        venta.setSede(resolverSedeFacturacion());
+        venta.setAlmacenSalida(resolverSede(request.idSede()));
 
         Set<Long> productosUnicos = new HashSet<>();
         BigDecimal importeFinal = dinero(BigDecimal.ZERO);
@@ -399,7 +401,7 @@ public class VentaService {
         venta.getDetalles().stream()
             .sorted(Comparator.comparing(detalle -> detalle.getProducto().getId()))
             .forEach(detalle -> inventarioService.registrarVentaDirecta(
-                venta.getSede(),
+                venta.getAlmacenSalida(),
                 detalle.getProducto(),
                 detalle.getUnidadMedida(),
                 detalle.getCantidad(),
@@ -687,6 +689,14 @@ public class VentaService {
             );
         }
         return sede;
+    }
+
+    private Sede resolverSedeFacturacion() {
+        return sedeRepository
+            .findFirstBySedeFacturacionTrueAndEstadoIgnoreCaseOrderByIdAsc("ACTIVO")
+            .orElseThrow(() -> new RecursoNoEncontradoException(
+                "No existe un local fiscal activo para emitir comprobantes"
+            ));
     }
 
     private BigDecimal resolverPrecioBase(

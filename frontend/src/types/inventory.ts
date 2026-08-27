@@ -13,11 +13,14 @@ export type TipoMovimientoInventario =
   | 'RESERVA'
   | 'LIBERACION_RESERVA'
   | 'ANULACION_VENTA'
+  | 'TRANSFERENCIA_SALIDA'
+  | 'TRANSFERENCIA_ENTRADA'
 
 export interface Sede {
   id: number
   nombre: string
   direccion: string | null
+  sedeFacturacion: boolean
   estado: string
 }
 
@@ -88,6 +91,37 @@ export interface AjusteInventarioRequest {
   tipoAjuste: TipoAjusteInventario
   cantidad: number
   motivo: string
+}
+
+export interface TransferenciaInventarioRequest {
+  idSedeOrigen: number
+  idSedeDestino: number
+  idProducto: number
+  idUnidadMedida: number
+  cantidad: number
+  motivo: string
+}
+
+export interface TransferenciaInventarioResponse {
+  id: number
+  idSedeOrigen: number
+  sedeOrigen: string
+  idSedeDestino: number
+  sedeDestino: string
+  idProducto: number
+  codigoProducto: string
+  producto: string
+  cantidad: number
+  unidadMedida: string
+  cantidadBase: number
+  unidadBase: string
+  motivo: string
+  usuario: string
+  fechaHora: string
+  movimientoSalida: MovimientoInventario
+  movimientoEntrada: MovimientoInventario
+  stockOrigen: StockInventario
+  stockDestino: StockInventario
 }
 
 export interface AjusteInventarioResponse {

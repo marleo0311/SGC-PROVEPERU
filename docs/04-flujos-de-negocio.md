@@ -146,13 +146,28 @@ Si una regla crítica falla, la transacción completa debe revertirse.
 La venta directa omite cotización y pedido:
 
 ```text
-Cliente + productos + sede
-          │
-          ▼
-        Venta
+Cliente + productos + almacén de salida
+                 │
+                 ▼
+               Venta
+                 │
+                 └── comprobante con sede fiscal única
 ```
 
-Se recomienda para operaciones presenciales inmediatas. El backend sigue validando producto activo, precio, stock, descuentos, caja y condición de pago.
+Se recomienda para operaciones presenciales inmediatas. El backend sigue validando
+producto activo, precio, stock del almacén elegido, descuentos, caja y condición de
+pago. Todos los productos de una venta salen del mismo almacén seleccionado.
+
+### Movimiento entre almacenes
+
+1. Abrir **Inventario → Existencias**.
+2. Elegir el almacén de origen y localizar el producto.
+3. Pulsar **Transferir**, seleccionar el almacén de destino, cantidad y motivo.
+4. Confirmar el traslado.
+5. Verificar la salida y la entrada en el Kardex.
+
+El traslado es interno: no crea venta, movimiento de caja, boleta, factura ni envío
+a SUNAT.
 
 ## 5. Caja diaria
 

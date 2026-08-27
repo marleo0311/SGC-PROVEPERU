@@ -57,6 +57,10 @@ public class Venta {
     @JoinColumn(name = "id_sede", nullable = false)
     private Sede sede;
 
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "id_almacen_salida", nullable = false)
+    private Sede almacenSalida;
+
     @Column(name = "fecha_hora", nullable = false, updatable = false)
     private Instant fechaHora;
 
@@ -117,6 +121,9 @@ public class Venta {
 
     @PrePersist
     void asignarFechaHora() {
+        if (almacenSalida == null) {
+            almacenSalida = sede;
+        }
         if (fechaHora == null) {
             fechaHora = Instant.now();
         }
