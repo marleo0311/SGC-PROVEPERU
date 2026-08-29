@@ -26,6 +26,7 @@ export interface UnidadMedida {
   id: number
   codigo: string
   nombre: string
+  codigoSunat: string
   permiteDecimales: boolean
   estado: EstadoCatalogo
 }
@@ -33,6 +34,7 @@ export interface UnidadMedida {
 export interface UnidadMedidaGuardarRequest {
   codigo: string
   nombre: string
+  codigoSunat: string
   permiteDecimales: boolean
 }
 
@@ -88,6 +90,25 @@ export interface PrecioProducto {
   vigenteDesde: string
   vigenteHasta: string | null
   estado: string
+}
+
+export interface PresentacionProducto {
+  id: number
+  idProducto: number
+  producto: string
+  unidadPresentacion: UnidadMedida
+  unidadBase: UnidadMedida
+  nombre: string
+  contenidoVariable: boolean
+  contenidoBasePredeterminado: number | null
+  estado: EstadoCatalogo
+}
+
+export interface PresentacionProductoGuardarRequest {
+  nombre: string
+  idUnidadMedida: number
+  contenidoVariable: boolean
+  contenidoBasePredeterminado: number | null
 }
 
 export interface CatalogoOpciones {

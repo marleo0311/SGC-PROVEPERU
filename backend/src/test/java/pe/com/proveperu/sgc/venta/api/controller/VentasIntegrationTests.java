@@ -35,10 +35,12 @@ import org.springframework.transaction.annotation.Transactional;
 import pe.com.proveperu.sgc.catalogo.domain.model.Categoria;
 import pe.com.proveperu.sgc.catalogo.domain.model.EstadoCatalogo;
 import pe.com.proveperu.sgc.catalogo.domain.model.PrecioProducto;
+import pe.com.proveperu.sgc.catalogo.domain.model.PresentacionProducto;
 import pe.com.proveperu.sgc.catalogo.domain.model.Producto;
 import pe.com.proveperu.sgc.catalogo.domain.model.UnidadMedida;
 import pe.com.proveperu.sgc.catalogo.infrastructure.persistence.CategoriaRepository;
 import pe.com.proveperu.sgc.catalogo.infrastructure.persistence.PrecioProductoRepository;
+import pe.com.proveperu.sgc.catalogo.infrastructure.persistence.PresentacionProductoRepository;
 import pe.com.proveperu.sgc.catalogo.infrastructure.persistence.ProductoRepository;
 import pe.com.proveperu.sgc.catalogo.infrastructure.persistence.UnidadMedidaRepository;
 import pe.com.proveperu.sgc.caja.domain.model.Caja;
@@ -58,11 +60,14 @@ import pe.com.proveperu.sgc.comprobante.infrastructure.persistence.ComprobanteRe
 import pe.com.proveperu.sgc.configuracion.domain.model.MetodoPago;
 import pe.com.proveperu.sgc.configuracion.infrastructure.persistence.MetodoPagoRepository;
 import pe.com.proveperu.sgc.inventario.application.service.InventarioService;
+import pe.com.proveperu.sgc.inventario.api.dto.IngresoPresentacionesRequest;
+import pe.com.proveperu.sgc.inventario.domain.model.EstadoExistenciaPresentacion;
 import pe.com.proveperu.sgc.inventario.domain.model.Inventario;
 import pe.com.proveperu.sgc.inventario.domain.model.MovimientoInventario;
 import pe.com.proveperu.sgc.inventario.domain.model.Sede;
 import pe.com.proveperu.sgc.inventario.domain.model.TipoMovimientoInventario;
 import pe.com.proveperu.sgc.inventario.infrastructure.persistence.InventarioRepository;
+import pe.com.proveperu.sgc.inventario.infrastructure.persistence.ExistenciaPresentacionRepository;
 import pe.com.proveperu.sgc.inventario.infrastructure.persistence.MovimientoInventarioRepository;
 import pe.com.proveperu.sgc.inventario.infrastructure.persistence.SedeRepository;
 import pe.com.proveperu.sgc.impresion.application.service.PermisosImpresion;
@@ -117,6 +122,9 @@ class VentasIntegrationTests {
     private PrecioProductoRepository precioRepository;
 
     @Autowired
+    private PresentacionProductoRepository presentacionProductoRepository;
+
+    @Autowired
     private ClienteRepository clienteRepository;
 
     @Autowired
@@ -133,6 +141,9 @@ class VentasIntegrationTests {
 
     @Autowired
     private InventarioRepository inventarioRepository;
+
+    @Autowired
+    private ExistenciaPresentacionRepository existenciaPresentacionRepository;
 
     @Autowired
     private MovimientoInventarioRepository movimientoRepository;
@@ -298,6 +309,120 @@ class VentasIntegrationTests {
         assertThat(movimientosCaja.getFirst().getImporte())
             .isEqualByComparingTo("50.00");
         assertThat(cuentaRepository.findByVentaId(idVenta)).isEmpty();
+    }
+
+    @Test
+    void vendeUnaCajaCerradaConSuContenidoReal() throws Exception {
+        UnidadMedida caja = new UnidadMedida();
+        caja.setCodigo("CJ" + UUID.randomUUID().toString().substring(0, 6));
+        caja.setNombre("Caja variable de venta");
+        caja.setCodigoSunat("BX");
+        caja.setPermiteDecimales(false);
+        caja.setEstado(EstadoCatalogo.ACTIVO);
+        caja = unidadMedidaRepository.save(caja);
+
+        PresentacionProducto presentacion = new PresentacionProducto();
+        presentacion.setProducto(producto);
+        presentacion.setUnidadMedida(caja);
+        presentacion.setNombre("Caja variable");
+        presentacion.setContenidoVariable(true);
+        presentacion.setEstado(EstadoCatalogo.ACTIVO);
+        presentacion = presentacionProductoRepository.save(presentacion);
+
+        var ingreso = inventarioService.registrarPresentaciones(
+            new IngresoPresentacionesRequest(
+                sede.getId(),
+                producto.getId(),
+                presentacion.getId(),
+                List.of(new BigDecimal("50.000")),
+                "Ingreso de caja variable para venta"
+            ),
+            usuario.getUsuarioLogin()
+        );
+        Long idExistencia = ingreso.presentaciones().getFirst().id();
+
+        mockMvc.perform(post("/api/v1/ventas")
+                .header(HttpHeaders.AUTHORIZATION, bearer(PermisosVenta.VENTAS_CREAR))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "idCliente": %d,
+                      "idSede": %d,
+                      "tipoVenta": "MINORISTA",
+                      "condicionPago": "CONTADO",
+                      "idMetodoPago": %d,
+                      "tipoComprobante": "NOTA_VENTA",
+                      "aplicarIgv": false,
+                      "items": [{
+                        "idProducto": %d,
+                        "idUnidadMedida": %d,
+                        "idExistenciaPresentacion": %d,
+                        "cantidad": 1.000,
+                        "precioUnitario": 1250.00,
+                        "descuento": 0.00
+                      }]
+                    }
+                    """.formatted(
+                        cliente.getId(), sede.getId(), efectivo.getId(),
+                        producto.getId(), caja.getId(), idExistencia
+                    )))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.venta.total").value(1250.0))
+            .andExpect(jsonPath("$.detalles[0].cantidad").value(1.0))
+            .andExpect(jsonPath("$.detalles[0].cantidadBase").value(50.0))
+            .andExpect(jsonPath("$.detalles[0].idExistenciaPresentacion")
+                .value(idExistencia));
+
+        assertThat(inventarioActual().getStockFisico()).isEqualByComparingTo("20.000");
+        assertThat(existenciaPresentacionRepository.findById(idExistencia).orElseThrow()
+            .getEstado()).isEqualTo(EstadoExistenciaPresentacion.AGOTADO);
+    }
+
+    @Test
+    void vendeUnidadesDesdeUnaCajaAbiertaYConservaElSaldo() throws Exception {
+        inventario.setStockFisico(BigDecimal.ZERO.setScale(3));
+        inventarioRepository.save(inventario);
+
+        UnidadMedida caja = new UnidadMedida();
+        caja.setCodigo("CA" + UUID.randomUUID().toString().substring(0, 6));
+        caja.setNombre("Caja para fraccionar");
+        caja.setCodigoSunat("BX");
+        caja.setPermiteDecimales(false);
+        caja.setEstado(EstadoCatalogo.ACTIVO);
+        caja = unidadMedidaRepository.save(caja);
+
+        PresentacionProducto presentacion = new PresentacionProducto();
+        presentacion.setProducto(producto);
+        presentacion.setUnidadMedida(caja);
+        presentacion.setNombre("Caja fraccionable");
+        presentacion.setContenidoVariable(true);
+        presentacion.setEstado(EstadoCatalogo.ACTIVO);
+        presentacion = presentacionProductoRepository.save(presentacion);
+
+        var ingreso = inventarioService.registrarPresentaciones(
+            new IngresoPresentacionesRequest(
+                sede.getId(), producto.getId(), presentacion.getId(),
+                List.of(new BigDecimal("10.000")), "Ingreso para venta fraccionada"
+            ),
+            usuario.getUsuarioLogin()
+        );
+        Long idExistencia = ingreso.presentaciones().getFirst().id();
+        inventarioService.abrirPresentacion(idExistencia, usuario.getUsuarioLogin());
+
+        crearVentaDirecta(
+            "CONTADO",
+            "\"idMetodoPago\": %d,".formatted(efectivo.getId()),
+            "",
+            PermisosVenta.VENTAS_CREAR
+        )
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.detalles[0].cantidad").value(2.0))
+            .andExpect(jsonPath("$.detalles[0].idExistenciaPresentacion").doesNotExist());
+
+        assertThat(inventarioActual().getStockFisico()).isEqualByComparingTo("8.000");
+        var existencia = existenciaPresentacionRepository.findById(idExistencia).orElseThrow();
+        assertThat(existencia.getEstado()).isEqualTo(EstadoExistenciaPresentacion.ABIERTO);
+        assertThat(existencia.getCantidadDisponibleBase()).isEqualByComparingTo("8.000");
     }
 
     @Test

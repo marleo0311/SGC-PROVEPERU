@@ -40,6 +40,7 @@ public class UnidadMedidaService {
         UnidadMedida unidad = new UnidadMedida();
         unidad.setCodigo(codigo);
         unidad.setNombre(request.nombre().strip());
+        unidad.setCodigoSunat(normalizarCodigoSunat(request.codigoSunat()));
         unidad.setPermiteDecimales(request.permiteDecimales());
         unidad.setEstado(EstadoCatalogo.ACTIVO);
         return UnidadMedidaResponse.from(unidadMedidaRepository.save(unidad));
@@ -52,6 +53,7 @@ public class UnidadMedidaService {
         validarCodigoDisponible(codigo, id);
         unidad.setCodigo(codigo);
         unidad.setNombre(request.nombre().strip());
+        unidad.setCodigoSunat(normalizarCodigoSunat(request.codigoSunat()));
         unidad.setPermiteDecimales(request.permiteDecimales());
         unidad.setEstado(request.estado());
         return UnidadMedidaResponse.from(unidad);
@@ -73,6 +75,19 @@ public class UnidadMedidaService {
 
     private String normalizarCodigo(String codigo) {
         return codigo.strip().toUpperCase(Locale.ROOT);
+    }
+
+    private String normalizarCodigoSunat(String codigo) {
+        if (codigo == null || codigo.isBlank()) {
+            return "NIU";
+        }
+        String normalizado = codigo.strip().toUpperCase(Locale.ROOT);
+        if (!normalizado.matches("[A-Z0-9]{2,3}")) {
+            throw new pe.com.proveperu.sgc.shared.application.exception.SolicitudInvalidaException(
+                "El código SUNAT debe contener 2 o 3 letras o números"
+            );
+        }
+        return normalizado;
     }
 
     private String normalizarBusqueda(String buscar) {

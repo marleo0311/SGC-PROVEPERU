@@ -13,15 +13,17 @@ interface UnitFormModalProps {
 interface UnitValues {
   codigo: string
   nombre: string
+  codigoSunat: string
   permiteDecimales: boolean
 }
 
-type UnitErrors = Partial<Record<'codigo' | 'nombre', string>>
+type UnitErrors = Partial<Record<'codigo' | 'nombre' | 'codigoSunat', string>>
 
 export function UnitFormModal({ mode, unit, onClose, onSaved }: UnitFormModalProps) {
   const [values, setValues] = useState<UnitValues>({
     codigo: unit?.codigo ?? '',
     nombre: unit?.nombre ?? '',
+    codigoSunat: unit?.codigoSunat ?? 'NIU',
     permiteDecimales: unit?.permiteDecimales ?? false,
   })
   const [errors, setErrors] = useState<UnitErrors>({})
@@ -52,6 +54,7 @@ export function UnitFormModal({ mode, unit, onClose, onSaved }: UnitFormModalPro
     const nextErrors: UnitErrors = {}
     if (!values.codigo.trim()) nextErrors.codigo = 'Ingresa el código de la unidad.'
     if (!values.nombre.trim()) nextErrors.nombre = 'Ingresa el nombre de la unidad.'
+    if (!/^[A-Z0-9]{2,3}$/.test(values.codigoSunat.trim().toUpperCase())) nextErrors.codigoSunat = 'Usa un código SUNAT válido de 2 o 3 caracteres.'
     if (Object.keys(nextErrors).length > 0) {
       setErrors(nextErrors)
       return
@@ -60,6 +63,7 @@ export function UnitFormModal({ mode, unit, onClose, onSaved }: UnitFormModalPro
     const request: UnidadMedidaGuardarRequest = {
       codigo: values.codigo.trim().toUpperCase(),
       nombre: values.nombre.trim(),
+      codigoSunat: values.codigoSunat.trim().toUpperCase(),
       permiteDecimales: values.permiteDecimales,
     }
     setSubmitError('')
@@ -105,6 +109,11 @@ export function UnitFormModal({ mode, unit, onClose, onSaved }: UnitFormModalPro
                 <span className="product-form-field__label">Nombre <b>*</b><small>{values.nombre.length}/80</small></span>
                 <input id="unit-name" name="nombre" value={values.nombre} onChange={handleChange} maxLength={80} placeholder="Ej. Unidad" />
                 {errors.nombre && <span className="product-form-field__error"><i className="bi bi-exclamation-circle" /> {errors.nombre}</span>}
+              </label>
+              <label className={`product-form-field ${errors.codigoSunat ? 'product-form-field--error' : ''}`} htmlFor="unit-sunat">
+                <span className="product-form-field__label">Código SUNAT <b>*</b><small>Catálogo 03</small></span>
+                <input id="unit-sunat" name="codigoSunat" value={values.codigoSunat} onChange={handleChange} maxLength={3} placeholder="NIU, MTR o BX" />
+                {errors.codigoSunat && <span className="product-form-field__error"><i className="bi bi-exclamation-circle" /> {errors.codigoSunat}</span>}
               </label>
             </div>
             <label className="unit-decimal-option">

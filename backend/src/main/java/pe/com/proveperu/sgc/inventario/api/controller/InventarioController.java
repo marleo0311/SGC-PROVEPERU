@@ -20,6 +20,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -31,6 +32,9 @@ import pe.com.proveperu.sgc.config.OpenApiConfig;
 import pe.com.proveperu.sgc.inventario.api.dto.AjusteInventarioRequest;
 import pe.com.proveperu.sgc.inventario.api.dto.AjusteInventarioResponse;
 import pe.com.proveperu.sgc.inventario.api.dto.MovimientoInventarioResponse;
+import pe.com.proveperu.sgc.inventario.api.dto.ExistenciaPresentacionResponse;
+import pe.com.proveperu.sgc.inventario.api.dto.IngresoPresentacionesRequest;
+import pe.com.proveperu.sgc.inventario.api.dto.IngresoPresentacionesResponse;
 import pe.com.proveperu.sgc.inventario.api.dto.StockInventarioResponse;
 import pe.com.proveperu.sgc.inventario.api.dto.StockMinimoInventarioRequest;
 import pe.com.proveperu.sgc.inventario.api.dto.TransferenciaInventarioRequest;
@@ -38,6 +42,8 @@ import pe.com.proveperu.sgc.inventario.api.dto.TransferenciaInventarioResponse;
 import pe.com.proveperu.sgc.inventario.application.service.InventarioService;
 import pe.com.proveperu.sgc.inventario.application.service.PermisosInventario;
 import pe.com.proveperu.sgc.inventario.domain.model.TipoMovimientoInventario;
+import pe.com.proveperu.sgc.inventario.domain.model.EstadoExistenciaPresentacion;
+import java.util.List;
 import pe.com.proveperu.sgc.shared.api.dto.PaginaResponse;
 
 @RestController
@@ -113,6 +119,42 @@ public class InventarioController {
         @RequestParam(required = false) @Positive Long idSede
     ) {
         return inventarioService.obtener(idProducto, idSede);
+    }
+
+    @GetMapping("/{idProducto}/presentaciones")
+    @PreAuthorize("hasAnyAuthority('" + PermisosInventario.STOCK_VER + "', '"
+        + PermisosInventario.PRESENTACIONES_GESTIONAR + "')")
+    @Operation(summary = "Listar cajas, paquetes y rollos físicos de un producto")
+    public List<ExistenciaPresentacionResponse> listarPresentaciones(
+        @PathVariable @Positive Long idProducto,
+        @RequestParam(required = false) @Positive Long idSede,
+        @RequestParam(required = false) EstadoExistenciaPresentacion estado
+    ) {
+        return inventarioService.listarPresentaciones(idSede, idProducto, estado);
+    }
+
+    @PostMapping("/presentaciones")
+    @PreAuthorize("hasAuthority('" + PermisosInventario.PRESENTACIONES_GESTIONAR + "')")
+    @Operation(summary = "Registrar el contenido real de cajas, paquetes o rollos")
+    public ResponseEntity<IngresoPresentacionesResponse> registrarPresentaciones(
+        @Valid @RequestBody IngresoPresentacionesRequest request,
+        @AuthenticationPrincipal Jwt jwt
+    ) {
+        IngresoPresentacionesResponse response = inventarioService
+            .registrarPresentaciones(request, jwt.getSubject());
+        return ResponseEntity.created(URI.create(
+            "/api/v1/inventario/" + request.idProducto() + "/presentaciones"
+        )).body(response);
+    }
+
+    @PatchMapping("/presentaciones/{id}/abrir")
+    @PreAuthorize("hasAuthority('" + PermisosInventario.PRESENTACIONES_GESTIONAR + "')")
+    @Operation(summary = "Abrir una presentación para vender por unidad o metro")
+    public ExistenciaPresentacionResponse abrirPresentacion(
+        @PathVariable @Positive Long id,
+        @AuthenticationPrincipal Jwt jwt
+    ) {
+        return inventarioService.abrirPresentacion(id, jwt.getSubject());
     }
 
     @PostMapping("/ajustes")

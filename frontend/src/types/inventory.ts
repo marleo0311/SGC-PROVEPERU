@@ -1,6 +1,7 @@
 import type { Pagina } from './catalog'
 
 export type EstadoStock = 'NORMAL' | 'BAJO' | 'AGOTADO'
+export type EstadoExistenciaPresentacion = 'CERRADO' | 'ABIERTO' | 'AGOTADO'
 export type TipoAjusteInventario = 'ENTRADA' | 'SALIDA'
 export type TipoMovimientoInventario =
   | 'INICIAL'
@@ -125,6 +126,43 @@ export interface TransferenciaInventarioResponse {
 }
 
 export interface AjusteInventarioResponse {
+  movimiento: MovimientoInventario
+  inventario: StockInventario
+}
+
+export interface ExistenciaPresentacion {
+  id: number
+  codigo: string
+  idSede: number
+  sede: string
+  idProducto: number
+  codigoProducto: string
+  producto: string
+  idPresentacionProducto: number
+  presentacion: string
+  idUnidadPresentacion: number
+  codigoUnidadPresentacion: string
+  nombreUnidadPresentacion: string
+  idUnidadBase: number
+  codigoUnidadBase: string
+  nombreUnidadBase: string
+  cantidadInicialBase: number
+  cantidadDisponibleBase: number
+  estado: EstadoExistenciaPresentacion
+  fechaIngreso: string
+  fechaApertura: string | null
+}
+
+export interface IngresoPresentacionesRequest {
+  idSede: number
+  idProducto: number
+  idPresentacionProducto: number
+  contenidosBase: number[]
+  motivo: string
+}
+
+export interface IngresoPresentacionesResponse {
+  presentaciones: ExistenciaPresentacion[]
   movimiento: MovimientoInventario
   inventario: StockInventario
 }

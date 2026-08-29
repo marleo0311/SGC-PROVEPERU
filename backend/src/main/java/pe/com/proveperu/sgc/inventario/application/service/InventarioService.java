@@ -5,6 +5,8 @@ import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.EnumSet;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -14,26 +16,36 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pe.com.proveperu.sgc.catalogo.domain.model.EstadoCatalogo;
+import pe.com.proveperu.sgc.catalogo.domain.model.PresentacionProducto;
 import pe.com.proveperu.sgc.catalogo.domain.model.Producto;
 import pe.com.proveperu.sgc.catalogo.domain.model.ProductoUnidadConversion;
 import pe.com.proveperu.sgc.catalogo.domain.model.UnidadMedida;
 import pe.com.proveperu.sgc.catalogo.infrastructure.persistence.ProductoRepository;
+import pe.com.proveperu.sgc.catalogo.infrastructure.persistence.PresentacionProductoRepository;
 import pe.com.proveperu.sgc.catalogo.infrastructure.persistence.ProductoUnidadConversionRepository;
 import pe.com.proveperu.sgc.catalogo.infrastructure.persistence.UnidadMedidaRepository;
 import pe.com.proveperu.sgc.inventario.api.dto.AjusteInventarioRequest;
 import pe.com.proveperu.sgc.inventario.api.dto.AjusteInventarioResponse;
 import pe.com.proveperu.sgc.inventario.api.dto.MovimientoInventarioResponse;
+import pe.com.proveperu.sgc.inventario.api.dto.ExistenciaPresentacionResponse;
+import pe.com.proveperu.sgc.inventario.api.dto.IngresoPresentacionesRequest;
+import pe.com.proveperu.sgc.inventario.api.dto.IngresoPresentacionesResponse;
 import pe.com.proveperu.sgc.inventario.api.dto.StockInventarioResponse;
 import pe.com.proveperu.sgc.inventario.api.dto.StockMinimoInventarioRequest;
 import pe.com.proveperu.sgc.inventario.api.dto.TransferenciaInventarioRequest;
 import pe.com.proveperu.sgc.inventario.api.dto.TransferenciaInventarioResponse;
 import pe.com.proveperu.sgc.inventario.domain.model.Inventario;
+import pe.com.proveperu.sgc.inventario.domain.model.ConsumoExistenciaPresentacion;
+import pe.com.proveperu.sgc.inventario.domain.model.EstadoExistenciaPresentacion;
+import pe.com.proveperu.sgc.inventario.domain.model.ExistenciaPresentacion;
 import pe.com.proveperu.sgc.inventario.domain.model.MovimientoInventario;
 import pe.com.proveperu.sgc.inventario.domain.model.Sede;
 import pe.com.proveperu.sgc.inventario.domain.model.TipoAjusteInventario;
 import pe.com.proveperu.sgc.inventario.domain.model.TipoMovimientoInventario;
 import pe.com.proveperu.sgc.inventario.domain.model.TransferenciaInventario;
 import pe.com.proveperu.sgc.inventario.infrastructure.persistence.InventarioRepository;
+import pe.com.proveperu.sgc.inventario.infrastructure.persistence.ConsumoExistenciaPresentacionRepository;
+import pe.com.proveperu.sgc.inventario.infrastructure.persistence.ExistenciaPresentacionRepository;
 import pe.com.proveperu.sgc.inventario.infrastructure.persistence.MovimientoInventarioRepository;
 import pe.com.proveperu.sgc.inventario.infrastructure.persistence.SedeRepository;
 import pe.com.proveperu.sgc.inventario.infrastructure.persistence.TransferenciaInventarioRepository;
@@ -45,6 +57,8 @@ import pe.com.proveperu.sgc.security.infrastructure.persistence.UsuarioRepositor
 import pe.com.proveperu.sgc.shared.api.dto.PaginaResponse;
 import pe.com.proveperu.sgc.shared.application.exception.ReglaNegocioException;
 import pe.com.proveperu.sgc.shared.application.exception.SolicitudInvalidaException;
+import pe.com.proveperu.sgc.compra.domain.model.RecepcionCompra;
+import pe.com.proveperu.sgc.venta.domain.model.DetalleVenta;
 
 @Service
 @RequiredArgsConstructor
@@ -59,7 +73,10 @@ public class InventarioService {
     private final ProductoRepository productoRepository;
     private final UnidadMedidaRepository unidadMedidaRepository;
     private final ProductoUnidadConversionRepository conversionRepository;
+    private final PresentacionProductoRepository presentacionProductoRepository;
     private final InventarioRepository inventarioRepository;
+    private final ExistenciaPresentacionRepository existenciaPresentacionRepository;
+    private final ConsumoExistenciaPresentacionRepository consumoPresentacionRepository;
     private final MovimientoInventarioRepository movimientoRepository;
     private final TransferenciaInventarioRepository transferenciaRepository;
     private final UsuarioRepository usuarioRepository;
@@ -89,6 +106,177 @@ public class InventarioService {
             .findBySedeIdAndProductoId(sede.getId(), producto.getId())
             .orElse(null);
         return StockInventarioResponse.from(sede, producto, inventario);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ExistenciaPresentacionResponse> listarPresentaciones(
+        Long idSede,
+        Long idProducto,
+        EstadoExistenciaPresentacion estado
+    ) {
+        Sede sede = resolverSede(idSede);
+        buscarProducto(idProducto, false);
+        var estados = estado == null
+            ? EnumSet.allOf(EstadoExistenciaPresentacion.class)
+            : EnumSet.of(estado);
+        return existenciaPresentacionRepository
+            .findAllBySede_IdAndPresentacion_Producto_IdAndEstadoInOrderByFechaIngresoAscIdAsc(
+                sede.getId(), idProducto, estados)
+            .stream()
+            .map(ExistenciaPresentacionResponse::from)
+            .toList();
+    }
+
+    @Transactional
+    public IngresoPresentacionesResponse registrarPresentaciones(
+        IngresoPresentacionesRequest request,
+        String usuarioLogin
+    ) {
+        Sede sede = resolverSede(request.idSede());
+        Producto producto = buscarProducto(request.idProducto(), true);
+        PresentacionProducto presentacion = buscarPresentacionActiva(
+            request.idPresentacionProducto(), producto.getId()
+        );
+        Usuario usuario = buscarUsuarioActivo(usuarioLogin);
+        List<BigDecimal> contenidos = normalizarContenidos(
+            producto, presentacion, request.contenidosBase()
+        );
+        EntradaPresentacionesResultado resultado = registrarEntradaPresentaciones(
+            sede, producto, presentacion, contenidos, usuario, null, null,
+            request.motivo().strip(), TipoMovimientoInventario.AJUSTE_ENTRADA
+        );
+        return new IngresoPresentacionesResponse(
+            resultado.presentaciones().stream()
+                .map(ExistenciaPresentacionResponse::from)
+                .toList(),
+            MovimientoInventarioResponse.from(resultado.movimiento()),
+            StockInventarioResponse.from(sede, producto, resultado.inventario())
+        );
+    }
+
+    @Transactional
+    public ExistenciaPresentacionResponse abrirPresentacion(
+        Long id,
+        String usuarioLogin
+    ) {
+        buscarUsuarioActivo(usuarioLogin);
+        ExistenciaPresentacion existencia = existenciaPresentacionRepository
+            .findForUpdate(id)
+            .orElseThrow(() -> new RecursoNoEncontradoException(
+                "No existe la caja, paquete o rollo solicitado"
+            ));
+        if (existencia.getEstado() != EstadoExistenciaPresentacion.CERRADO) {
+            throw new OperacionNoPermitidaException(
+                "Solo se puede abrir una presentación que permanece cerrada"
+            );
+        }
+        existencia.setEstado(EstadoExistenciaPresentacion.ABIERTO);
+        existencia.setFechaApertura(Instant.now());
+        return ExistenciaPresentacionResponse.from(existencia);
+    }
+
+    @Transactional(readOnly = true)
+    public ExistenciaPresentacion buscarPresentacionParaVenta(
+        Long id,
+        Sede sede,
+        Producto producto
+    ) {
+        ExistenciaPresentacion existencia = existenciaPresentacionRepository.findById(id)
+            .orElseThrow(() -> new RecursoNoEncontradoException(
+                "No existe la presentación física seleccionada"
+            ));
+        if (!existencia.getSede().getId().equals(sede.getId())
+            || !existencia.getPresentacion().getProducto().getId().equals(producto.getId())) {
+            throw new SolicitudInvalidaException(
+                "La presentación seleccionada no corresponde al producto y almacén de la venta"
+            );
+        }
+        if (existencia.getEstado() != EstadoExistenciaPresentacion.CERRADO) {
+            throw new OperacionNoPermitidaException(
+                "La presentación seleccionada ya fue abierta o agotada"
+            );
+        }
+        return existencia;
+    }
+
+    @Transactional
+    public void consumirPresentacionesVenta(Sede sede, DetalleVenta detalle) {
+        BigDecimal requerida = detalle.getCantidadBase().setScale(
+            ESCALA_STOCK, RoundingMode.UNNECESSARY
+        );
+        Inventario inventario = inventarioRepository
+            .findForUpdate(sede.getId(), detalle.getProducto().getId())
+            .orElseThrow(() -> new ReglaNegocioException("Stock insuficiente. Disponible: 0.000"));
+        if (requerida.compareTo(inventario.getStockDisponible()) > 0) {
+            throw new ReglaNegocioException(
+                "Stock insuficiente. Disponible: "
+                    + inventario.getStockDisponible().toPlainString()
+            );
+        }
+        if (detalle.getExistenciaPresentacion() != null) {
+            ExistenciaPresentacion existencia = existenciaPresentacionRepository
+                .findForUpdate(detalle.getExistenciaPresentacion().getId())
+                .orElseThrow(() -> new RecursoNoEncontradoException(
+                    "No existe la presentación física seleccionada"
+                ));
+            if (existencia.getEstado() != EstadoExistenciaPresentacion.CERRADO
+                || existencia.getCantidadDisponibleBase().compareTo(requerida) != 0) {
+                throw new OperacionNoPermitidaException(
+                    "La presentación completa ya no se encuentra disponible"
+                );
+            }
+            agotar(existencia);
+            registrarConsumo(detalle, existencia, requerida);
+            return;
+        }
+
+        consumirPresentacionesFraccionadas(
+            sede, detalle, requerida, inventario.getStockDisponible()
+        );
+    }
+
+    @Transactional
+    public void consumirPresentacionesVentaReservada(
+        Sede sede,
+        DetalleVenta detalle
+    ) {
+        BigDecimal requerida = detalle.getCantidadBase().setScale(
+            ESCALA_STOCK, RoundingMode.UNNECESSARY
+        );
+        Inventario inventario = inventarioRepository
+            .findForUpdate(sede.getId(), detalle.getProducto().getId())
+            .orElseThrow(() -> new ReglaNegocioException("Stock reservado inexistente"));
+        if (requerida.compareTo(inventario.getStockReservado()) > 0) {
+            throw new OperacionNoPermitidaException(
+                "La reserva supera el stock reservado del producto "
+                    + detalle.getProducto().getCodigoInterno()
+            );
+        }
+        consumirPresentacionesFraccionadas(
+            sede, detalle, requerida, inventario.getStockFisico()
+        );
+    }
+
+    @Transactional
+    public void restaurarPresentacionesVenta(Long idVenta) {
+        for (ConsumoExistenciaPresentacion consumo : consumoPresentacionRepository
+            .findAllByDetalleVentaVentaIdOrderByIdAsc(idVenta)) {
+            ExistenciaPresentacion existencia = existenciaPresentacionRepository
+                .findForUpdate(consumo.getExistencia().getId())
+                .orElseThrow(() -> new RecursoNoEncontradoException(
+                    "No existe la presentación consumida por la venta"
+                ));
+            existencia.setCantidadDisponibleBase(
+                existencia.getCantidadDisponibleBase().add(consumo.getCantidadBase())
+            );
+            boolean fueVentaCompleta = consumo.getDetalleVenta()
+                .getExistenciaPresentacion() != null;
+            existencia.setEstado(fueVentaCompleta
+                ? EstadoExistenciaPresentacion.CERRADO
+                : EstadoExistenciaPresentacion.ABIERTO);
+            existencia.setFechaAgotamiento(null);
+            if (fueVentaCompleta) existencia.setFechaApertura(null);
+        }
     }
 
     @Transactional(readOnly = true)
@@ -137,6 +325,11 @@ public class InventarioService {
             && cantidadBase.compareTo(inventario.getStockDisponible()) > 0) {
             throw new ReglaNegocioException(
                 "Stock insuficiente. Disponible: " + inventario.getStockDisponible().toPlainString()
+            );
+        }
+        if (request.tipoAjuste() == TipoAjusteInventario.SALIDA) {
+            consumirSueltoYPresentacionesAbiertas(
+                sede, producto, cantidadBase, inventario
             );
         }
 
@@ -211,6 +404,9 @@ public class InventarioService {
                     + inventarioOrigen.getStockDisponible().toPlainString()
             );
         }
+        consumirSueltoYPresentacionesAbiertas(
+            origen, producto, cantidadBase, inventarioOrigen
+        );
 
         Inventario inventarioDestino = inventarioRepository
             .findForUpdate(destino.getId(), producto.getId())
@@ -356,6 +552,26 @@ public class InventarioService {
     }
 
     @Transactional
+    public MovimientoInventario registrarEntradaCompraPresentaciones(
+        Sede sede,
+        Producto producto,
+        PresentacionProducto presentacion,
+        List<BigDecimal> contenidosSolicitados,
+        Usuario usuario,
+        RecepcionCompra recepcion,
+        Long idCompra
+    ) {
+        List<BigDecimal> contenidos = normalizarContenidos(
+            producto, presentacion, contenidosSolicitados
+        );
+        return registrarEntradaPresentaciones(
+            sede, producto, presentacion, contenidos, usuario, recepcion, idCompra,
+            "Recepción confirmada de la compra #" + idCompra,
+            TipoMovimientoInventario.COMPRA
+        ).movimiento();
+    }
+
+    @Transactional
     public MovimientoInventario reservarParaPedido(
         Sede sede,
         Producto producto,
@@ -384,6 +600,21 @@ public class InventarioService {
             throw new ReglaNegocioException(
                 "Stock insuficiente para " + producto.getCodigoInterno()
                     + ". Disponible: " + disponibleAnterior.toPlainString()
+            );
+        }
+        BigDecimal contenidoCerrado = existenciaPresentacionRepository.findAllForUpdate(
+                sede.getId(), producto.getId(),
+                EnumSet.of(EstadoExistenciaPresentacion.CERRADO)
+            ).stream()
+            .map(ExistenciaPresentacion::getCantidadDisponibleBase)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal disponibleFraccionado = disponibleAnterior.subtract(contenidoCerrado)
+            .max(BigDecimal.ZERO);
+        if (cantidadBaseNormalizada.compareTo(disponibleFraccionado) > 0) {
+            throw new ReglaNegocioException(
+                "Debe abrir una caja, paquete o rollo antes de reservar "
+                    + cantidadBaseNormalizada.toPlainString() + " "
+                    + producto.getUnidadBase().getCodigo()
             );
         }
 
@@ -650,6 +881,9 @@ public class InventarioService {
                     + ". Disponible: " + disponible.toPlainString()
             );
         }
+        consumirSueltoYPresentacionesAbiertas(
+            sede, producto, cantidadBaseNormalizada, inventario
+        );
 
         Instant ahora = Instant.now();
         BigDecimal stockAnterior = inventario.getStockFisico();
@@ -921,6 +1155,217 @@ public class InventarioService {
         return inventarioRepository.save(inventario);
     }
 
+    private EntradaPresentacionesResultado registrarEntradaPresentaciones(
+        Sede sede,
+        Producto producto,
+        PresentacionProducto presentacion,
+        List<BigDecimal> contenidos,
+        Usuario usuario,
+        RecepcionCompra recepcion,
+        Long idCompra,
+        String motivo,
+        TipoMovimientoInventario tipoMovimiento
+    ) {
+        BigDecimal cantidadBase = contenidos.stream()
+            .reduce(BigDecimal.ZERO.setScale(ESCALA_STOCK), BigDecimal::add);
+        Inventario inventario = inventarioRepository
+            .findForUpdate(sede.getId(), producto.getId())
+            .orElseGet(() -> crearInventarioVacio(sede, producto));
+        BigDecimal stockAnterior = inventario.getStockFisico();
+        BigDecimal stockResultante = stockAnterior.add(cantidadBase);
+        validarCapacidadStock(stockResultante);
+        Instant ahora = Instant.now();
+        inventario.setStockFisico(stockResultante);
+        inventario.setFechaActualizacion(ahora);
+        inventarioRepository.save(inventario);
+
+        MovimientoInventario movimiento = new MovimientoInventario();
+        movimiento.setSede(sede);
+        movimiento.setProducto(producto);
+        movimiento.setUsuario(usuario);
+        movimiento.setUnidadMedida(presentacion.getUnidadMedida());
+        movimiento.setTipoMovimiento(tipoMovimiento);
+        movimiento.setCantidad(BigDecimal.valueOf(contenidos.size()).setScale(ESCALA_STOCK));
+        movimiento.setCantidadBase(cantidadBase);
+        movimiento.setStockAnterior(stockAnterior);
+        movimiento.setStockResultante(stockResultante);
+        movimiento.setDocumentoOrigen(recepcion == null ? "INGRESO_PRESENTACIONES" : "RECEPCION_COMPRA");
+        movimiento.setIdOrigen(recepcion == null ? null : recepcion.getId());
+        movimiento.setMotivo(motivo);
+        movimiento.setFechaHora(ahora);
+        movimiento = movimientoRepository.save(movimiento);
+
+        List<ExistenciaPresentacion> existencias = contenidos.stream().map(contenido -> {
+            ExistenciaPresentacion existencia = new ExistenciaPresentacion();
+            existencia.setPresentacion(presentacion);
+            existencia.setSede(sede);
+            existencia.setRecepcionCompra(recepcion);
+            existencia.setCantidadInicialBase(contenido);
+            existencia.setCantidadDisponibleBase(contenido);
+            existencia.setEstado(EstadoExistenciaPresentacion.CERRADO);
+            existencia.setFechaIngreso(ahora);
+            return existenciaPresentacionRepository.saveAndFlush(existencia);
+        }).toList();
+        existencias.forEach(existencia ->
+            existencia.setCodigo("BUL-" + String.format("%08d", existencia.getId()))
+        );
+        return new EntradaPresentacionesResultado(existencias, movimiento, inventario);
+    }
+
+    private List<BigDecimal> normalizarContenidos(
+        Producto producto,
+        PresentacionProducto presentacion,
+        List<BigDecimal> contenidosSolicitados
+    ) {
+        if (presentacion.getEstado() != EstadoCatalogo.ACTIVO
+            || !presentacion.getProducto().getId().equals(producto.getId())) {
+            throw new OperacionNoPermitidaException(
+                "La presentación no está activa para el producto"
+            );
+        }
+        if (contenidosSolicitados == null || contenidosSolicitados.isEmpty()) {
+            throw new SolicitudInvalidaException(
+                "Debe informar el contenido de cada caja, paquete o rollo"
+            );
+        }
+        return contenidosSolicitados.stream().map(valor -> {
+            if (valor == null || valor.compareTo(BigDecimal.ZERO) <= 0) {
+                throw new SolicitudInvalidaException(
+                    "Cada presentación debe tener un contenido mayor que cero"
+                );
+            }
+            BigDecimal contenido = valor.setScale(ESCALA_STOCK, RoundingMode.UNNECESSARY);
+            if (!producto.getUnidadBase().isPermiteDecimales()
+                && contenido.stripTrailingZeros().scale() > 0) {
+                throw new SolicitudInvalidaException(
+                    "La unidad base " + producto.getUnidadBase().getCodigo()
+                        + " no admite contenidos decimales"
+                );
+            }
+            if (!presentacion.isContenidoVariable()
+                && contenido.compareTo(presentacion.getContenidoBasePredeterminado()) != 0) {
+                throw new SolicitudInvalidaException(
+                    "La presentación " + presentacion.getNombre() + " debe contener "
+                        + presentacion.getContenidoBasePredeterminado().toPlainString() + " "
+                        + producto.getUnidadBase().getCodigo()
+                );
+            }
+            return contenido;
+        }).toList();
+    }
+
+    private PresentacionProducto buscarPresentacionActiva(Long id, Long idProducto) {
+        PresentacionProducto presentacion = presentacionProductoRepository.findByIdAndProductoId(
+            id, idProducto
+        ).orElseThrow(() -> new RecursoNoEncontradoException(
+            "No existe la presentación solicitada para el producto"
+        ));
+        if (presentacion.getEstado() != EstadoCatalogo.ACTIVO) {
+            throw new OperacionNoPermitidaException("La presentación se encuentra inactiva");
+        }
+        return presentacion;
+    }
+
+    private void agotar(ExistenciaPresentacion existencia) {
+        existencia.setCantidadDisponibleBase(BigDecimal.ZERO.setScale(ESCALA_STOCK));
+        existencia.setEstado(EstadoExistenciaPresentacion.AGOTADO);
+        existencia.setFechaAgotamiento(Instant.now());
+    }
+
+    private void registrarConsumo(
+        DetalleVenta detalle,
+        ExistenciaPresentacion existencia,
+        BigDecimal cantidad
+    ) {
+        ConsumoExistenciaPresentacion consumo = new ConsumoExistenciaPresentacion();
+        consumo.setDetalleVenta(detalle);
+        consumo.setExistencia(existencia);
+        consumo.setCantidadBase(cantidad);
+        consumoPresentacionRepository.save(consumo);
+    }
+
+    private void consumirPresentacionesFraccionadas(
+        Sede sede,
+        DetalleVenta detalle,
+        BigDecimal requerida,
+        BigDecimal stockUtilizable
+    ) {
+        List<ExistenciaPresentacion> rastreadas = existenciaPresentacionRepository
+            .findAllForUpdate(
+                sede.getId(), detalle.getProducto().getId(),
+                EnumSet.of(
+                    EstadoExistenciaPresentacion.CERRADO,
+                    EstadoExistenciaPresentacion.ABIERTO
+                )
+            );
+        BigDecimal totalRastreado = rastreadas.stream()
+            .map(ExistenciaPresentacion::getCantidadDisponibleBase)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal suelto = stockUtilizable.subtract(totalRastreado).max(BigDecimal.ZERO);
+        BigDecimal porConsumir = requerida.subtract(suelto).max(BigDecimal.ZERO);
+        for (ExistenciaPresentacion existencia : rastreadas) {
+            if (porConsumir.signum() == 0) break;
+            if (existencia.getEstado() != EstadoExistenciaPresentacion.ABIERTO) continue;
+            BigDecimal consumo = porConsumir.min(existencia.getCantidadDisponibleBase());
+            existencia.setCantidadDisponibleBase(
+                existencia.getCantidadDisponibleBase().subtract(consumo)
+            );
+            if (existencia.getCantidadDisponibleBase().signum() == 0) {
+                agotar(existencia);
+            }
+            registrarConsumo(detalle, existencia, consumo);
+            porConsumir = porConsumir.subtract(consumo);
+        }
+        if (porConsumir.signum() > 0) {
+            throw new ReglaNegocioException(
+                "Debe abrir una caja, paquete o rollo para disponer de "
+                    + porConsumir.toPlainString() + " "
+                    + detalle.getProducto().getUnidadBase().getCodigo()
+            );
+        }
+    }
+
+    private void consumirSueltoYPresentacionesAbiertas(
+        Sede sede,
+        Producto producto,
+        BigDecimal cantidadBase,
+        Inventario inventario
+    ) {
+        List<ExistenciaPresentacion> rastreadas = existenciaPresentacionRepository
+            .findAllForUpdate(
+                sede.getId(), producto.getId(),
+                EnumSet.of(
+                    EstadoExistenciaPresentacion.CERRADO,
+                    EstadoExistenciaPresentacion.ABIERTO
+                )
+            );
+        BigDecimal totalRastreado = rastreadas.stream()
+            .map(ExistenciaPresentacion::getCantidadDisponibleBase)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal suelto = inventario.getStockDisponible().subtract(totalRastreado)
+            .max(BigDecimal.ZERO);
+        BigDecimal porConsumir = cantidadBase.subtract(suelto).max(BigDecimal.ZERO);
+        for (ExistenciaPresentacion existencia : rastreadas) {
+            if (porConsumir.signum() == 0) break;
+            if (existencia.getEstado() != EstadoExistenciaPresentacion.ABIERTO) continue;
+            BigDecimal consumo = porConsumir.min(existencia.getCantidadDisponibleBase());
+            existencia.setCantidadDisponibleBase(
+                existencia.getCantidadDisponibleBase().subtract(consumo)
+            );
+            if (existencia.getCantidadDisponibleBase().signum() == 0) {
+                agotar(existencia);
+            }
+            porConsumir = porConsumir.subtract(consumo);
+        }
+        if (porConsumir.signum() > 0) {
+            throw new ReglaNegocioException(
+                "Debe abrir una caja, paquete o rollo para disponer de "
+                    + porConsumir.toPlainString() + " "
+                    + producto.getUnidadBase().getCodigo()
+            );
+        }
+    }
+
     private MovimientoInventario crearMovimientoTransferencia(
         Sede sede,
         Producto producto,
@@ -992,5 +1437,12 @@ public class InventarioService {
     }
 
     private record RangoFechas(Instant desde, Instant hastaExclusiva) {
+    }
+
+    private record EntradaPresentacionesResultado(
+        List<ExistenciaPresentacion> presentaciones,
+        MovimientoInventario movimiento,
+        Inventario inventario
+    ) {
     }
 }

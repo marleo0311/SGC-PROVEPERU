@@ -25,6 +25,9 @@ import pe.com.proveperu.sgc.compra.domain.model.RecepcionCompra;
 import pe.com.proveperu.sgc.compra.infrastructure.persistence.CompraRepository;
 import pe.com.proveperu.sgc.compra.infrastructure.persistence.DetalleRecepcionCompraRepository;
 import pe.com.proveperu.sgc.compra.infrastructure.persistence.RecepcionCompraRepository;
+import pe.com.proveperu.sgc.catalogo.domain.model.EstadoCatalogo;
+import pe.com.proveperu.sgc.catalogo.domain.model.PresentacionProducto;
+import pe.com.proveperu.sgc.catalogo.infrastructure.persistence.PresentacionProductoRepository;
 import pe.com.proveperu.sgc.cuentapagar.application.service.CuentaPagarService;
 import pe.com.proveperu.sgc.inventario.application.service.InventarioService;
 import pe.com.proveperu.sgc.inventario.domain.model.Sede;
@@ -47,6 +50,7 @@ public class RecepcionCompraService {
     private final RecepcionCompraRepository recepcionRepository;
     private final DetalleRecepcionCompraRepository detalleRecepcionRepository;
     private final SedeRepository sedeRepository;
+    private final PresentacionProductoRepository presentacionRepository;
     private final UsuarioRepository usuarioRepository;
     private final InventarioService inventarioService;
     private final CuentaPagarService cuentaPagarService;
@@ -98,15 +102,27 @@ public class RecepcionCompraService {
             detalleRecepcion.setObservacion(normalizarTexto(item.observacion()));
             recepcion.agregarDetalle(detalleRecepcion);
 
-            inventarioService.registrarEntradaCompra(
-                sede,
-                detalleCompra.getProducto(),
-                detalleCompra.getUnidadMedida(),
-                item.cantidadRecibida(),
-                usuario,
-                recepcion.getId(),
-                compra.getId()
-            );
+            if (item.presentacion() == null) {
+                inventarioService.registrarEntradaCompra(
+                    sede,
+                    detalleCompra.getProducto(),
+                    detalleCompra.getUnidadMedida(),
+                    item.cantidadRecibida(),
+                    usuario,
+                    recepcion.getId(),
+                    compra.getId()
+                );
+            } else {
+                inventarioService.registrarEntradaCompraPresentaciones(
+                    sede,
+                    detalleCompra.getProducto(),
+                    item.presentacion(),
+                    item.contenidosBase(),
+                    usuario,
+                    recepcion,
+                    compra.getId()
+                );
+            }
         }
 
         recepcion = recepcionRepository.saveAndFlush(recepcion);
@@ -196,6 +212,15 @@ public class RecepcionCompraService {
             }
             BigDecimal acumulada = recibidaAntes.add(cantidadRecibida);
             BigDecimal pendiente = detalle.getCantidad().subtract(acumulada);
+            PresentacionProducto presentacion = presentacionRepository
+                .findByProductoIdAndUnidadMedidaIdAndEstado(
+                    detalle.getProducto().getId(),
+                    detalle.getUnidadMedida().getId(),
+                    EstadoCatalogo.ACTIVO
+                ).orElse(null);
+            List<BigDecimal> contenidos = resolverContenidos(
+                detalle, presentacion, cantidadRecibida, item.contenidosBase()
+            );
             cantidadesAcumuladas.put(detalle.getId(), acumulada);
             items.add(new ItemResuelto(
                 detalle,
@@ -203,7 +228,9 @@ public class RecepcionCompraService {
                 acumulada,
                 pendiente,
                 conforme,
-                item.observacion()
+                item.observacion(),
+                presentacion,
+                contenidos
             ));
         }
         return items;
@@ -257,6 +284,47 @@ public class RecepcionCompraService {
                 BigDecimal.ZERO
             ).compareTo(detalle.getCantidad()) == 0
         );
+    }
+
+    private List<BigDecimal> resolverContenidos(
+        DetalleCompra detalle,
+        PresentacionProducto presentacion,
+        BigDecimal cantidadRecibida,
+        List<BigDecimal> contenidosSolicitados
+    ) {
+        if (presentacion == null) {
+            if (contenidosSolicitados != null && !contenidosSolicitados.isEmpty()) {
+                throw new SolicitudInvalidaException(
+                    "Solo se informa el contenido individual para cajas, paquetes o rollos configurados"
+                );
+            }
+            return List.of();
+        }
+        int cantidadBultos;
+        try {
+            cantidadBultos = cantidadRecibida.intValueExact();
+        } catch (ArithmeticException exception) {
+            throw new SolicitudInvalidaException(
+                "Las presentaciones físicas se reciben en cantidades enteras"
+            );
+        }
+        if (contenidosSolicitados == null || contenidosSolicitados.isEmpty()) {
+            if (presentacion.isContenidoVariable()) {
+                throw new SolicitudInvalidaException(
+                    "Informe el contenido real de cada " + presentacion.getNombre()
+                );
+            }
+            return java.util.Collections.nCopies(
+                cantidadBultos, presentacion.getContenidoBasePredeterminado()
+            );
+        }
+        if (contenidosSolicitados.size() != cantidadBultos) {
+            throw new SolicitudInvalidaException(
+                "Debe informar un contenido por cada " + presentacion.getNombre()
+                    + " recibido. Esperados: " + cantidadBultos
+            );
+        }
+        return contenidosSolicitados;
     }
 
     private void validarCantidadPermitida(
@@ -326,7 +394,9 @@ public class RecepcionCompraService {
         BigDecimal cantidadAcumulada,
         BigDecimal cantidadPendiente,
         boolean conforme,
-        String observacion
+        String observacion,
+        PresentacionProducto presentacion,
+        List<BigDecimal> contenidosBase
     ) {
     }
 }

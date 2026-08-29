@@ -37,6 +37,7 @@ import pe.com.proveperu.sgc.configuracion.domain.model.MetodoPago;
 import pe.com.proveperu.sgc.configuracion.infrastructure.persistence.MetodoPagoRepository;
 import pe.com.proveperu.sgc.inventario.application.service.InventarioService;
 import pe.com.proveperu.sgc.inventario.domain.model.Sede;
+import pe.com.proveperu.sgc.inventario.domain.model.ExistenciaPresentacion;
 import pe.com.proveperu.sgc.inventario.infrastructure.persistence.SedeRepository;
 import pe.com.proveperu.sgc.pedido.domain.model.DetallePedido;
 import pe.com.proveperu.sgc.pedido.domain.model.EstadoPedido;
@@ -183,6 +184,7 @@ public class VentaService {
             );
         }
         Usuario usuario = buscarUsuarioActivo(usuarioLogin);
+        inventarioService.restaurarPresentacionesVenta(venta.getId());
         List<DetalleVenta> detalles = venta.getDetalles().stream()
             .sorted(Comparator.comparing(detalle -> detalle.getProducto().getId()))
             .toList();
@@ -300,20 +302,15 @@ public class VentaService {
         venta.setSede(resolverSedeFacturacion());
         venta.setAlmacenSalida(resolverSede(request.idSede()));
 
-        Set<Long> productosUnicos = new HashSet<>();
         BigDecimal importeFinal = dinero(BigDecimal.ZERO);
         BigDecimal descuentoTotal = dinero(BigDecimal.ZERO);
         for (VentaItemRequest item : request.items()) {
-            if (!productosUnicos.add(item.idProducto())) {
-                throw new SolicitudInvalidaException(
-                    "No se puede repetir un producto en la venta"
-                );
-            }
             DetalleVenta detalle = crearDetalleDirecto(
                 cliente,
                 venta.getTipoVenta().name(),
                 item,
-                puedeAplicarDescuento
+                puedeAplicarDescuento,
+                venta.getAlmacenSalida()
             );
             venta.agregarDetalle(detalle);
             importeFinal = importeFinal.add(detalle.getSubtotal());
@@ -343,14 +340,38 @@ public class VentaService {
         Cliente cliente,
         String tipoPrecio,
         VentaItemRequest item,
-        boolean puedeAplicarDescuento
+        boolean puedeAplicarDescuento,
+        Sede sede
     ) {
         Producto producto = buscarProductoActivo(item.idProducto());
-        UnidadMedida unidad = buscarUnidadActiva(item.idUnidadMedida());
+        ExistenciaPresentacion existencia = item.idExistenciaPresentacion() == null
+            ? null
+            : inventarioService.buscarPresentacionParaVenta(
+                item.idExistenciaPresentacion(), sede, producto
+            );
+        UnidadMedida unidad = existencia == null
+            ? buscarUnidadActiva(item.idUnidadMedida())
+            : existencia.getPresentacion().getUnidadMedida();
+        if (existencia != null
+            && (item.idUnidadMedida() == null
+                || !unidad.getId().equals(item.idUnidadMedida()))) {
+            throw new SolicitudInvalidaException(
+                "La unidad enviada no corresponde a la presentación física seleccionada"
+            );
+        }
         BigDecimal cantidad = normalizarCantidad(item.cantidad(), unidad);
-        BigDecimal factor = factorAUnidadBase(producto, unidad);
+        if (existencia != null && cantidad.compareTo(BigDecimal.ONE.setScale(3)) != 0) {
+            throw new SolicitudInvalidaException(
+                "Cada caja, paquete o rollo físico se vende como una línea de cantidad 1"
+            );
+        }
+        BigDecimal factor = existencia == null
+            ? factorAUnidadBase(producto, unidad)
+            : existencia.getCantidadDisponibleBase();
         BigDecimal precioUnitario = validarDinero(
-            resolverPrecioBase(cliente, producto, tipoPrecio, hoy()).multiply(factor),
+            resolverPrecioBase(cliente, producto, tipoPrecio, hoy())
+                .multiply(factor)
+                .setScale(ESCALA_DINERO, RoundingMode.HALF_UP),
             "El precio unitario"
         );
         if (item.precioUnitario() != null
@@ -368,7 +389,9 @@ public class VentaService {
             );
         }
         BigDecimal importeBruto = validarDinero(
-            cantidad.multiply(precioUnitario),
+            cantidad.multiply(precioUnitario).setScale(
+                ESCALA_DINERO, RoundingMode.HALF_UP
+            ),
             "El importe del detalle"
         );
         if (descuento.compareTo(importeBruto) > 0) {
@@ -381,6 +404,7 @@ public class VentaService {
         DetalleVenta detalle = new DetalleVenta();
         detalle.setProducto(producto);
         detalle.setUnidadMedida(unidad);
+        detalle.setExistenciaPresentacion(existencia);
         detalle.setCantidad(cantidad);
         detalle.setCantidadBase(cantidad.multiply(factor).setScale(
             ESCALA_CANTIDAD,
@@ -400,15 +424,20 @@ public class VentaService {
     private void descontarVentaDirecta(Venta venta, Usuario vendedor) {
         venta.getDetalles().stream()
             .sorted(Comparator.comparing(detalle -> detalle.getProducto().getId()))
-            .forEach(detalle -> inventarioService.registrarVentaDirecta(
-                venta.getAlmacenSalida(),
-                detalle.getProducto(),
-                detalle.getUnidadMedida(),
-                detalle.getCantidad(),
-                detalle.getCantidadBase(),
-                vendedor,
-                venta.getId()
-            ));
+            .forEach(detalle -> {
+                inventarioService.consumirPresentacionesVenta(
+                    venta.getAlmacenSalida(), detalle
+                );
+                inventarioService.registrarVentaDirecta(
+                    venta.getAlmacenSalida(),
+                    detalle.getProducto(),
+                    detalle.getUnidadMedida(),
+                    detalle.getCantidad(),
+                    detalle.getCantidadBase(),
+                    vendedor,
+                    venta.getId()
+                );
+            });
     }
 
     private void consumirReservas(
@@ -435,6 +464,15 @@ public class VentaService {
                     "La reserva del pedido no coincide con su detalle de producto"
                 );
             }
+            DetalleVenta detalleVenta = venta.getDetalles().stream()
+                .filter(item -> item.getProducto().getId().equals(reserva.getProducto().getId()))
+                .findFirst()
+                .orElseThrow(() -> new OperacionNoPermitidaException(
+                    "La venta no contiene el producto reservado"
+                ));
+            inventarioService.consumirPresentacionesVentaReservada(
+                reserva.getSede(), detalleVenta
+            );
             inventarioService.consumirReservaParaVenta(
                 reserva.getSede(),
                 reserva.getProducto(),

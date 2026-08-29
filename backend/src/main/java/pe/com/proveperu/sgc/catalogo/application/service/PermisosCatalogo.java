@@ -20,6 +20,8 @@ public final class PermisosCatalogo {
     public static final String CONVERSIONES_CREAR = "CAT_CONVERSIONES_CREAR";
     public static final String PRECIOS_VER = "CAT_PRECIOS_VER";
     public static final String PRECIOS_CREAR = "CAT_PRECIOS_CREAR";
+    public static final String PRESENTACIONES_VER = "CAT_PRESENTACIONES_VER";
+    public static final String PRESENTACIONES_EDITAR = "CAT_PRESENTACIONES_EDITAR";
 
     private PermisosCatalogo() {
     }

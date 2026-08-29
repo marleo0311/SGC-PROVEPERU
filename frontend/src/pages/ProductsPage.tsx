@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { ConfirmStatusDialog } from '../components/ConfirmStatusDialog'
 import { ProductFormModal } from '../components/ProductFormModal'
+import { ProductPresentationsModal } from '../components/ProductPresentationsModal'
 import { ToastMessage } from '../components/ToastMessage'
 import { useAuth } from '../hooks/useAuth'
 import {
@@ -62,6 +63,7 @@ export function ProductsPage() {
   const [optionsLoading, setOptionsLoading] = useState(false)
   const [optionsError, setOptionsError] = useState('')
   const [statusTarget, setStatusTarget] = useState<Producto | null>(null)
+  const [presentationTarget, setPresentationTarget] = useState<Producto | null>(null)
   const [statusSubmitting, setStatusSubmitting] = useState(false)
   const [toast, setToast] = useState<ToastState | null>(null)
   const { hasAnyAuthority } = useAuth()
@@ -69,6 +71,7 @@ export function ProductsPage() {
   const canCreate = hasAnyAuthority('CAT_PRODUCTOS_CREAR')
   const canEdit = hasAnyAuthority('CAT_PRODUCTOS_EDITAR')
   const canChangeStatus = hasAnyAuthority('CAT_PRODUCTOS_ESTADO')
+  const canManagePresentations = hasAnyAuthority('CAT_PRESENTACIONES_EDITAR', 'CAT_PRODUCTOS_EDITAR')
 
   useEffect(() => {
     let active = true
@@ -134,6 +137,15 @@ export function ProductsPage() {
     getCatalogOptions()
       .then(setCatalogOptions)
       .catch((requestError: unknown) => setOptionsError(getApiErrorMessage(requestError)))
+      .finally(() => setOptionsLoading(false))
+  }
+
+  function openPresentations(product: Producto) {
+    setPresentationTarget(product)
+    if (catalogOptions) return
+    setOptionsLoading(true)
+    getCatalogOptions().then(setCatalogOptions)
+      .catch((requestError: unknown) => setToast({ tone: 'danger', message: getApiErrorMessage(requestError) }))
       .finally(() => setOptionsLoading(false))
   }
 
@@ -274,7 +286,7 @@ export function ProductsPage() {
                     <th>Unidad</th>
                     <th>Stock mínimo</th>
                     <th>Estado</th>
-                    {(canEdit || canChangeStatus) && <th className="catalog-table__actions-heading">Acciones</th>}
+                    {(canEdit || canChangeStatus || canManagePresentations) && <th className="catalog-table__actions-heading">Acciones</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -294,9 +306,10 @@ export function ProductsPage() {
                       <td><span className="unit-badge">{product.unidadBase.nombre}</span></td>
                       <td><strong>{product.stockMinimo}</strong> <span className="table-muted">{product.unidadBase.nombre}</span></td>
                       <td><span className={`catalog-status catalog-status--${product.estado.toLowerCase()}`}><i className="bi bi-circle-fill" /> {product.estado === 'ACTIVO' ? 'Activo' : 'Inactivo'}</span></td>
-                      {(canEdit || canChangeStatus) && (
+                      {(canEdit || canChangeStatus || canManagePresentations) && (
                         <td>
                           <div className="product-actions">
+                            {canManagePresentations && <button type="button" onClick={() => openPresentations(product)} title="Cajas, paquetes y rollos" aria-label={`Gestionar presentaciones de ${product.nombre}`}><i className="bi bi-boxes" /></button>}
                             {canEdit && (
                               <button type="button" onClick={() => openProductForm('edit', product)} title="Editar producto" aria-label={`Editar ${product.nombre}`}>
                                 <i className="bi bi-pencil" />
@@ -353,6 +366,8 @@ export function ProductsPage() {
           onConfirm={confirmStatusChange}
         />
       )}
+
+      {presentationTarget && catalogOptions && !optionsLoading && <ProductPresentationsModal product={presentationTarget} units={catalogOptions.unidades} onClose={() => setPresentationTarget(null)} />}
 
       {toast && <ToastMessage tone={toast.tone} message={toast.message} onClose={closeToast} />}
     </>

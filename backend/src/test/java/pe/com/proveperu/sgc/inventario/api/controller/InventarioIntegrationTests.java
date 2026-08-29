@@ -2,12 +2,14 @@ package pe.com.proveperu.sgc.inventario.api.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.jayway.jsonpath.JsonPath;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
@@ -26,14 +28,17 @@ import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.security.oauth2.jwt.JwsHeader;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 import pe.com.proveperu.sgc.catalogo.domain.model.Categoria;
 import pe.com.proveperu.sgc.catalogo.domain.model.EstadoCatalogo;
 import pe.com.proveperu.sgc.catalogo.domain.model.Producto;
 import pe.com.proveperu.sgc.catalogo.domain.model.ProductoUnidadConversion;
+import pe.com.proveperu.sgc.catalogo.domain.model.PresentacionProducto;
 import pe.com.proveperu.sgc.catalogo.domain.model.UnidadMedida;
 import pe.com.proveperu.sgc.catalogo.infrastructure.persistence.CategoriaRepository;
 import pe.com.proveperu.sgc.catalogo.infrastructure.persistence.ProductoRepository;
+import pe.com.proveperu.sgc.catalogo.infrastructure.persistence.PresentacionProductoRepository;
 import pe.com.proveperu.sgc.catalogo.infrastructure.persistence.ProductoUnidadConversionRepository;
 import pe.com.proveperu.sgc.catalogo.infrastructure.persistence.UnidadMedidaRepository;
 import pe.com.proveperu.sgc.compra.application.service.PermisosCompra;
@@ -72,6 +77,9 @@ class InventarioIntegrationTests {
 
     @Autowired
     private ProductoRepository productoRepository;
+
+    @Autowired
+    private PresentacionProductoRepository presentacionProductoRepository;
 
     @Autowired
     private ProductoUnidadConversionRepository conversionRepository;
@@ -405,6 +413,70 @@ class InventarioIntegrationTests {
     }
 
     @Test
+    void registraBultosVariablesYAbreSoloElSeleccionado() throws Exception {
+        UnidadMedida caja = crearUnidad(
+            "CJ" + UUID.randomUUID().toString().substring(0, 6),
+            "Caja variable",
+            false
+        );
+        caja.setCodigoSunat("BX");
+        caja = unidadMedidaRepository.save(caja);
+
+        PresentacionProducto presentacion = new PresentacionProducto();
+        presentacion.setProducto(producto);
+        presentacion.setUnidadMedida(caja);
+        presentacion.setNombre("Caja de contenido variable");
+        presentacion.setContenidoVariable(true);
+        presentacion.setEstado(EstadoCatalogo.ACTIVO);
+        presentacion = presentacionProductoRepository.save(presentacion);
+
+        MvcResult ingreso = mockMvc.perform(post("/api/v1/inventario/presentaciones")
+                .header(HttpHeaders.AUTHORIZATION, bearer(
+                    PermisosInventario.PRESENTACIONES_GESTIONAR
+                ))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "idSede": %d,
+                      "idProducto": %d,
+                      "idPresentacionProducto": %d,
+                      "contenidosBase": [50.000, 48.000],
+                      "motivo": "Recepción de dos cajas variables"
+                    }
+                    """.formatted(sede.getId(), producto.getId(), presentacion.getId())))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.presentaciones.length()").value(2))
+            .andExpect(jsonPath("$.presentaciones[0].estado").value("CERRADO"))
+            .andExpect(jsonPath("$.presentaciones[0].cantidadInicialBase").value(50.0))
+            .andExpect(jsonPath("$.presentaciones[1].cantidadInicialBase").value(48.0))
+            .andExpect(jsonPath("$.inventario.stockFisico").value(98.0))
+            .andReturn();
+
+        Number idPrimera = JsonPath.read(
+            ingreso.getResponse().getContentAsString(),
+            "$.presentaciones[0].id"
+        );
+        mockMvc.perform(patch(
+                "/api/v1/inventario/presentaciones/{id}/abrir",
+                idPrimera.longValue()
+            )
+                .header(HttpHeaders.AUTHORIZATION, bearer(
+                    PermisosInventario.PRESENTACIONES_GESTIONAR
+                )))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.estado").value("ABIERTO"))
+            .andExpect(jsonPath("$.cantidadDisponibleBase").value(50.0));
+
+        mockMvc.perform(get("/api/v1/inventario/{idProducto}/presentaciones", producto.getId())
+            .param("idSede", sede.getId().toString())
+                .header(HttpHeaders.AUTHORIZATION, bearer(PermisosInventario.STOCK_VER)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.length()").value(2))
+            .andExpect(jsonPath("$[0].estado").value("ABIERTO"))
+            .andExpect(jsonPath("$[1].estado").value("CERRADO"));
+    }
+
+    @Test
     void migracionAsignaPermisosDeInventarioAlAdministrador() {
         Set<String> esperados = Set.of(
             PermisosInventario.STOCK_VER,
@@ -412,7 +484,8 @@ class InventarioIntegrationTests {
             PermisosInventario.MOVIMIENTOS_VER,
             PermisosInventario.KARDEX_VER,
             PermisosInventario.TRANSFERENCIAS_CREAR,
-            PermisosInventario.MINIMOS_EDITAR
+            PermisosInventario.MINIMOS_EDITAR,
+            PermisosInventario.PRESENTACIONES_GESTIONAR
         );
         Set<String> registrados = permisoRepository.findAllByModuloOrderByCodigoAsc("Inventario")
             .stream()

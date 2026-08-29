@@ -24,6 +24,7 @@ public interface VentaRepository
         "detalles.producto",
         "detalles.producto.unidadBase",
         "detalles.unidadMedida",
+        "detalles.existenciaPresentacion",
         "cuentaCobrar",
         "comprobante"
     })

@@ -15,6 +15,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import pe.com.proveperu.sgc.catalogo.domain.model.Producto;
 import pe.com.proveperu.sgc.catalogo.domain.model.UnidadMedida;
+import pe.com.proveperu.sgc.inventario.domain.model.ExistenciaPresentacion;
 
 @Entity
 @Table(name = "detalle_venta")
@@ -39,6 +40,10 @@ public class DetalleVenta {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "id_unidad_medida", nullable = false)
     private UnidadMedida unidadMedida;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_existencia_presentacion")
+    private ExistenciaPresentacion existenciaPresentacion;
 
     @Column(name = "cantidad", nullable = false, precision = 14, scale = 3)
     private BigDecimal cantidad;

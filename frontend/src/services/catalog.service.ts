@@ -6,6 +6,8 @@ import type {
   Marca,
   MarcaGuardarRequest,
   Pagina,
+  PresentacionProducto,
+  PresentacionProductoGuardarRequest,
   PrecioProducto,
   Producto,
   ProductoFiltros,
@@ -35,6 +37,43 @@ export async function getProduct(id: number): Promise<Producto> {
 
 export async function listProductPrices(id: number): Promise<PrecioProducto[]> {
   const { data } = await api.get<PrecioProducto[]>(`/v1/productos/${id}/precios`)
+  return data
+}
+
+export async function listProductPresentations(id: number): Promise<PresentacionProducto[]> {
+  const { data } = await api.get<PresentacionProducto[]>(`/v1/productos/${id}/presentaciones`)
+  return data
+}
+
+export async function createProductPresentation(
+  idProducto: number,
+  request: PresentacionProductoGuardarRequest,
+): Promise<PresentacionProducto> {
+  const { data } = await api.post<PresentacionProducto>(
+    `/v1/productos/${idProducto}/presentaciones`, request,
+  )
+  return data
+}
+
+export async function updateProductPresentation(
+  idProducto: number,
+  id: number,
+  request: PresentacionProductoGuardarRequest,
+): Promise<PresentacionProducto> {
+  const { data } = await api.put<PresentacionProducto>(
+    `/v1/productos/${idProducto}/presentaciones/${id}`, request,
+  )
+  return data
+}
+
+export async function changeProductPresentationStatus(
+  idProducto: number,
+  id: number,
+  estado: EstadoCatalogo,
+): Promise<PresentacionProducto> {
+  const { data } = await api.patch<PresentacionProducto>(
+    `/v1/productos/${idProducto}/presentaciones/${id}/estado`, { estado },
+  )
   return data
 }
 
@@ -116,6 +155,7 @@ export async function changeUnitStatus(
   return updateUnit(unit, {
     codigo: unit.codigo,
     nombre: unit.nombre,
+    codigoSunat: unit.codigoSunat,
     permiteDecimales: unit.permiteDecimales,
   }, estado)
 }

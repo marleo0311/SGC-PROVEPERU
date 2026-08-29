@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { InventoryActionsMenu } from '../components/InventoryActionsMenu'
 import { InventoryAdjustmentModal } from '../components/InventoryAdjustmentModal'
 import { InventoryTransferModal } from '../components/InventoryTransferModal'
+import { InventoryPresentationsModal } from '../components/InventoryPresentationsModal'
 import { MinimumStockModal } from '../components/MinimumStockModal'
 import { ToastMessage } from '../components/ToastMessage'
 import { useAuth } from '../hooks/useAuth'
@@ -69,6 +70,7 @@ export function InventoryPage() {
   const [adjustmentTarget, setAdjustmentTarget] = useState<StockInventario | null>(null)
   const [transferTarget, setTransferTarget] = useState<StockInventario | null>(null)
   const [minimumTarget, setMinimumTarget] = useState<StockInventario | null>(null)
+  const [presentationsTarget, setPresentationsTarget] = useState<StockInventario | null>(null)
   const [toast, setToast] = useState<ToastState | null>(null)
   const { hasAnyAuthority } = useAuth()
 
@@ -76,6 +78,7 @@ export function InventoryPage() {
   const canViewKardex = hasAnyAuthority('INV_KARDEX_VER')
   const canTransfer = hasAnyAuthority('INV_TRANSFERENCIAS_CREAR')
   const canEditMinimum = hasAnyAuthority('INV_MINIMOS_EDITAR')
+  const canManagePresentations = hasAnyAuthority('INV_PRESENTACIONES_GESTIONAR')
 
   useEffect(() => {
     let active = true
@@ -327,7 +330,7 @@ export function InventoryPage() {
                             {stock.fechaActualizacion ? dateFormatter.format(new Date(stock.fechaActualizacion)) : 'Sin movimientos'}
                           </span>
                         </td>
-                        {(canAdjust || canViewKardex || canTransfer || canEditMinimum) && (
+                        {(canAdjust || canViewKardex || canTransfer || canEditMinimum || canManagePresentations) && (
                           <td className="inventory-actions-cell">
                             <InventoryActionsMenu
                               stock={stock}
@@ -335,9 +338,11 @@ export function InventoryPage() {
                               canAdjust={canAdjust}
                               canTransfer={canTransfer && sites.length > 1}
                               canEditMinimum={canEditMinimum}
+                              canManagePresentations={canManagePresentations}
                               onAdjust={setAdjustmentTarget}
                               onTransfer={setTransferTarget}
                               onEditMinimum={setMinimumTarget}
+                              onManagePresentations={setPresentationsTarget}
                             />
                           </td>
                         )}
@@ -375,6 +380,7 @@ export function InventoryPage() {
 
       {transferTarget && <InventoryTransferModal stock={transferTarget} sites={sites} onClose={() => setTransferTarget(null)} onTransferred={handleTransferred} />}
       {minimumTarget && <MinimumStockModal stock={minimumTarget} onClose={() => setMinimumTarget(null)} onSaved={handleMinimumSaved} />}
+      {presentationsTarget && <InventoryPresentationsModal stock={presentationsTarget} onClose={() => setPresentationsTarget(null)} onChanged={(message) => { setToast({ tone: 'success', message }); refreshInventory() }} />}
 
       {toast && <ToastMessage tone={toast.tone} message={toast.message} onClose={closeToast} />}
     </>

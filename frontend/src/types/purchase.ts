@@ -93,7 +93,7 @@ export interface RecepcionCompra {
 
 export interface RecepcionCompraRequest {
   idSede: number
-  items: Array<{ idDetalleCompra: number; cantidadRecibida: number; conforme: boolean; observacion: string | null }>
+  items: Array<{ idDetalleCompra: number; cantidadRecibida: number; conforme: boolean; contenidosBase: number[] | null; observacion: string | null }>
   observacion: string | null
 }
 

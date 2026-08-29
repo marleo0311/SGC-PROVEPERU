@@ -2,6 +2,10 @@ import type {
   AjusteInventarioRequest,
   AjusteInventarioResponse,
   InventarioFiltros,
+  EstadoExistenciaPresentacion,
+  ExistenciaPresentacion,
+  IngresoPresentacionesRequest,
+  IngresoPresentacionesResponse,
   KardexFiltros,
   PaginaMovimientos,
   PaginaInventario,
@@ -41,6 +45,34 @@ export async function createInventoryAdjustment(
   request: AjusteInventarioRequest,
 ): Promise<AjusteInventarioResponse> {
   const { data } = await api.post<AjusteInventarioResponse>('/v1/inventario/ajustes', request)
+  return data
+}
+
+export async function listInventoryPresentations(
+  idProducto: number,
+  idSede: number,
+  estado?: EstadoExistenciaPresentacion,
+): Promise<ExistenciaPresentacion[]> {
+  const { data } = await api.get<ExistenciaPresentacion[]>(
+    `/v1/inventario/${idProducto}/presentaciones`,
+    { params: { idSede, estado } },
+  )
+  return data
+}
+
+export async function registerInventoryPresentations(
+  request: IngresoPresentacionesRequest,
+): Promise<IngresoPresentacionesResponse> {
+  const { data } = await api.post<IngresoPresentacionesResponse>(
+    '/v1/inventario/presentaciones', request,
+  )
+  return data
+}
+
+export async function openInventoryPresentation(id: number): Promise<ExistenciaPresentacion> {
+  const { data } = await api.patch<ExistenciaPresentacion>(
+    `/v1/inventario/presentaciones/${id}/abrir`,
+  )
   return data
 }
 

@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
+import java.util.List;
 
 public record RecepcionCompraItemRequest(
     @Positive(message = "El detalle de compra debe ser válido")
@@ -26,6 +27,9 @@ public record RecepcionCompraItemRequest(
 
     Boolean conforme,
 
+    @Size(max = 200, message = "Solo se pueden informar 200 bultos por producto")
+    List<@NotNull @DecimalMin("0.001") @Digits(integer = 11, fraction = 3) BigDecimal> contenidosBase,
+
     @Size(max = 250, message = "La observación del producto no puede superar 250 caracteres")
     String observacion
 ) {
@@ -36,5 +40,15 @@ public record RecepcionCompraItemRequest(
 
     public boolean conformeEfectivo() {
         return conforme == null || conforme;
+    }
+
+    public RecepcionCompraItemRequest(
+        Long idDetalleCompra,
+        Long idProducto,
+        BigDecimal cantidadRecibida,
+        Boolean conforme,
+        String observacion
+    ) {
+        this(idDetalleCompra, idProducto, cantidadRecibida, conforme, null, observacion);
     }
 }

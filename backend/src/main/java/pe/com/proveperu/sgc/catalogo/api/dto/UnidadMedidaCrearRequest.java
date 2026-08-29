@@ -13,6 +13,9 @@ public record UnidadMedidaCrearRequest(
     @Size(max = 80, message = "El nombre de la unidad no puede superar 80 caracteres")
     String nombre,
 
+    @Size(min = 2, max = 3, message = "El código SUNAT debe tener entre 2 y 3 caracteres")
+    String codigoSunat,
+
     @NotNull(message = "Debe indicar si la unidad permite decimales")
     Boolean permiteDecimales
 ) {

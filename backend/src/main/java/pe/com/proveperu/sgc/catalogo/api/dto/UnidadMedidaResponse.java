@@ -6,6 +6,7 @@ public record UnidadMedidaResponse(
     Long id,
     String codigo,
     String nombre,
+    String codigoSunat,
     boolean permiteDecimales,
     String estado
 ) {
@@ -14,6 +15,7 @@ public record UnidadMedidaResponse(
             unidad.getId(),
             unidad.getCodigo(),
             unidad.getNombre(),
+            unidad.getCodigoSunat(),
             unidad.isPermiteDecimales(),
             unidad.getEstado().name()
         );

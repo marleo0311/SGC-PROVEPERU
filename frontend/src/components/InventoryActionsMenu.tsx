@@ -9,9 +9,11 @@ interface InventoryActionsMenuProps {
   canAdjust: boolean
   canTransfer: boolean
   canEditMinimum: boolean
+  canManagePresentations: boolean
   onAdjust: (stock: StockInventario) => void
   onTransfer: (stock: StockInventario) => void
   onEditMinimum: (stock: StockInventario) => void
+  onManagePresentations: (stock: StockInventario) => void
 }
 
 const menuWidth = 196
@@ -24,16 +26,18 @@ export function InventoryActionsMenu({
   canAdjust,
   canTransfer,
   canEditMinimum,
+  canManagePresentations,
   onAdjust,
   onTransfer,
   onEditMinimum,
+  onManagePresentations,
 }: InventoryActionsMenuProps) {
   const [open, setOpen] = useState(false)
   const [position, setPosition] = useState<CSSProperties>({})
   const triggerRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const menuId = `inventory-actions-${stock.idSede}-${stock.idProducto}`
-  const actionCount = Number(canViewKardex) + Number(canAdjust) + Number(canTransfer) + Number(canEditMinimum)
+  const actionCount = Number(canViewKardex) + Number(canAdjust) + Number(canTransfer) + Number(canEditMinimum) + Number(canManagePresentations)
 
   const updatePosition = useCallback(() => {
     const trigger = triggerRef.current
@@ -140,6 +144,7 @@ export function InventoryActionsMenu({
               <i className="bi bi-sliders" /> Ajustar
             </button>
           )}
+          {canManagePresentations && <button className="inventory-adjust-button" type="button" role="menuitem" onClick={() => runAction(onManagePresentations)}><i className="bi bi-boxes" /> Cajas y rollos</button>}
           {canTransfer && (
             <button className="inventory-transfer-button" type="button" role="menuitem" onClick={() => runAction(onTransfer)}>
               <i className="bi bi-arrow-left-right" /> Transferir

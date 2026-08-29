@@ -11,6 +11,8 @@ public record VentaDetalleResponse(
     Long idUnidadMedida,
     String unidadCodigo,
     String unidadMedida,
+    Long idExistenciaPresentacion,
+    String codigoPresentacion,
     BigDecimal cantidad,
     BigDecimal cantidadBase,
     BigDecimal precioUnitario,
@@ -26,6 +28,10 @@ public record VentaDetalleResponse(
             detalle.getUnidadMedida().getId(),
             detalle.getUnidadMedida().getCodigo(),
             detalle.getUnidadMedida().getNombre(),
+            detalle.getExistenciaPresentacion() == null
+                ? null : detalle.getExistenciaPresentacion().getId(),
+            detalle.getExistenciaPresentacion() == null
+                ? null : detalle.getExistenciaPresentacion().getCodigo(),
             detalle.getCantidad(),
             detalle.getCantidadBase(),
             detalle.getPrecioUnitario(),

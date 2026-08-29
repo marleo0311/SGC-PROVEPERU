@@ -37,6 +37,8 @@ export interface CotizacionDetalle {
   idUnidadMedida: number
   unidadCodigo: string
   unidadMedida: string
+  idExistenciaPresentacion: number | null
+  codigoPresentacion: string | null
   cantidad: number
   precioUnitario: number
   descuento: number
@@ -385,7 +387,7 @@ export interface VentaCrearRequest {
   montoPagado: number | null
   fechaVencimiento: string | null
   referenciaPago: string | null
-  items: Array<{ idProducto: number; idUnidadMedida: number; cantidad: number; precioUnitario: number | null; descuento: number }> | null
+  items: Array<{ idProducto: number; idUnidadMedida: number; idExistenciaPresentacion: number | null; cantidad: number; precioUnitario: number | null; descuento: number }> | null
 }
 
 export interface FiltrosComerciales {

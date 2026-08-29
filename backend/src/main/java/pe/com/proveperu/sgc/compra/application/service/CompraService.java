@@ -60,6 +60,7 @@ public class CompraService {
     private final ProductoRepository productoRepository;
     private final UnidadMedidaRepository unidadMedidaRepository;
     private final ProductoUnidadConversionRepository conversionRepository;
+    private final pe.com.proveperu.sgc.catalogo.infrastructure.persistence.PresentacionProductoRepository presentacionRepository;
     private final UsuarioRepository usuarioRepository;
     private final GastoService gastoService;
 
@@ -278,6 +279,13 @@ public class CompraService {
                     EstadoCatalogo.ACTIVO
                 ).isPresent();
         if (!conversionActiva) {
+            boolean presentacionActiva = presentacionRepository
+                .findByProductoIdAndUnidadMedidaIdAndEstado(
+                    producto.getId(), unidad.getId(), EstadoCatalogo.ACTIVO
+                ).isPresent();
+            if (presentacionActiva) {
+                return;
+            }
             throw new SolicitudInvalidaException(
                 "La unidad " + unidad.getCodigo()
                     + " no es la unidad base ni tiene una conversión activa para el producto "

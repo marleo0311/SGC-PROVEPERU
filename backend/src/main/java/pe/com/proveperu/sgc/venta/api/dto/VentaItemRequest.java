@@ -16,6 +16,9 @@ public record VentaItemRequest(
     @Positive(message = "La unidad de medida debe ser válida")
     Long idUnidadMedida,
 
+    @Positive(message = "La presentación física debe ser válida")
+    Long idExistenciaPresentacion,
+
     @NotNull(message = "La cantidad es obligatoria")
     @DecimalMin(value = "0.001", message = "La cantidad debe ser mayor que cero")
     @Digits(integer = 11, fraction = 3, message = "La cantidad admite hasta 11 enteros y 3 decimales")
@@ -34,4 +37,13 @@ public record VentaItemRequest(
     @Digits(integer = 12, fraction = 2, message = "El descuento admite hasta 12 enteros y 2 decimales")
     BigDecimal descuento
 ) {
+    public VentaItemRequest(
+        Long idProducto,
+        Long idUnidadMedida,
+        BigDecimal cantidad,
+        BigDecimal precioUnitario,
+        BigDecimal descuento
+    ) {
+        this(idProducto, idUnidadMedida, null, cantidad, precioUnitario, descuento);
+    }
 }
