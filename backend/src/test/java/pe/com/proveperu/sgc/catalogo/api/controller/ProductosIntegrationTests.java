@@ -193,6 +193,47 @@ class ProductosIntegrationTests {
     }
 
     @Test
+    void configuraPreciosIndependientesParaUnaPresentacionCerrada() throws Exception {
+        Producto producto = crearProducto(
+            "PRES-" + UUID.randomUUID().toString().substring(0, 8)
+        );
+
+        mockMvc.perform(post(
+                "/api/v1/productos/{idProducto}/presentaciones",
+                producto.getId()
+            )
+                .header(HttpHeaders.AUTHORIZATION, bearer(
+                    PermisosCatalogo.PRESENTACIONES_EDITAR
+                ))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "nombre": "Paquete de 50 unidades",
+                      "idUnidadMedida": %d,
+                      "contenidoVariable": false,
+                      "contenidoBasePredeterminado": 50.000,
+                      "precioMinorista": 220.00,
+                      "precioMayorista": 200.00
+                    }
+                    """.formatted(unidadAlterna.getId())))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.precioMinorista").value(220.0))
+            .andExpect(jsonPath("$.precioMayorista").value(200.0))
+            .andExpect(jsonPath("$.contenidoBasePredeterminado").value(50.0));
+
+        mockMvc.perform(get(
+                "/api/v1/productos/{idProducto}/presentaciones",
+                producto.getId()
+            )
+                .header(HttpHeaders.AUTHORIZATION, bearer(
+                    PermisosCatalogo.PRESENTACIONES_VER
+                )))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].precioMinorista").value(220.0))
+            .andExpect(jsonPath("$[0].precioMayorista").value(200.0));
+    }
+
+    @Test
     void actualizaInactivaYRechazaCodigoDuplicado() throws Exception {
         Producto producto = crearProducto("P-A-" + UUID.randomUUID().toString().substring(0, 8));
         Producto otro = crearProducto("P-B-" + UUID.randomUUID().toString().substring(0, 8));

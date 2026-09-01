@@ -368,12 +368,15 @@ public class VentaService {
         BigDecimal factor = existencia == null
             ? factorAUnidadBase(producto, unidad)
             : existencia.getCantidadDisponibleBase();
-        BigDecimal precioUnitario = validarDinero(
-            resolverPrecioBase(cliente, producto, tipoPrecio, hoy())
+        BigDecimal precioPresentacion = existencia == null
+            ? null
+            : resolverPrecioPresentacion(existencia, tipoPrecio);
+        BigDecimal precioUnitario = validarDinero(precioPresentacion == null
+            ? resolverPrecioBase(cliente, producto, tipoPrecio, hoy())
                 .multiply(factor)
-                .setScale(ESCALA_DINERO, RoundingMode.HALF_UP),
-            "El precio unitario"
-        );
+                .setScale(ESCALA_DINERO, RoundingMode.HALF_UP)
+            : precioPresentacion,
+            "El precio unitario");
         if (item.precioUnitario() != null
             && validarDinero(item.precioUnitario(), "El precio esperado")
                 .compareTo(precioUnitario) != 0) {
@@ -768,6 +771,15 @@ public class VentaService {
             );
         }
         return precios.getFirst().getMonto();
+    }
+
+    private BigDecimal resolverPrecioPresentacion(
+        ExistenciaPresentacion existencia,
+        String tipoPrecio
+    ) {
+        return "MAYORISTA".equalsIgnoreCase(tipoPrecio)
+            ? existencia.getPresentacion().getPrecioMayorista()
+            : existencia.getPresentacion().getPrecioMinorista();
     }
 
     private BigDecimal factorAUnidadBase(Producto producto, UnidadMedida unidad) {

@@ -36,6 +36,16 @@ export async function countLowStock(idSede?: number | ''): Promise<number> {
   return data.totalElementos
 }
 
+export async function getInventoryStock(
+  idProducto: number,
+  idSede: number,
+): Promise<StockInventario> {
+  const { data } = await api.get<StockInventario>(`/v1/inventario/${idProducto}`, {
+    params: { idSede },
+  })
+  return data
+}
+
 export async function listSites(): Promise<Sede[]> {
   const { data } = await api.get<Sede[]>('/v1/sedes')
   return data

@@ -45,6 +45,12 @@ public class PresentacionProducto {
     @Column(name = "contenido_base_predeterminado", precision = 14, scale = 3)
     private BigDecimal contenidoBasePredeterminado;
 
+    @Column(name = "precio_minorista", precision = 14, scale = 2)
+    private BigDecimal precioMinorista;
+
+    @Column(name = "precio_mayorista", precision = 14, scale = 2)
+    private BigDecimal precioMayorista;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "estado", nullable = false, length = 20)
     private EstadoCatalogo estado = EstadoCatalogo.ACTIVO;

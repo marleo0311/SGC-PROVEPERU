@@ -326,6 +326,8 @@ class VentasIntegrationTests {
         presentacion.setUnidadMedida(caja);
         presentacion.setNombre("Caja variable");
         presentacion.setContenidoVariable(true);
+        presentacion.setPrecioMinorista(new BigDecimal("1000.00"));
+        presentacion.setPrecioMayorista(new BigDecimal("900.00"));
         presentacion.setEstado(EstadoCatalogo.ACTIVO);
         presentacion = presentacionProductoRepository.save(presentacion);
 
@@ -358,7 +360,7 @@ class VentasIntegrationTests {
                         "idUnidadMedida": %d,
                         "idExistenciaPresentacion": %d,
                         "cantidad": 1.000,
-                        "precioUnitario": 1250.00,
+                        "precioUnitario": 1000.00,
                         "descuento": 0.00
                       }]
                     }
@@ -367,9 +369,10 @@ class VentasIntegrationTests {
                         producto.getId(), caja.getId(), idExistencia
                     )))
             .andExpect(status().isCreated())
-            .andExpect(jsonPath("$.venta.total").value(1250.0))
+            .andExpect(jsonPath("$.venta.total").value(1000.0))
             .andExpect(jsonPath("$.detalles[0].cantidad").value(1.0))
             .andExpect(jsonPath("$.detalles[0].cantidadBase").value(50.0))
+            .andExpect(jsonPath("$.detalles[0].precioUnitario").value(1000.0))
             .andExpect(jsonPath("$.detalles[0].idExistenciaPresentacion")
                 .value(idExistencia));
 

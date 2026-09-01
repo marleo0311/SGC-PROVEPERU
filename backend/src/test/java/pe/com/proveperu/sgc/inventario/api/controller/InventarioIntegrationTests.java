@@ -477,6 +477,84 @@ class InventarioIntegrationTests {
     }
 
     @Test
+    void registraCantidadDeBultosFijosYAlAbrirExponeSoloSuContenido() throws Exception {
+        UnidadMedida paquete = crearUnidad(
+            "PQ" + UUID.randomUUID().toString().substring(0, 6),
+            "Paquete fijo",
+            false
+        );
+        paquete.setCodigoSunat("PK");
+        paquete = unidadMedidaRepository.save(paquete);
+
+        PresentacionProducto presentacion = new PresentacionProducto();
+        presentacion.setProducto(producto);
+        presentacion.setUnidadMedida(paquete);
+        presentacion.setNombre("Paquete de 50 unidades");
+        presentacion.setContenidoVariable(false);
+        presentacion.setContenidoBasePredeterminado(new BigDecimal("50.000"));
+        presentacion.setEstado(EstadoCatalogo.ACTIVO);
+        presentacion = presentacionProductoRepository.save(presentacion);
+
+        MvcResult ingreso = mockMvc.perform(post("/api/v1/inventario/presentaciones")
+                .header(HttpHeaders.AUTHORIZATION, bearer(
+                    PermisosInventario.PRESENTACIONES_GESTIONAR
+                ))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "idSede": %d,
+                      "idProducto": %d,
+                      "idPresentacionProducto": %d,
+                      "cantidadBultos": 30,
+                      "motivo": "Recepción de treinta paquetes cerrados"
+                    }
+                    """.formatted(sede.getId(), producto.getId(), presentacion.getId())))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.presentaciones.length()").value(30))
+            .andExpect(jsonPath("$.presentaciones[0].estado").value("CERRADO"))
+            .andExpect(jsonPath("$.presentaciones[0].cantidadInicialBase").value(50.0))
+            .andExpect(jsonPath("$.inventario.stockFisico").value(1500.0))
+            .andReturn();
+
+        Number idPrimera = JsonPath.read(
+            ingreso.getResponse().getContentAsString(),
+            "$.presentaciones[0].id"
+        );
+        mockMvc.perform(patch(
+                "/api/v1/inventario/presentaciones/{id}/abrir",
+                idPrimera.longValue()
+            )
+                .header(HttpHeaders.AUTHORIZATION, bearer(
+                    PermisosInventario.PRESENTACIONES_GESTIONAR
+                )))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.estado").value("ABIERTO"))
+            .andExpect(jsonPath("$.cantidadDisponibleBase").value(50.0));
+
+        MvcResult listado = mockMvc.perform(get(
+                "/api/v1/inventario/{idProducto}/presentaciones",
+                producto.getId()
+            )
+                .param("idSede", sede.getId().toString())
+                .header(HttpHeaders.AUTHORIZATION, bearer(PermisosInventario.STOCK_VER)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.length()").value(30))
+            .andReturn();
+        List<String> estados = JsonPath.read(
+            listado.getResponse().getContentAsString(),
+            "$[*].estado"
+        );
+        assertThat(estados.stream().filter("CERRADO"::equals).count()).isEqualTo(29);
+        assertThat(estados.stream().filter("ABIERTO"::equals).count()).isEqualTo(1);
+
+        mockMvc.perform(get("/api/v1/inventario/{idProducto}", producto.getId())
+                .param("idSede", sede.getId().toString())
+                .header(HttpHeaders.AUTHORIZATION, bearer(PermisosInventario.STOCK_VER)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.stockFisico").value(1500.0));
+    }
+
+    @Test
     void migracionAsignaPermisosDeInventarioAlAdministrador() {
         Set<String> esperados = Set.of(
             PermisosInventario.STOCK_VER,

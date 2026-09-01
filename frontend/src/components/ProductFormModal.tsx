@@ -179,6 +179,9 @@ export function ProductFormModal({
     ? options.categorias.length === 0 || options.unidades.length === 0
     : false
   const missingCatalogTab = options?.categorias.length === 0 ? 'categories' : 'units'
+  const selectedBaseUnit = options?.unidades.find(
+    (unit) => unit.id === Number(values.idUnidadBase),
+  )
 
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && !isSubmitting && onClose()}>
@@ -275,13 +278,14 @@ export function ProductFormModal({
                   <FormField label="Stock mínimo" name="stockMinimo" error={errors.stockMinimo} required hint="Alerta de reposición">
                     <input id="stockMinimo" name="stockMinimo" type="number" value={values.stockMinimo} onChange={handleChange} min="0" step="0.001" />
                   </FormField>
-                  <FormField label="Precio minorista" name="precioMinorista" error={errors.precioMinorista} hint={pricesLoading ? 'Cargando…' : 'IGV incluido'}>
+                  <FormField label={`Precio minorista por ${selectedBaseUnit?.codigo ?? 'unidad base'}`} name="precioMinorista" error={errors.precioMinorista} hint={pricesLoading ? 'Cargando…' : 'Venta fraccionada'}>
                     <div className="money-input"><span>S/</span><input id="precioMinorista" name="precioMinorista" type="number" value={values.precioMinorista} onChange={handleChange} min="0.01" step="0.01" placeholder="0.00" disabled={pricesLoading} /></div>
                   </FormField>
-                  <FormField label="Precio mayorista" name="precioMayorista" error={errors.precioMayorista} hint={pricesLoading ? 'Cargando…' : 'IGV incluido'}>
+                  <FormField label={`Precio mayorista por ${selectedBaseUnit?.codigo ?? 'unidad base'}`} name="precioMayorista" error={errors.precioMayorista} hint={pricesLoading ? 'Cargando…' : 'Venta fraccionada'}>
                     <div className="money-input"><span>S/</span><input id="precioMayorista" name="precioMayorista" type="number" value={values.precioMayorista} onChange={handleChange} min="0.01" step="0.01" placeholder="0.00" disabled={pricesLoading} /></div>
                   </FormField>
                 </div>
+                <p className="product-price-history-note"><i className="bi bi-box-seam" /> Estos precios corresponden a la unidad base. Los precios de paquetes, cajas o rollos cerrados se configuran en Presentaciones.</p>
                 {mode === 'edit' && <p className="product-price-history-note"><i className="bi bi-clock-history" /> Al cambiar un precio se conservará la vigencia anterior en el historial.</p>}
               </fieldset>
             </div>

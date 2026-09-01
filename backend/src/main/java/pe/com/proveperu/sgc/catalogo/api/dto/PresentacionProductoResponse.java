@@ -12,6 +12,8 @@ public record PresentacionProductoResponse(
     String nombre,
     boolean contenidoVariable,
     BigDecimal contenidoBasePredeterminado,
+    BigDecimal precioMinorista,
+    BigDecimal precioMayorista,
     String estado
 ) {
     public static PresentacionProductoResponse from(PresentacionProducto presentacion) {
@@ -24,6 +26,8 @@ public record PresentacionProductoResponse(
             presentacion.getNombre(),
             presentacion.isContenidoVariable(),
             presentacion.getContenidoBasePredeterminado(),
+            presentacion.getPrecioMinorista(),
+            presentacion.getPrecioMayorista(),
             presentacion.getEstado().name()
         );
     }

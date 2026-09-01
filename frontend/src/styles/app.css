@@ -8440,6 +8440,14 @@ body { font-size: 16px; }
 .presentation-stock-summary span { display: grid; gap: 4px; padding: 16px; border: 1px solid #e4e8f1; border-radius: 14px; background: #fff; }
 .presentation-stock-summary small { color: #7a849c; }
 .presentation-stock-summary strong { color: #182444; font-size: 1.08rem; }
+.presentation-stock-equivalent { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; margin: -10px 0 0; padding: 0 4px; color: #758099; font-size: .82rem; }
+.presentation-stock-equivalent i { color: #4b67df; }
+.presentation-untracked-notice { display: flex; gap: 10px; align-items: center; margin-top: -10px; padding: 12px 14px; border: 1px solid #efdba9; border-radius: 12px; color: #735b1f; background: #fffaf0; font-size: .84rem; }
+.presentation-fixed-content { display: flex; gap: 11px; align-items: center; min-height: 74px; padding: 12px 14px; border: 1px solid #dfe5f0; border-radius: 12px; color: #384865; background: #fff; }
+.presentation-fixed-content > i { display: grid; width: 38px; height: 38px; place-items: center; border-radius: 10px; color: #3c68dd; background: #eef3ff; }
+.presentation-fixed-content > span { display: grid; gap: 3px; }
+.presentation-fixed-content small { color: #7a849c; }
+.presentation-fixed-content strong { color: #182444; }
 .physical-package { grid-template-columns: 42px minmax(0, 1fr) auto auto; }
 .physical-package--abierto { border-color: #a7ded3; background: #f4fcfa; }
 .physical-package--agotado { opacity: .62; }
@@ -8449,6 +8457,7 @@ body { font-size: 16px; }
 
 @media (max-width: 760px) {
   .form-modal form.presentation-editor, .form-modal form.presentation-entry-form, .presentation-stock-summary { grid-template-columns: 1fr; }
+  .presentation-stock-equivalent { align-items: flex-start; }
   .presentation-variable-state { grid-column: 2 / -1; justify-self: start; }
   .presentation-list article, .physical-package { grid-template-columns: 38px minmax(0, 1fr) auto; }
   .presentation-list article > button, .physical-package > button { grid-column: 2 / -1; }

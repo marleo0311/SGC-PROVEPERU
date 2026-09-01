@@ -138,8 +138,11 @@ public class InventarioService {
             request.idPresentacionProducto(), producto.getId()
         );
         Usuario usuario = buscarUsuarioActivo(usuarioLogin);
-        List<BigDecimal> contenidos = normalizarContenidos(
-            producto, presentacion, request.contenidosBase()
+        List<BigDecimal> contenidos = resolverContenidosIngreso(
+            producto,
+            presentacion,
+            request.cantidadBultos(),
+            request.contenidosBase()
         );
         EntradaPresentacionesResultado resultado = registrarEntradaPresentaciones(
             sede, producto, presentacion, contenidos, usuario, null, null,
@@ -1252,6 +1255,51 @@ public class InventarioService {
             }
             return contenido;
         }).toList();
+    }
+
+    private List<BigDecimal> resolverContenidosIngreso(
+        Producto producto,
+        PresentacionProducto presentacion,
+        Integer cantidadBultos,
+        List<BigDecimal> contenidosSolicitados
+    ) {
+        if (presentacion.isContenidoVariable()) {
+            if (contenidosSolicitados == null || contenidosSolicitados.isEmpty()) {
+                throw new SolicitudInvalidaException(
+                    "Informe el contenido real de cada " + presentacion.getNombre()
+                );
+            }
+            if (cantidadBultos != null && cantidadBultos != contenidosSolicitados.size()) {
+                throw new SolicitudInvalidaException(
+                    "La cantidad de bultos no coincide con los contenidos informados"
+                );
+            }
+            return normalizarContenidos(producto, presentacion, contenidosSolicitados);
+        }
+
+        int cantidad = cantidadBultos == null
+            ? contenidosSolicitados == null ? 0 : contenidosSolicitados.size()
+            : cantidadBultos;
+        if (cantidad < 1 || cantidad > 200) {
+            throw new SolicitudInvalidaException(
+                "Debe registrar entre 1 y 200 bultos por operación"
+            );
+        }
+        if (contenidosSolicitados != null
+            && !contenidosSolicitados.isEmpty()
+            && contenidosSolicitados.size() != cantidad) {
+            throw new SolicitudInvalidaException(
+                "La cantidad de bultos no coincide con los contenidos informados"
+            );
+        }
+        return normalizarContenidos(
+            producto,
+            presentacion,
+            java.util.Collections.nCopies(
+                cantidad,
+                presentacion.getContenidoBasePredeterminado()
+            )
+        );
     }
 
     private PresentacionProducto buscarPresentacionActiva(Long id, Long idProducto) {

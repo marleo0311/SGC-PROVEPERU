@@ -20,6 +20,8 @@ public record ExistenciaPresentacionResponse(
     Long idUnidadBase,
     String codigoUnidadBase,
     String nombreUnidadBase,
+    BigDecimal precioMinoristaPresentacion,
+    BigDecimal precioMayoristaPresentacion,
     BigDecimal cantidadInicialBase,
     BigDecimal cantidadDisponibleBase,
     String estado,
@@ -36,6 +38,7 @@ public record ExistenciaPresentacionResponse(
             presentacion.getUnidadMedida().getId(), presentacion.getUnidadMedida().getCodigo(),
             presentacion.getUnidadMedida().getNombre(), producto.getUnidadBase().getId(),
             producto.getUnidadBase().getCodigo(), producto.getUnidadBase().getNombre(),
+            presentacion.getPrecioMinorista(), presentacion.getPrecioMayorista(),
             existencia.getCantidadInicialBase(), existencia.getCantidadDisponibleBase(),
             existencia.getEstado().name(), existencia.getFechaIngreso(),
             existencia.getFechaApertura()

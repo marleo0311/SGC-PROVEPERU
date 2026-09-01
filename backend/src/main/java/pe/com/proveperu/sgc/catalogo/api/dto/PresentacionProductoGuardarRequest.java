@@ -23,7 +23,15 @@ public record PresentacionProductoGuardarRequest(
 
     @DecimalMin(value = "0.001", message = "El contenido debe ser mayor que cero")
     @Digits(integer = 11, fraction = 3, message = "El contenido admite hasta 11 enteros y 3 decimales")
-    BigDecimal contenidoBasePredeterminado
+    BigDecimal contenidoBasePredeterminado,
+
+    @DecimalMin(value = "0.01", message = "El precio minorista debe ser mayor que cero")
+    @Digits(integer = 12, fraction = 2, message = "El precio minorista admite hasta 12 enteros y 2 decimales")
+    BigDecimal precioMinorista,
+
+    @DecimalMin(value = "0.01", message = "El precio mayorista debe ser mayor que cero")
+    @Digits(integer = 12, fraction = 2, message = "El precio mayorista admite hasta 12 enteros y 2 decimales")
+    BigDecimal precioMayorista
 ) {
     @AssertTrue(message = "Una presentación fija requiere contenido predeterminado; una variable se informa al recibir")
     public boolean isContenidoCoherente() {

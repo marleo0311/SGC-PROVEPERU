@@ -101,6 +101,8 @@ export interface PresentacionProducto {
   nombre: string
   contenidoVariable: boolean
   contenidoBasePredeterminado: number | null
+  precioMinorista: number | null
+  precioMayorista: number | null
   estado: EstadoCatalogo
 }
 
@@ -109,6 +111,8 @@ export interface PresentacionProductoGuardarRequest {
   idUnidadMedida: number
   contenidoVariable: boolean
   contenidoBasePredeterminado: number | null
+  precioMinorista: number | null
+  precioMayorista: number | null
 }
 
 export interface CatalogoOpciones {

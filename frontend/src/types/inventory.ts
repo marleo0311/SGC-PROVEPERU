@@ -146,6 +146,8 @@ export interface ExistenciaPresentacion {
   idUnidadBase: number
   codigoUnidadBase: string
   nombreUnidadBase: string
+  precioMinoristaPresentacion: number | null
+  precioMayoristaPresentacion: number | null
   cantidadInicialBase: number
   cantidadDisponibleBase: number
   estado: EstadoExistenciaPresentacion
@@ -157,7 +159,8 @@ export interface IngresoPresentacionesRequest {
   idSede: number
   idProducto: number
   idPresentacionProducto: number
-  contenidosBase: number[]
+  cantidadBultos?: number
+  contenidosBase?: number[]
   motivo: string
 }
 

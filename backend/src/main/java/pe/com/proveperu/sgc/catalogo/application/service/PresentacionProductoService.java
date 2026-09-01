@@ -91,9 +91,15 @@ public class PresentacionProductoService {
                     RoundingMode.UNNECESSARY
                 )
         );
+        presentacion.setPrecioMinorista(normalizarPrecio(request.precioMinorista()));
+        presentacion.setPrecioMayorista(normalizarPrecio(request.precioMayorista()));
         if (presentacion.getEstado() == null) {
             presentacion.setEstado(EstadoCatalogo.ACTIVO);
         }
+    }
+
+    private BigDecimal normalizarPrecio(BigDecimal precio) {
+        return precio == null ? null : precio.setScale(2, RoundingMode.UNNECESSARY);
     }
 
     private void validar(

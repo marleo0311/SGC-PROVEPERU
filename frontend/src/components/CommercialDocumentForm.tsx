@@ -223,8 +223,16 @@ export function CommercialDocumentForm({ kind, quote, initialOrder, onClose, onS
     if (!item) return
     const factor = item.cantidadDisponibleBase
     const prices: Partial<Record<TipoVenta, number>> = {}
-    if (line.preciosBase.MINORISTA != null) prices.MINORISTA = roundMoney(line.preciosBase.MINORISTA * factor)
-    if (line.preciosBase.MAYORISTA != null) prices.MAYORISTA = roundMoney(line.preciosBase.MAYORISTA * factor)
+    if (item.precioMinoristaPresentacion != null) {
+      prices.MINORISTA = item.precioMinoristaPresentacion
+    } else if (line.preciosBase.MINORISTA != null) {
+      prices.MINORISTA = roundMoney(line.preciosBase.MINORISTA * factor)
+    }
+    if (item.precioMayoristaPresentacion != null) {
+      prices.MAYORISTA = item.precioMayoristaPresentacion
+    } else if (line.preciosBase.MAYORISTA != null) {
+      prices.MAYORISTA = roundMoney(line.preciosBase.MAYORISTA * factor)
+    }
     patchLine(index, {
       idExistenciaPresentacion: item.id,
       idUnidad: item.idUnidadPresentacion,
