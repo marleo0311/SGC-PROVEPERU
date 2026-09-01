@@ -4577,6 +4577,10 @@
   color: var(--red-600);
 }
 
+.kardex-quantity--neutral strong {
+  color: var(--ink-700);
+}
+
 .kardex-stock-value {
   color: var(--ink-500);
   font-size: 11px;

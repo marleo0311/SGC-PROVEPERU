@@ -430,6 +430,11 @@ class InventarioIntegrationTests {
         presentacion.setEstado(EstadoCatalogo.ACTIVO);
         presentacion = presentacionProductoRepository.save(presentacion);
 
+        ajustar(
+            "ENTRADA", "98.000", unidadBase.getId(),
+            "Mercadería recibida antes de convertirla en cajas"
+        ).andExpect(status().isCreated());
+
         MvcResult ingreso = mockMvc.perform(post("/api/v1/inventario/presentaciones")
                 .header(HttpHeaders.AUTHORIZATION, bearer(
                     PermisosInventario.PRESENTACIONES_GESTIONAR
@@ -449,6 +454,10 @@ class InventarioIntegrationTests {
             .andExpect(jsonPath("$.presentaciones[0].estado").value("CERRADO"))
             .andExpect(jsonPath("$.presentaciones[0].cantidadInicialBase").value(50.0))
             .andExpect(jsonPath("$.presentaciones[1].cantidadInicialBase").value(48.0))
+            .andExpect(jsonPath("$.movimiento.tipoMovimiento")
+                .value("CONVERSION_BULTOS"))
+            .andExpect(jsonPath("$.movimiento.stockAnterior").value(98.0))
+            .andExpect(jsonPath("$.movimiento.stockResultante").value(98.0))
             .andExpect(jsonPath("$.inventario.stockFisico").value(98.0))
             .andReturn();
 
@@ -495,6 +504,32 @@ class InventarioIntegrationTests {
         presentacion.setEstado(EstadoCatalogo.ACTIVO);
         presentacion = presentacionProductoRepository.save(presentacion);
 
+        mockMvc.perform(post("/api/v1/inventario/presentaciones")
+                .header(HttpHeaders.AUTHORIZATION, bearer(
+                    PermisosInventario.PRESENTACIONES_GESTIONAR
+                ))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "idSede": %d,
+                      "idProducto": %d,
+                      "idPresentacionProducto": %d,
+                      "cantidadBultos": 1,
+                      "motivo": "Intento en almacén sin mercadería"
+                    }
+                    """.formatted(
+                        almacenDestino.getId(), producto.getId(), presentacion.getId()
+                    )))
+            .andExpect(status().isUnprocessableContent())
+            .andExpect(jsonPath("$.detail").value(
+                "Primero registra la mercadería en " + almacenDestino.getNombre()
+            ));
+
+        ajustar(
+            "ENTRADA", "1500.000", unidadBase.getId(),
+            "Mercadería recibida antes de convertirla en paquetes"
+        ).andExpect(status().isCreated());
+
         MvcResult ingreso = mockMvc.perform(post("/api/v1/inventario/presentaciones")
                 .header(HttpHeaders.AUTHORIZATION, bearer(
                     PermisosInventario.PRESENTACIONES_GESTIONAR
@@ -513,6 +548,8 @@ class InventarioIntegrationTests {
             .andExpect(jsonPath("$.presentaciones.length()").value(30))
             .andExpect(jsonPath("$.presentaciones[0].estado").value("CERRADO"))
             .andExpect(jsonPath("$.presentaciones[0].cantidadInicialBase").value(50.0))
+            .andExpect(jsonPath("$.movimiento.tipoMovimiento")
+                .value("CONVERSION_BULTOS"))
             .andExpect(jsonPath("$.inventario.stockFisico").value(1500.0))
             .andReturn();
 
@@ -552,6 +589,26 @@ class InventarioIntegrationTests {
                 .header(HttpHeaders.AUTHORIZATION, bearer(PermisosInventario.STOCK_VER)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.stockFisico").value(1500.0));
+
+        mockMvc.perform(post("/api/v1/inventario/presentaciones")
+                .header(HttpHeaders.AUTHORIZATION, bearer(
+                    PermisosInventario.PRESENTACIONES_GESTIONAR
+                ))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "idSede": %d,
+                      "idProducto": %d,
+                      "idPresentacionProducto": %d,
+                      "cantidadBultos": 1,
+                      "motivo": "No debe duplicar el stock ya convertido"
+                    }
+                    """.formatted(sede.getId(), producto.getId(), presentacion.getId())))
+            .andExpect(status().isUnprocessableContent())
+            .andExpect(jsonPath("$.detail").value(
+                "Solo hay 0.000 " + unidadBase.getCodigo()
+                    + " sin vincular a bultos en " + sede.getNombre()
+            ));
     }
 
     @Test

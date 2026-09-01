@@ -16,6 +16,7 @@ export type TipoMovimientoInventario =
   | 'ANULACION_VENTA'
   | 'TRANSFERENCIA_SALIDA'
   | 'TRANSFERENCIA_ENTRADA'
+  | 'CONVERSION_BULTOS'
 
 export interface Sede {
   id: number

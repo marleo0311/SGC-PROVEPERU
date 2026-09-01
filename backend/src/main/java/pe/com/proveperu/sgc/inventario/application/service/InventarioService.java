@@ -144,16 +144,45 @@ public class InventarioService {
             request.cantidadBultos(),
             request.contenidosBase()
         );
-        EntradaPresentacionesResultado resultado = registrarEntradaPresentaciones(
-            sede, producto, presentacion, contenidos, usuario, null, null,
-            request.motivo().strip(), TipoMovimientoInventario.AJUSTE_ENTRADA
+        BigDecimal cantidadBase = contenidos.stream()
+            .reduce(BigDecimal.ZERO.setScale(ESCALA_STOCK), BigDecimal::add);
+        Inventario inventario = inventarioRepository
+            .findForUpdate(sede.getId(), producto.getId())
+            .orElseThrow(() -> new ReglaNegocioException(
+                "Primero registra la mercadería en " + sede.getNombre()
+            ));
+        BigDecimal stockNoVinculado = calcularStockNoVinculado(
+            sede, producto, inventario
+        );
+        if (cantidadBase.compareTo(stockNoVinculado) > 0) {
+            throw new ReglaNegocioException(
+                "Solo hay " + stockNoVinculado.toPlainString() + " "
+                    + producto.getUnidadBase().getCodigo()
+                    + " sin vincular a bultos en " + sede.getNombre()
+            );
+        }
+
+        Instant ahora = Instant.now();
+        List<ExistenciaPresentacion> existencias = crearExistenciasPresentacion(
+            sede, presentacion, contenidos, null, ahora
+        );
+        MovimientoInventario movimiento = registrarConversionBultos(
+            sede,
+            producto,
+            presentacion,
+            usuario,
+            contenidos.size(),
+            cantidadBase,
+            inventario.getStockFisico(),
+            request.motivo().strip(),
+            ahora
         );
         return new IngresoPresentacionesResponse(
-            resultado.presentaciones().stream()
+            existencias.stream()
                 .map(ExistenciaPresentacionResponse::from)
                 .toList(),
-            MovimientoInventarioResponse.from(resultado.movimiento()),
-            StockInventarioResponse.from(sede, producto, resultado.inventario())
+            MovimientoInventarioResponse.from(movimiento),
+            StockInventarioResponse.from(sede, producto, inventario)
         );
     }
 
@@ -1203,6 +1232,56 @@ public class InventarioService {
         return inventarioRepository.save(inventario);
     }
 
+    private BigDecimal calcularStockNoVinculado(
+        Sede sede,
+        Producto producto,
+        Inventario inventario
+    ) {
+        BigDecimal stockRastreado = existenciaPresentacionRepository
+            .findAllForUpdate(
+                sede.getId(),
+                producto.getId(),
+                EnumSet.of(
+                    EstadoExistenciaPresentacion.CERRADO,
+                    EstadoExistenciaPresentacion.ABIERTO
+                )
+            ).stream()
+            .map(ExistenciaPresentacion::getCantidadDisponibleBase)
+            .reduce(BigDecimal.ZERO.setScale(ESCALA_STOCK), BigDecimal::add);
+        return inventario.getStockFisico()
+            .subtract(stockRastreado)
+            .max(BigDecimal.ZERO.setScale(ESCALA_STOCK));
+    }
+
+    private MovimientoInventario registrarConversionBultos(
+        Sede sede,
+        Producto producto,
+        PresentacionProducto presentacion,
+        Usuario usuario,
+        int cantidadBultos,
+        BigDecimal cantidadBase,
+        BigDecimal stockActual,
+        String motivo,
+        Instant fechaHora
+    ) {
+        MovimientoInventario movimiento = new MovimientoInventario();
+        movimiento.setSede(sede);
+        movimiento.setProducto(producto);
+        movimiento.setUsuario(usuario);
+        movimiento.setUnidadMedida(presentacion.getUnidadMedida());
+        movimiento.setTipoMovimiento(TipoMovimientoInventario.CONVERSION_BULTOS);
+        movimiento.setCantidad(
+            BigDecimal.valueOf(cantidadBultos).setScale(ESCALA_STOCK)
+        );
+        movimiento.setCantidadBase(cantidadBase);
+        movimiento.setStockAnterior(stockActual);
+        movimiento.setStockResultante(stockActual);
+        movimiento.setDocumentoOrigen("CONVERSION_BULTOS");
+        movimiento.setMotivo(motivo);
+        movimiento.setFechaHora(fechaHora);
+        return movimientoRepository.save(movimiento);
+    }
+
     private EntradaPresentacionesResultado registrarEntradaPresentaciones(
         Sede sede,
         Producto producto,
@@ -1243,6 +1322,19 @@ public class InventarioService {
         movimiento.setFechaHora(ahora);
         movimiento = movimientoRepository.save(movimiento);
 
+        List<ExistenciaPresentacion> existencias = crearExistenciasPresentacion(
+            sede, presentacion, contenidos, recepcion, ahora
+        );
+        return new EntradaPresentacionesResultado(existencias, movimiento, inventario);
+    }
+
+    private List<ExistenciaPresentacion> crearExistenciasPresentacion(
+        Sede sede,
+        PresentacionProducto presentacion,
+        List<BigDecimal> contenidos,
+        RecepcionCompra recepcion,
+        Instant fechaIngreso
+    ) {
         List<ExistenciaPresentacion> existencias = contenidos.stream().map(contenido -> {
             ExistenciaPresentacion existencia = new ExistenciaPresentacion();
             existencia.setPresentacion(presentacion);
@@ -1251,13 +1343,13 @@ public class InventarioService {
             existencia.setCantidadInicialBase(contenido);
             existencia.setCantidadDisponibleBase(contenido);
             existencia.setEstado(EstadoExistenciaPresentacion.CERRADO);
-            existencia.setFechaIngreso(ahora);
+            existencia.setFechaIngreso(fechaIngreso);
             return existenciaPresentacionRepository.saveAndFlush(existencia);
         }).toList();
         existencias.forEach(existencia ->
             existencia.setCodigo("BUL-" + String.format("%08d", existencia.getId()))
         );
-        return new EntradaPresentacionesResultado(existencias, movimiento, inventario);
+        return existencias;
     }
 
     private List<BigDecimal> normalizarContenidos(

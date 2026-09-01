@@ -135,7 +135,7 @@ public class InventarioController {
 
     @PostMapping("/presentaciones")
     @PreAuthorize("hasAuthority('" + PermisosInventario.PRESENTACIONES_GESTIONAR + "')")
-    @Operation(summary = "Registrar el contenido real de cajas, paquetes o rollos")
+    @Operation(summary = "Convertir stock existente en cajas, paquetes o rollos físicos")
     public ResponseEntity<IngresoPresentacionesResponse> registrarPresentaciones(
         @Valid @RequestBody IngresoPresentacionesRequest request,
         @AuthenticationPrincipal Jwt jwt

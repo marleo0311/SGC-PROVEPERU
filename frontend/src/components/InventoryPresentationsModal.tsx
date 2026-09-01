@@ -25,7 +25,7 @@ export function InventoryPresentationsModal({ stock, onClose, onChanged }: Props
   const [selectedId, setSelectedId] = useState('')
   const [packageCount, setPackageCount] = useState('')
   const [contents, setContents] = useState('')
-  const [reason, setReason] = useState('Ingreso de mercadería en presentaciones')
+  const [reason, setReason] = useState('Conversión de stock existente a bultos')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -103,6 +103,15 @@ export function InventoryPresentationsModal({ stock, onClose, onChanged }: Props
       setError('Ingresa una cantidad de bultos entre 1 y 200.')
       return
     }
+    const requiredBase = selected.contenidoVariable
+      ? parsed.reduce((total, value) => total + value, 0)
+      : count * (selected.contenidoBasePredeterminado ?? 0)
+    if (requiredBase > looseBase + 0.0005) {
+      setError(
+        `Solo hay ${quantity.format(looseBase)} ${currentStock.codigoUnidadBase} sin vincular a bultos en ${currentStock.nombreSede}.`,
+      )
+      return
+    }
     if (reason.trim().length < 3) {
       setError('Indica un motivo de al menos 3 caracteres.')
       return
@@ -122,7 +131,9 @@ export function InventoryPresentationsModal({ stock, onClose, onChanged }: Props
       setPackageCount('')
       setCurrentStock(response.inventario)
       await refresh(false)
-      onChanged(`Se registraron ${response.presentaciones.length} bultos de ${stock.nombreProducto}.`)
+      onChanged(
+        `Se convirtieron ${response.presentaciones.length} bultos de ${stock.nombreProducto}; el stock total no cambió.`,
+      )
     } catch (requestError) {
       setError(getApiErrorMessage(requestError))
     } finally {
@@ -150,6 +161,10 @@ export function InventoryPresentationsModal({ stock, onClose, onChanged }: Props
   const openedBase = opened.reduce((total, item) => total + item.cantidadDisponibleBase, 0)
   const looseBase = Math.max(0, currentStock.stockFisico - trackedBase)
   const fractionableBase = looseBase + openedBase
+  const fixedContent = selected?.contenidoBasePredeterminado ?? 0
+  const maxFixedPackages = fixedContent > 0
+    ? Math.min(200, Math.floor((looseBase + 0.0005) / fixedContent))
+    : 0
   const closedByUnit = closed.reduce<Map<string, number>>((summary, item) => {
     const key = item.codigoUnidadPresentacion
     summary.set(key, (summary.get(key) ?? 0) + 1)
@@ -206,15 +221,16 @@ export function InventoryPresentationsModal({ stock, onClose, onChanged }: Props
                 Abrir un bulto cambia su presentación, no el valor total de la mercadería.
               </p>
 
-              {looseBase > 0 && items.length > 0 && (
-                <div className="presentation-untracked-notice">
-                  <i className="bi bi-exclamation-triangle" />
-                  <span>
-                    Hay <strong>{quantity.format(looseBase)} {currentStock.codigoUnidadBase}</strong> registrados
-                    mediante ajustes y no vinculados a un bulto físico.
-                  </span>
-                </div>
-              )}
+              <div className="presentation-untracked-notice">
+                <i className={`bi ${looseBase > 0 ? 'bi-box-arrow-in-down' : 'bi-shield-exclamation'}`} />
+                <span>
+                  {looseBase > 0 ? (
+                    <>Puedes convertir <strong>{quantity.format(looseBase)} {currentStock.codigoUnidadBase}</strong> previamente ingresados en <strong>{currentStock.nombreSede}</strong>.</>
+                  ) : (
+                    <>No hay mercadería sin vincular en <strong>{currentStock.nombreSede}</strong>. Primero registra una entrada en este almacén.</>
+                  )}
+                </span>
+              </div>
 
               {definitions.length === 0 ? (
                 <div className="catalog-message">
@@ -225,11 +241,11 @@ export function InventoryPresentationsModal({ stock, onClose, onChanged }: Props
               ) : (
                 <form className="presentation-entry-form" onSubmit={submit}>
                   <header>
-                    <h3>Registrar ingreso de bultos</h3>
+                    <h3>Convertir stock existente en bultos</h3>
                     <p>
                       {selected?.contenidoVariable
-                        ? 'Escribe el contenido real de cada bulto. La cantidad se calcula automáticamente.'
-                        : 'Indica cuántos bultos físicos llegaron; el contenido fijo ya está configurado.'}
+                        ? 'Escribe el contenido real de cada bulto. El total se tomará del stock ya ingresado en este almacén.'
+                        : 'Indica cuántos bultos corresponden al stock ya ingresado. Esta operación no aumenta las existencias.'}
                     </p>
                   </header>
 
@@ -268,12 +284,12 @@ export function InventoryPresentationsModal({ stock, onClose, onChanged }: Props
                     <label className="product-form-field">
                       <span className="product-form-field__label">
                         Cantidad de bultos <b>*</b>
-                        <small>Máximo 200</small>
+                        <small>Máximo {maxFixedPackages} según stock</small>
                       </span>
                       <input
                         type="number"
                         min="1"
-                        max="200"
+                        max={maxFixedPackages}
                         step="1"
                         value={packageCount}
                         onChange={(event) => setPackageCount(event.target.value)}
@@ -303,11 +319,11 @@ export function InventoryPresentationsModal({ stock, onClose, onChanged }: Props
                     />
                   </label>
 
-                  <button className="primary-button primary-button--inline" type="submit" disabled={saving}>
+                  <button className="primary-button primary-button--inline" type="submit" disabled={saving || looseBase <= 0 || (!selected?.contenidoVariable && maxFixedPackages < 1)}>
                     {saving
                       ? <span className="spinner-border spinner-border-sm" />
-                      : <i className="bi bi-plus-lg" />}
-                    Registrar bultos
+                      : <i className="bi bi-box-arrow-in-down" />}
+                    Convertir en bultos
                   </button>
                 </form>
               )}

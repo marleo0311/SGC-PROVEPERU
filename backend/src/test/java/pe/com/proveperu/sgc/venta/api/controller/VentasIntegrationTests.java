@@ -331,6 +331,9 @@ class VentasIntegrationTests {
         presentacion.setEstado(EstadoCatalogo.ACTIVO);
         presentacion = presentacionProductoRepository.save(presentacion);
 
+        inventario.setStockFisico(new BigDecimal("70.000"));
+        inventarioRepository.saveAndFlush(inventario);
+
         var ingreso = inventarioService.registrarPresentaciones(
             new IngresoPresentacionesRequest(
                 sede.getId(),
@@ -403,6 +406,9 @@ class VentasIntegrationTests {
         presentacion.setEstado(EstadoCatalogo.ACTIVO);
         presentacion = presentacionProductoRepository.save(presentacion);
 
+        inventario.setStockFisico(new BigDecimal("270.000"));
+        inventarioRepository.saveAndFlush(inventario);
+
         var ingreso = inventarioService.registrarPresentaciones(
             new IngresoPresentacionesRequest(
                 sede.getId(),
@@ -470,8 +476,8 @@ class VentasIntegrationTests {
 
     @Test
     void vendeUnidadesDesdeUnaCajaAbiertaYConservaElSaldo() throws Exception {
-        inventario.setStockFisico(BigDecimal.ZERO.setScale(3));
-        inventarioRepository.save(inventario);
+        inventario.setStockFisico(new BigDecimal("10.000"));
+        inventarioRepository.saveAndFlush(inventario);
 
         UnidadMedida caja = new UnidadMedida();
         caja.setCodigo("CA" + UUID.randomUUID().toString().substring(0, 6));

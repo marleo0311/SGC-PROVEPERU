@@ -25,6 +25,7 @@ const movementTypes: Array<{ value: TipoMovimientoInventario; label: string }> =
   { value: 'ANULACION_VENTA', label: 'Anulación de venta' },
   { value: 'TRANSFERENCIA_ENTRADA', label: 'Transferencia recibida' },
   { value: 'TRANSFERENCIA_SALIDA', label: 'Transferencia enviada' },
+  { value: 'CONVERSION_BULTOS', label: 'Conversión a bultos' },
 ]
 
 const quantityFormatter = new Intl.NumberFormat('es-PE', {
@@ -308,7 +309,12 @@ export function KardexPage() {
 
 function MovementRow({ movement, displayUnit }: { movement: MovimientoInventario; displayUnit: string }) {
   const meta = movementMeta(movement.tipoMovimiento)
-  const signedQuantity = movement.cantidadBase > 0 ? `+${quantityFormatter.format(movement.cantidadBase)}` : quantityFormatter.format(movement.cantidadBase)
+  const isPackageConversion = movement.tipoMovimiento === 'CONVERSION_BULTOS'
+  const signedQuantity = isPackageConversion
+    ? quantityFormatter.format(movement.cantidadBase)
+    : movement.cantidadBase > 0
+      ? `+${quantityFormatter.format(movement.cantidadBase)}`
+      : quantityFormatter.format(movement.cantidadBase)
   const origin = movement.documentoOrigen
     ? `${formatOrigin(movement.documentoOrigen)}${movement.idOrigen ? ` #${movement.idOrigen}` : ''}`
     : 'Ajuste manual'
@@ -316,7 +322,7 @@ function MovementRow({ movement, displayUnit }: { movement: MovimientoInventario
     <tr>
       <td><span className="kardex-date"><strong>{dateFormatter.format(new Date(movement.fechaHora))}</strong><small>Movimiento #{movement.id}</small></span></td>
       <td><span className={`kardex-type kardex-type--${meta.tone}`}><i className={`bi ${meta.icon}`} /> {meta.label}</span></td>
-      <td><span className={`kardex-quantity kardex-quantity--${movement.cantidadBase >= 0 ? 'positive' : 'negative'}`}><strong>{signedQuantity}</strong><small>{displayUnit}</small></span></td>
+      <td><span className={`kardex-quantity kardex-quantity--${isPackageConversion ? 'neutral' : movement.cantidadBase >= 0 ? 'positive' : 'negative'}`}><strong>{signedQuantity}</strong><small>{isPackageConversion ? `${displayUnit} reclasificadas` : displayUnit}</small></span></td>
       <td><span className="kardex-stock-value">{quantityFormatter.format(movement.stockAnterior)} <small>{displayUnit}</small></span></td>
       <td><span className="kardex-stock-value kardex-stock-value--result">{quantityFormatter.format(movement.stockResultante)} <small>{displayUnit}</small></span></td>
       <td><span className="kardex-origin"><strong>{origin}</strong><small>{movement.motivo || 'Sin motivo adicional'}</small></span></td>
@@ -330,6 +336,7 @@ function movementMeta(type: TipoMovimientoInventario) {
   if (['COMPRA', 'AJUSTE_ENTRADA', 'DEVOLUCION_ENTRADA', 'ANULACION_VENTA', 'TRANSFERENCIA_ENTRADA'].includes(type)) return { label: found?.label ?? type, tone: 'input', icon: 'bi-arrow-down-left' }
   if (['VENTA', 'AJUSTE_SALIDA', 'DEVOLUCION_SALIDA', 'TRANSFERENCIA_SALIDA'].includes(type)) return { label: found?.label ?? type, tone: 'output', icon: 'bi-arrow-up-right' }
   if (['RESERVA', 'LIBERACION_RESERVA'].includes(type)) return { label: found?.label ?? type, tone: 'reserve', icon: 'bi-bookmark-check' }
+  if (type === 'CONVERSION_BULTOS') return { label: found?.label ?? type, tone: 'neutral', icon: 'bi-boxes' }
   return { label: found?.label ?? type, tone: 'neutral', icon: 'bi-record-circle' }
 }
 
