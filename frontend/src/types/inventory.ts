@@ -140,6 +140,7 @@ export interface ExistenciaPresentacion {
   producto: string
   idPresentacionProducto: number
   presentacion: string
+  contenidoVariable: boolean
   idUnidadPresentacion: number
   codigoUnidadPresentacion: string
   nombreUnidadPresentacion: string

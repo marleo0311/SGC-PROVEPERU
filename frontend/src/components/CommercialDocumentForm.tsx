@@ -54,6 +54,49 @@ interface LineDraft {
   descuentoUnitario: string
 }
 
+interface PresentationChoice {
+  value: string
+  item: ExistenciaPresentacion
+  cantidadDisponible: number
+  label: string
+}
+
+function buildPresentationChoices(items: ExistenciaPresentacion[]): PresentationChoice[] {
+  const fixed = new Map<number, ExistenciaPresentacion[]>()
+  const choices: PresentationChoice[] = []
+  items.forEach((item) => {
+    if (item.contenidoVariable) {
+      choices.push({
+        value: `bulto:${item.id}`,
+        item,
+        cantidadDisponible: 1,
+        label: `${item.presentacion} · ${item.cantidadDisponibleBase} ${item.codigoUnidadBase} · ${item.codigo}`,
+      })
+      return
+    }
+    fixed.set(item.idPresentacionProducto, [...(fixed.get(item.idPresentacionProducto) ?? []), item])
+  })
+  fixed.forEach((group, idPresentacion) => {
+    const item = group[0]
+    choices.unshift({
+      value: `presentacion:${idPresentacion}`,
+      item,
+      cantidadDisponible: group.length,
+      label: `Por ${item.codigoUnidadPresentacion} · ${item.presentacion} · ${group.length} disponibles`,
+    })
+  })
+  return choices
+}
+
+function selectedPresentationValue(line: LineDraft) {
+  if (line.idExistenciaPresentacion == null) return ''
+  const item = line.presentaciones.find((candidate) => candidate.id === line.idExistenciaPresentacion)
+  if (!item) return ''
+  return item.contenidoVariable
+    ? `bulto:${item.id}`
+    : `presentacion:${item.idPresentacionProducto}`
+}
+
 interface Props {
   kind: CommercialFormKind
   quote?: Cotizacion
@@ -219,8 +262,10 @@ export function CommercialDocumentForm({ kind, quote, initialOrder, onClose, onS
       })
       return
     }
-    const item = line.presentaciones.find((candidate) => candidate.id === Number(value))
-    if (!item) return
+    const choice = buildPresentationChoices(line.presentaciones)
+      .find((candidate) => candidate.value === value)
+    if (!choice) return
+    const item = choice.item
     const factor = item.cantidadDisponibleBase
     const prices: Partial<Record<TipoVenta, number>> = {}
     if (item.precioMinoristaPresentacion != null) {
@@ -251,6 +296,16 @@ export function CommercialDocumentForm({ kind, quote, initialOrder, onClose, onS
     if (kind === 'sale' && !isSaleFromOrder && !siteId) next.site = 'Selecciona el almacén de salida.'
     if (!isSaleFromOrder && !lines.length) next.lines = 'Agrega al menos un producto.'
     if (lines.some((line) => Number(line.cantidad) <= 0)) next.lines = 'Todas las cantidades deben ser mayores que cero.'
+    if (lines.some((line) => {
+      if (line.idExistenciaPresentacion == null) return false
+      const item = line.presentaciones.find((candidate) => candidate.id === line.idExistenciaPresentacion)
+      if (!item || item.contenidoVariable) return false
+      const disponibles = line.presentaciones.filter((candidate) =>
+        !candidate.contenidoVariable
+        && candidate.idPresentacionProducto === item.idPresentacionProducto).length
+      const cantidad = Number(line.cantidad)
+      return !Number.isInteger(cantidad) || cantidad > disponibles
+    })) next.lines = 'La cantidad de bultos debe ser entera y no superar los disponibles.'
     if (lines.some((line) => Number(line.descuentoUnitario) < 0)) next.lines = 'Los descuentos unitarios no pueden ser negativos.'
     if (lines.some((line) => line.precios[line.tipoPrecio] != null && Number(line.descuentoUnitario) > (line.precios[line.tipoPrecio] ?? 0))) next.lines = 'El descuento unitario no puede superar el precio unitario del producto.'
     if (kind === 'sale' && condition !== 'CONTADO' && !clientId && !selectedOrder?.idCliente) next.client = 'Una venta a crédito o parcial requiere un cliente.'
@@ -288,7 +343,74 @@ export function CommercialDocumentForm({ kind, quote, initialOrder, onClose, onS
   return <div className="modal-backdrop commercial-form-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && !isSubmitting && onClose()}><section className="commercial-form-modal"><header><div><span><i className={`bi ${icon}`} /></span><span><small>Flujo comercial</small><h2>{title}</h2></span></div><button className="icon-button" type="button" onClick={onClose}><i className="bi bi-x-lg" /></button></header><form onSubmit={submit} noValidate><div className="commercial-form-body">{submitError && <div className="alert-message alert-message--danger"><i className="bi bi-exclamation-circle-fill" /><span>{submitError}</span></div>}
     {kind === 'sale' && <section className="commercial-form-section"><header><span>1</span><div><h3>Origen de la venta</h3><p>Registra una venta directa o consume las reservas activas de un pedido.</p></div></header><div className="commercial-source-switch"><button className={saleSource === 'DIRECT' ? 'active' : ''} type="button" onClick={() => { setSaleSource('DIRECT'); setOrderId(''); setIncludeIgv(true) }}><i className="bi bi-shop" /><span><strong>Venta directa</strong><small>Selecciona cliente, almacén y productos.</small></span></button><button className={saleSource === 'ORDER' ? 'active' : ''} type="button" onClick={() => { setSaleSource('ORDER'); setLines([]) }}><i className="bi bi-bag-check" /><span><strong>Desde pedido</strong><small>Factura el pedido y consume su almacén reservado.</small></span></button></div>{isSaleFromOrder && <div className="commercial-header-grid"><Field label="Pedido con reserva" error={errors.order} wide><select value={orderId} onChange={(event) => { setOrderId(event.target.value); const order = orders.find((item) => item.id === Number(event.target.value)); if (order?.idCliente) setClientId(String(order.idCliente)); setIncludeIgv((order?.igv ?? 0) > 0) }}><option value="">Seleccionar pedido</option>{orders.map((order) => <option key={order.id} value={order.id}>Pedido #{order.id} · {order.sede} · {friendlyOrderState(order.estado)} · {order.cliente || 'Cliente ocasional'} · {currency.format(order.total)}</option>)}</select></Field></div>}</section>}
     {!isSaleFromOrder && <section className="commercial-form-section"><header><span>{kind === 'sale' ? 2 : 1}</span><div><h3>{kind === 'quote' ? 'Cliente y vigencia' : kind === 'order' ? 'Cliente y almacén' : 'Cliente y almacén de salida'}</h3><p>{kind === 'sale' ? 'El almacén elegido será el único que descontará estas existencias; SUNAT seguirá viendo un solo local.' : 'Define los datos principales de la operación.'}</p></div></header><div className="commercial-header-grid">{kind === 'sale' ? <ClientDocumentLookup key={receiptType === 'FACTURA' ? 'factura' : 'otro-comprobante'} clients={clients} value={clientId} receiptType={receiptType} error={errors.client} onSelect={setClientId} onClientResolved={handleClientResolved} /> : <Field label="Cliente" error={errors.client}><select value={clientId} onChange={(event) => setClientId(event.target.value)}><option value="">Cliente ocasional</option>{clients.map((client) => <option key={client.id} value={client.id}>{client.nombreMostrar} · {client.numeroDocumento}</option>)}</select></Field>}{kind === 'quote' && <><Field label="Fecha" error={errors.date}><input type="date" value={documentDate} onChange={(event) => setDocumentDate(event.target.value)} /></Field><Field label="Vigencia hasta" error={errors.expiry}><input type="date" min={documentDate} value={expiryDate} onChange={(event) => setExpiryDate(event.target.value)} /></Field></>}{kind !== 'quote' && <Field label={kind === 'sale' ? 'Almacén de salida' : 'Almacén de reserva'} error={errors.site}><select value={siteId} onChange={(event) => changeSite(event.target.value)}><option value="">Seleccionar almacén</option>{sites.map((site) => <option key={site.id} value={site.id}>{site.nombre}</option>)}</select></Field>}{kind === 'order' && <Field label="Canal"><select value={channel} onChange={(event) => setChannel(event.target.value as CanalPedido)}><option value="PRESENCIAL">Presencial</option><option value="WHATSAPP">WhatsApp</option></select></Field>}{kind === 'sale' && <Field label="Tipo de venta"><select value={saleType} onChange={(event) => { const type = event.target.value as TipoVenta; setSaleType(type); setLines((current) => current.map((line) => ({ ...line, tipoPrecio: type }))) }}><option value="MINORISTA">Minorista</option><option value="MAYORISTA">Mayorista</option></select></Field>}{kind === 'order' && <Field label="Observación" wide><textarea value={observation} onChange={(event) => setObservation(event.target.value)} maxLength={300} rows={2} placeholder="Indicaciones para preparación o entrega" /></Field>}</div></section>}
-    {!isSaleFromOrder && <section className="commercial-form-section commercial-products-section"><header><span>{kind === 'sale' ? 3 : 2}</span><div><h3>Productos</h3><p>Vende por {kind === 'sale' ? 'unidad/metro o elige una caja, paquete o rollo cerrado' : 'la unidad configurada'}.</p></div></header><div className="commercial-product-search"><i className="bi bi-search" /><input value={productSearch} onChange={(event) => setProductSearch(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); void searchProducts() } }} placeholder="Buscar producto por nombre o código" /><button type="button" onClick={() => void searchProducts()} disabled={isSearching}>{isSearching ? <span className="spinner-border spinner-border-sm" /> : <><i className="bi bi-plus-lg" /> Buscar</>}</button></div>{productResults.length > 0 && <div className="commercial-product-results">{productResults.map((product) => <button type="button" key={product.id} onClick={() => void addProduct(product)}><span><i className="bi bi-box-seam" /></span><span><strong>{product.nombre}</strong><small>{product.codigoInterno} · {product.unidadBase.codigo}</small></span><i className="bi bi-plus-circle" /></button>)}</div>}{lines.length === 0 ? <div className="commercial-lines-empty"><i className="bi bi-basket" /><span><strong>Aún no agregaste productos</strong><small>Busca y selecciona el primer artículo.</small></span></div> : <div className="commercial-lines"><header><span>Producto / presentación</span><span>Precio unitario</span><span>Cantidad</span><span>Descuento unitario</span><span>Precio con descuento</span><span>Importe final</span><span /></header>{lines.map((line, index) => { const currentPrice = line.precios[line.tipoPrecio]; const netUnitPrice = Math.max(0, (currentPrice ?? 0) - (Number(line.descuentoUnitario) || 0)); return <article key={line.key}><div><span><i className="bi bi-box-seam" /></span><span><strong>{line.producto}</strong><small>{line.codigo} · {line.unidad}</small>{kind === 'sale' && <select className="commercial-presentation-select" value={line.idExistenciaPresentacion ?? ''} onChange={(event) => selectPresentation(index, event.target.value)}><option value="">Por {line.unidadBase}</option>{line.presentaciones.map((item) => <option key={item.id} value={item.id}>{item.codigo} · {item.presentacion} · {item.cantidadDisponibleBase} {item.codigoUnidadBase}</option>)}</select>}</span></div><select value={line.tipoPrecio} onChange={(event) => patchLine(index, { tipoPrecio: event.target.value as TipoVenta })}><option value="MINORISTA">Minorista{line.precios.MINORISTA == null ? '' : ` · ${currency.format(line.precios.MINORISTA)}`}</option><option value="MAYORISTA">Mayorista{line.precios.MAYORISTA == null ? '' : ` · ${currency.format(line.precios.MAYORISTA)}`}</option></select><input type="number" min="0.001" step="0.001" value={line.cantidad} disabled={line.idExistenciaPresentacion != null} onChange={(event) => patchLine(index, { cantidad: event.target.value })} aria-label={`Cantidad de ${line.producto}`} /><div className="money-input"><span>S/</span><input type="number" min="0" step="0.01" value={line.descuentoUnitario} onChange={(event) => patchLine(index, { descuentoUnitario: event.target.value })} aria-label={`Descuento unitario de ${line.producto}`} /></div><strong>{currentPrice == null ? 'Al guardar' : currency.format(netUnitPrice)}</strong><strong>{currentPrice == null ? 'Precio al guardar' : currency.format(lineNetTotal(line))}</strong><button type="button" onClick={() => setLines((current) => current.filter((_, itemIndex) => itemIndex !== index))}><i className="bi bi-trash3" /></button></article> })}</div>}{errors.lines && <span className="commercial-field-error"><i className="bi bi-exclamation-circle" /> {errors.lines}</span>}</section>}
+    {!isSaleFromOrder && (
+      <section className="commercial-form-section commercial-products-section">
+        <header>
+          <span>{kind === 'sale' ? 3 : 2}</span>
+          <div>
+            <h3>Productos</h3>
+            <p>Vende por {kind === 'sale' ? 'unidad/metro o elige una caja, paquete o rollo cerrado' : 'la unidad configurada'}.</p>
+          </div>
+        </header>
+        <div className="commercial-product-search">
+          <i className="bi bi-search" />
+          <input value={productSearch} onChange={(event) => setProductSearch(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); void searchProducts() } }} placeholder="Buscar producto por nombre o código" />
+          <button type="button" onClick={() => void searchProducts()} disabled={isSearching}>{isSearching ? <span className="spinner-border spinner-border-sm" /> : <><i className="bi bi-plus-lg" /> Buscar</>}</button>
+        </div>
+        {productResults.length > 0 && <div className="commercial-product-results">{productResults.map((product) => <button type="button" key={product.id} onClick={() => void addProduct(product)}><span><i className="bi bi-box-seam" /></span><span><strong>{product.nombre}</strong><small>{product.codigoInterno} · {product.unidadBase.codigo}</small></span><i className="bi bi-plus-circle" /></button>)}</div>}
+        {lines.length === 0 ? (
+          <div className="commercial-lines-empty"><i className="bi bi-basket" /><span><strong>Aún no agregaste productos</strong><small>Busca y selecciona el primer artículo.</small></span></div>
+        ) : (
+          <div className="commercial-lines">
+            <header><span>Producto / presentación</span><span>Precio unitario</span><span>Cantidad</span><span>Descuento unitario</span><span>Precio con descuento</span><span>Importe final</span><span /></header>
+            {lines.map((line, index) => {
+              const choices = buildPresentationChoices(line.presentaciones)
+              const selectedChoiceValue = selectedPresentationValue(line)
+              const selectedChoice = choices.find((choice) => choice.value === selectedChoiceValue)
+              const currentPrice = line.precios[line.tipoPrecio]
+              const netUnitPrice = Math.max(0, (currentPrice ?? 0) - (Number(line.descuentoUnitario) || 0))
+
+              return (
+                <article key={line.key}>
+                  <div>
+                    <span><i className="bi bi-box-seam" /></span>
+                    <span>
+                      <strong>{line.producto}</strong>
+                      <small>{line.codigo} · {line.unidad}</small>
+                      {kind === 'sale' && (
+                        <select className="commercial-presentation-select" value={selectedChoiceValue} onChange={(event) => selectPresentation(index, event.target.value)}>
+                          <option value="">Por {line.unidadBase}</option>
+                          {choices.map((choice) => <option key={choice.value} value={choice.value}>{choice.label}</option>)}
+                        </select>
+                      )}
+                    </span>
+                  </div>
+                  <select value={line.tipoPrecio} onChange={(event) => patchLine(index, { tipoPrecio: event.target.value as TipoVenta })}>
+                    <option value="MINORISTA">Minorista{line.precios.MINORISTA == null ? '' : ` · ${currency.format(line.precios.MINORISTA)}`}</option>
+                    <option value="MAYORISTA">Mayorista{line.precios.MAYORISTA == null ? '' : ` · ${currency.format(line.precios.MAYORISTA)}`}</option>
+                  </select>
+                  <input
+                    type="number"
+                    min={line.idExistenciaPresentacion == null ? '0.001' : '1'}
+                    step={line.idExistenciaPresentacion == null ? '0.001' : '1'}
+                    max={selectedChoice?.item.contenidoVariable ? 1 : selectedChoice?.cantidadDisponible}
+                    value={line.cantidad}
+                    disabled={selectedChoice?.item.contenidoVariable ?? false}
+                    onChange={(event) => patchLine(index, { cantidad: event.target.value })}
+                    aria-label={`Cantidad de ${line.producto}`}
+                  />
+                  <div className="money-input"><span>S/</span><input type="number" min="0" step="0.01" value={line.descuentoUnitario} onChange={(event) => patchLine(index, { descuentoUnitario: event.target.value })} aria-label={`Descuento unitario de ${line.producto}`} /></div>
+                  <strong>{currentPrice == null ? 'Al guardar' : currency.format(netUnitPrice)}</strong>
+                  <strong>{currentPrice == null ? 'Precio al guardar' : currency.format(lineNetTotal(line))}</strong>
+                  <button type="button" onClick={() => setLines((current) => current.filter((_, itemIndex) => itemIndex !== index))}><i className="bi bi-trash3" /></button>
+                </article>
+              )
+            })}
+          </div>
+        )}
+        {errors.lines && <span className="commercial-field-error"><i className="bi bi-exclamation-circle" /> {errors.lines}</span>}
+      </section>
+    )}
     <section className="commercial-form-section"><header><span>{kind === 'sale' ? 4 : 3}</span><div><h3>{kind === 'sale' ? 'Comprobante y pago' : 'Resumen económico'}</h3><p>Confirma las condiciones finales antes de registrar.</p></div></header>{kind === 'sale' ? <div className="commercial-payment-grid"><Field label="Comprobante"><select value={receiptType} onChange={(event) => { const type = event.target.value as TipoComprobanteVenta; setReceiptType(type); if (type === 'FACTURA' && selectedClient?.tipoDocumento !== 'RUC') setClientId('') }}><option value="NOTA_VENTA">Nota de venta</option><option value="BOLETA">Boleta</option><option value="FACTURA">Factura</option></select></Field><Field label="Condición de pago"><select value={condition} onChange={(event) => { setCondition(event.target.value as CondicionPagoVenta); setPaidAmount(''); setExpiryDate('') }}><option value="CONTADO">Contado</option><option value="CREDITO">Crédito</option><option value="PARCIAL">Pago parcial</option></select></Field>{condition !== 'CREDITO' && <Field label="Método de pago" error={errors.method}><select value={methodId} onChange={(event) => setMethodId(event.target.value)}><option value="">Seleccionar</option>{methods.map((method) => <option key={method.id} value={method.id}>{method.nombre}</option>)}</select></Field>}{condition === 'PARCIAL' && <Field label="Pago inicial" error={errors.paid}><div className="money-input"><span>S/</span><input type="number" min="0.01" step="0.01" value={paidAmount} onChange={(event) => setPaidAmount(event.target.value)} /></div></Field>}{condition !== 'CONTADO' && <Field label="Fecha de vencimiento" error={errors.expiry}><input type="date" min={today()} value={expiryDate} onChange={(event) => setExpiryDate(event.target.value)} /></Field>}{condition !== 'CREDITO' && <Field label="Referencia de pago"><input value={paymentReference} onChange={(event) => setPaymentReference(event.target.value)} maxLength={120} placeholder="Operación o voucher" /></Field>}<label className={`commercial-tax-toggle ${includeIgv ? 'active' : ''} ${isSaleFromOrder ? 'locked' : ''}`}><input type="checkbox" checked={includeIgv} disabled={isSaleFromOrder} onChange={(event) => setIncludeIgv(event.target.checked)} /><span><i className="bi bi-percent" /></span><span><strong>Precio con IGV incluido (18 %)</strong><small>{isSaleFromOrder ? 'Se conserva el cálculo del pedido.' : 'El IGV se desglosa; no se suma al precio final.'}</small></span><b><i className="bi bi-check2" /></b></label><div className="commercial-totals commercial-totals--sale"><span><small>Valor de venta</small><strong>{currency.format(estimatedSubtotal)}</strong></span><span><small>IGV incluido</small><strong>{currency.format(estimatedIgv)}</strong></span><span><small>Total a pagar</small><strong>{currency.format(estimatedTotal)}</strong></span></div></div> : <div className="commercial-summary-row"><label className={`commercial-tax-toggle ${includeIgv ? 'active' : ''}`}><input type="checkbox" checked={includeIgv} onChange={(event) => setIncludeIgv(event.target.checked)} /><span><i className="bi bi-percent" /></span><span><strong>Precio con IGV incluido (18 %)</strong><small>El IGV se desglosa; no se suma al precio final.</small></span><b><i className="bi bi-check2" /></b></label><div className="commercial-totals"><span><small>Valor de venta</small><strong>{currency.format(estimatedSubtotal)}</strong></span><span><small>IGV incluido</small><strong>{currency.format(estimatedIgv)}</strong></span><span><small>Total estimado</small><strong>{currency.format(estimatedTotal)}</strong></span></div></div>}</section>
   </div><footer><span><i className="bi bi-shield-check" /> La operación se validará con precios, permisos y disponibilidad actuales.</span><div><button className="secondary-button" type="button" onClick={onClose} disabled={isSubmitting}>Cancelar</button><button className="primary-button primary-button--inline" type="submit" disabled={isSubmitting}>{isSubmitting ? <><span className="spinner-border spinner-border-sm" /> Guardando…</> : <><i className="bi bi-check2" /> {kind === 'quote' ? quote ? 'Guardar cambios' : 'Crear cotización' : kind === 'order' ? 'Crear pedido' : 'Registrar venta'}</>}</button></div></footer></form></section></div>
 }

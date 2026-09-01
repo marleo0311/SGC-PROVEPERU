@@ -217,6 +217,10 @@ public class InventarioService {
             );
         }
         if (detalle.getExistenciaPresentacion() != null) {
+            if (!detalle.getExistenciaPresentacion().getPresentacion().isContenidoVariable()) {
+                consumirPresentacionesFijas(sede, detalle, requerida);
+                return;
+            }
             ExistenciaPresentacion existencia = existenciaPresentacionRepository
                 .findForUpdate(detalle.getExistenciaPresentacion().getId())
                 .orElseThrow(() -> new RecursoNoEncontradoException(
@@ -236,6 +240,47 @@ public class InventarioService {
         consumirPresentacionesFraccionadas(
             sede, detalle, requerida, inventario.getStockDisponible()
         );
+    }
+
+    private void consumirPresentacionesFijas(
+        Sede sede,
+        DetalleVenta detalle,
+        BigDecimal requerida
+    ) {
+        int cantidadBultos;
+        try {
+            cantidadBultos = detalle.getCantidad().intValueExact();
+        } catch (ArithmeticException exception) {
+            throw new SolicitudInvalidaException(
+                "La cantidad de cajas, paquetes o rollos debe ser un número entero"
+            );
+        }
+        var presentacion = detalle.getExistenciaPresentacion().getPresentacion();
+        List<ExistenciaPresentacion> disponibles = existenciaPresentacionRepository
+            .findAllForUpdateByPresentacion(
+                sede.getId(), presentacion.getId(), EstadoExistenciaPresentacion.CERRADO
+            );
+        if (disponibles.size() < cantidadBultos) {
+            throw new ReglaNegocioException(
+                "Stock insuficiente de " + presentacion.getNombre() + ". Disponibles: "
+                    + disponibles.size()
+            );
+        }
+        List<ExistenciaPresentacion> seleccionadas = disponibles.subList(0, cantidadBultos);
+        BigDecimal totalSeleccionado = seleccionadas.stream()
+            .map(ExistenciaPresentacion::getCantidadDisponibleBase)
+            .reduce(BigDecimal.ZERO.setScale(ESCALA_STOCK), BigDecimal::add);
+        if (totalSeleccionado.compareTo(requerida) != 0) {
+            throw new OperacionNoPermitidaException(
+                "El contenido físico de los bultos no coincide con la presentación fija"
+            );
+        }
+        detalle.setExistenciaPresentacion(seleccionadas.getFirst());
+        for (ExistenciaPresentacion existencia : seleccionadas) {
+            BigDecimal contenido = existencia.getCantidadDisponibleBase();
+            agotar(existencia);
+            registrarConsumo(detalle, existencia, contenido);
+        }
     }
 
     @Transactional

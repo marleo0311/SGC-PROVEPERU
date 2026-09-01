@@ -41,6 +41,24 @@ public interface ExistenciaPresentacionRepository
     @Query("""
         select e from ExistenciaPresentacion e
         where e.sede.id = :idSede
+          and e.presentacion.id = :idPresentacion
+          and e.estado = :estado
+        order by e.fechaIngreso asc, e.id asc
+        """)
+    List<ExistenciaPresentacion> findAllForUpdateByPresentacion(
+        @Param("idSede") Long idSede,
+        @Param("idPresentacion") Long idPresentacion,
+        @Param("estado") EstadoExistenciaPresentacion estado
+    );
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @EntityGraph(attributePaths = {
+        "sede", "presentacion", "presentacion.producto",
+        "presentacion.producto.unidadBase", "presentacion.unidadMedida"
+    })
+    @Query("""
+        select e from ExistenciaPresentacion e
+        where e.sede.id = :idSede
           and e.presentacion.producto.id = :idProducto
           and e.estado in :estados
         order by e.fechaIngreso asc, e.id asc

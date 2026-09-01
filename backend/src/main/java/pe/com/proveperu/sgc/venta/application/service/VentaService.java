@@ -360,14 +360,25 @@ public class VentaService {
             );
         }
         BigDecimal cantidad = normalizarCantidad(item.cantidad(), unidad);
-        if (existencia != null && cantidad.compareTo(BigDecimal.ONE.setScale(3)) != 0) {
+        if (existencia != null
+            && existencia.getPresentacion().isContenidoVariable()
+            && cantidad.compareTo(BigDecimal.ONE.setScale(3)) != 0) {
             throw new SolicitudInvalidaException(
-                "Cada caja, paquete o rollo físico se vende como una línea de cantidad 1"
+                "Una caja, paquete o rollo de contenido variable se vende individualmente"
+            );
+        }
+        if (existencia != null
+            && !existencia.getPresentacion().isContenidoVariable()
+            && cantidad.stripTrailingZeros().scale() > 0) {
+            throw new SolicitudInvalidaException(
+                "La cantidad de cajas, paquetes o rollos debe ser un número entero"
             );
         }
         BigDecimal factor = existencia == null
             ? factorAUnidadBase(producto, unidad)
-            : existencia.getCantidadDisponibleBase();
+            : existencia.getPresentacion().isContenidoVariable()
+                ? existencia.getCantidadDisponibleBase()
+                : existencia.getPresentacion().getContenidoBasePredeterminado();
         BigDecimal precioPresentacion = existencia == null
             ? null
             : resolverPrecioPresentacion(existencia, tipoPrecio);

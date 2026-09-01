@@ -382,6 +382,93 @@ class VentasIntegrationTests {
     }
 
     @Test
+    void vendeVariosPaquetesFijosComoUnaSolaOpcionYConsumeLosBultosEnOrden()
+        throws Exception {
+        UnidadMedida paquete = new UnidadMedida();
+        paquete.setCodigo("PQ" + UUID.randomUUID().toString().substring(0, 6));
+        paquete.setNombre("Paquete fijo de venta");
+        paquete.setCodigoSunat("PK");
+        paquete.setPermiteDecimales(false);
+        paquete.setEstado(EstadoCatalogo.ACTIVO);
+        paquete = unidadMedidaRepository.save(paquete);
+
+        PresentacionProducto presentacion = new PresentacionProducto();
+        presentacion.setProducto(producto);
+        presentacion.setUnidadMedida(paquete);
+        presentacion.setNombre("Paquete de 50 unidades");
+        presentacion.setContenidoVariable(false);
+        presentacion.setContenidoBasePredeterminado(new BigDecimal("50.000"));
+        presentacion.setPrecioMinorista(new BigDecimal("220.00"));
+        presentacion.setPrecioMayorista(new BigDecimal("200.00"));
+        presentacion.setEstado(EstadoCatalogo.ACTIVO);
+        presentacion = presentacionProductoRepository.save(presentacion);
+
+        var ingreso = inventarioService.registrarPresentaciones(
+            new IngresoPresentacionesRequest(
+                sede.getId(),
+                producto.getId(),
+                presentacion.getId(),
+                5,
+                null,
+                "Ingreso de paquetes fijos para venta agrupada"
+            ),
+            usuario.getUsuarioLogin()
+        );
+        Long idExistenciaRepresentativa = ingreso.presentaciones().getFirst().id();
+
+        mockMvc.perform(post("/api/v1/ventas")
+                .header(HttpHeaders.AUTHORIZATION, bearer(PermisosVenta.VENTAS_CREAR))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "idCliente": %d,
+                      "idSede": %d,
+                      "tipoVenta": "MINORISTA",
+                      "condicionPago": "CONTADO",
+                      "idMetodoPago": %d,
+                      "tipoComprobante": "NOTA_VENTA",
+                      "aplicarIgv": false,
+                      "items": [{
+                        "idProducto": %d,
+                        "idUnidadMedida": %d,
+                        "idExistenciaPresentacion": %d,
+                        "cantidad": 3,
+                        "precioUnitario": 220.00,
+                        "descuento": 0.00
+                      }]
+                    }
+                    """.formatted(
+                        cliente.getId(), sede.getId(), efectivo.getId(),
+                        producto.getId(), paquete.getId(),
+                        idExistenciaRepresentativa
+                    )))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.venta.total").value(660.0))
+            .andExpect(jsonPath("$.detalles[0].cantidad").value(3.0))
+            .andExpect(jsonPath("$.detalles[0].cantidadBase").value(150.0))
+            .andExpect(jsonPath("$.detalles[0].precioUnitario").value(220.0))
+            .andExpect(jsonPath("$.detalles[0].idExistenciaPresentacion")
+                .value(idExistenciaRepresentativa));
+
+        var existencias = existenciaPresentacionRepository
+            .findAllBySede_IdAndPresentacion_Producto_IdAndEstadoInOrderByFechaIngresoAscIdAsc(
+                sede.getId(),
+                producto.getId(),
+                Set.of(
+                    EstadoExistenciaPresentacion.CERRADO,
+                    EstadoExistenciaPresentacion.AGOTADO
+                )
+            );
+        assertThat(existencias)
+            .filteredOn(item -> item.getEstado() == EstadoExistenciaPresentacion.AGOTADO)
+            .hasSize(3);
+        assertThat(existencias)
+            .filteredOn(item -> item.getEstado() == EstadoExistenciaPresentacion.CERRADO)
+            .hasSize(2);
+        assertThat(inventarioActual().getStockFisico()).isEqualByComparingTo("120.000");
+    }
+
+    @Test
     void vendeUnidadesDesdeUnaCajaAbiertaYConservaElSaldo() throws Exception {
         inventario.setStockFisico(BigDecimal.ZERO.setScale(3));
         inventarioRepository.save(inventario);
